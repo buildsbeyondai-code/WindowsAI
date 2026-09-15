@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System Performance Agent</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzBmMTQyMCIvPjxyZWN0IHg9IjYiIHk9IjE2IiB3aWR0aD0iNCIgaGVpZ2h0PSIxMCIgcng9IjEiIGZpbGw9IiM0ZGEzZmYiLz48cmVjdCB4PSIxNCIgeT0iOSIgd2lkdGg9IjQiIGhlaWdodD0iMTciIHJ4PSIxIiBmaWxsPSIjNGRkMDhhIi8+PHJlY3QgeD0iMjIiIHk9IjUiIHdpZHRoPSI0IiBoZWlnaHQ9IjIxIiByeD0iMSIgZmlsbD0iI2ZmOWYyZSIvPjwvc3ZnPg==">
+<style>
+  :root{
+    --bg:#0f1420; --panel:#171d2b; --panel2:#1d2435; --ink:#e7ecf5; --muted:#9aa7bd;
+    --line:#2b3448; --accent:#4da3ff; --red:#ff4d5e; --amber:#ff9f2e; --yellow:#ffd93d;
+    --green:#4dd08a; --violet:#7c8cff; --cyan:#3fd0d4;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:14.5px/1.6 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1560px;margin:0 auto;padding:22px 20px 70px}
+  a{color:var(--accent)}
+  code{font-family:"Cascadia Code",Consolas,monospace;font-size:12.5px;
+    background:#0b1020;border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:#9fd0ff}
+
+  header{background:linear-gradient(135deg,#1b2334,#141a28);border:1px solid var(--line);
+    border-radius:14px;padding:20px 24px;margin-bottom:18px;
+    display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
+  header h1{margin:0 0 4px;font-size:21px;letter-spacing:-.2px}
+  header .sub{color:var(--muted);font-size:13px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .chips span{background:#0d1220;border:1px solid var(--line);border-radius:999px;
+    padding:4px 11px;font-size:12px;color:var(--muted)}
+  .chips b{color:var(--ink)}
+
+  .live{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);
+    white-space:nowrap}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--green);
+    box-shadow:0 0 0 0 rgba(77,208,138,.7);animation:pulse 2s infinite}
+  .dot.stale{background:var(--amber);animation:none}
+  .dot.err{background:var(--red);animation:none}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(77,208,138,.6)}
+    70%{box-shadow:0 0 0 9px rgba(77,208,138,0)}100%{box-shadow:0 0 0 0 rgba(77,208,138,0)}}
+
+  h2{font-size:16px;margin:26px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:10px}
+  h2 .hint{font-size:12px;color:var(--muted);font-weight:400}
+
+  /* top-left view tabs (Summary / Details) */
+  .tabs{display:flex;gap:6px;margin:0 0 12px}
+  .tab{background:var(--panel);border:1px solid var(--line);color:var(--muted);
+    border-radius:10px 10px 0 0;padding:9px 22px;font:600 14px/1 inherit;cursor:pointer;
+    border-bottom:2px solid transparent;transition:color .15s,background .15s,border-color .15s}
+  .tab:hover{color:var(--ink)}
+  .tab.active{background:var(--panel2);color:var(--accent);border-bottom-color:var(--accent)}
+  .summary-lead{font-size:13px;color:var(--muted);margin:2px 0 14px}
+
+  .grid{display:grid;gap:14px}
+  .g-hero{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+  .g-kpi{grid-template-columns:repeat(auto-fit,minmax(232px,1fr))}
+  .g-2{grid-template-columns:repeat(auto-fit,minmax(430px,1fr))}
+  .g-3{grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .card h3{margin:0 0 10px;font-size:13.5px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.05em;font-weight:600;display:flex;justify-content:space-between;
+    align-items:center;gap:8px}
+  .card.alert{border-color:rgba(255,77,94,.5);background:#1c1620}
+
+  .kpi .v{font:600 27px/1.15 "Cascadia Code",Consolas,monospace}
+  .kpi .u{font-size:13px;color:var(--muted);font-weight:400}
+  .kpi .row{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+  .kpi .d{font-size:12.5px;font-weight:700;margin-top:3px}
+  .kpi .t{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .up{color:var(--green)} .down{color:var(--red)} .flat{color:var(--muted)}
+  .v-ok{color:var(--green)} .v-warn{color:var(--amber)} .v-bad{color:var(--red)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;padding:8px 10px;font-size:11.5px;text-transform:uppercase;
+    letter-spacing:.04em;color:var(--muted);border-bottom:1px solid var(--line)}
+  td{padding:8px 10px;border-bottom:1px solid #222b3d;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  .num{text-align:right;font-family:"Cascadia Code",Consolas,monospace;white-space:nowrap}
+  tr.r-regress{background:rgba(255,77,94,.09)}
+  tr.r-regress td:first-child{border-left:3px solid var(--red)}
+  tr.r-met{background:rgba(77,208,138,.07)}
+  tr.r-met td:first-child{border-left:3px solid var(--green)}
+  tr.r-partial td:first-child{border-left:3px solid var(--yellow)}
+
+  .bar{position:relative;height:15px;background:#0b1020;border:1px solid var(--line);
+    border-radius:4px;overflow:hidden;min-width:96px}
+  .bar i{position:absolute;left:0;top:0;bottom:0;transition:width .6s ease}
+  .bar span{position:absolute;inset:0;text-align:center;
+    font:10.5px/15px "Cascadia Code",Consolas,monospace;color:#fff;text-shadow:0 0 3px #000}
+  .b-g i{background:linear-gradient(90deg,#2e8b60,#4dd08a)}
+  .b-a i{background:linear-gradient(90deg,#9a7a1e,#ffd93d)}
+  .b-r i{background:linear-gradient(90deg,#8b2d36,#ff4d5e)}
+
+  .tag{display:inline-block;border-radius:4px;padding:2px 8px;font-size:10.8px;
+    font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+  .tg{background:rgba(77,208,138,.18);color:#9ff0c4;border:1px solid rgba(77,208,138,.45)}
+  .ta{background:rgba(255,217,61,.15);color:#ffe479;border:1px solid rgba(255,217,61,.4)}
+  .tr{background:rgba(255,77,94,.2);color:#ffb0b7;border:1px solid rgba(255,77,94,.55)}
+  .tb{background:rgba(124,140,255,.18);color:#bcc4ff;border:1px solid rgba(124,140,255,.45)}
+
+  .legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:10px;font-size:12px;color:var(--muted)}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+  svg{display:block;width:100%;height:auto;overflow:visible}
+  .note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.55}
+  .toggle{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;
+    color:var(--muted);cursor:pointer;user-select:none}
+  .toggle input{cursor:pointer;margin:0}
+  body.compact .note{display:none}
+  /* .note.keep carries actual data (e.g. hardware cards), not verbose prose,
+     so it must stay visible when descriptions are hidden. */
+  body.compact .note.keep{display:block}
+  .banner{border:1px solid var(--line);border-left:4px solid var(--violet);background:#141b2b;
+    border-radius:8px;padding:11px 15px;margin:14px 0;font-size:13px}
+  .banner.warn{border-left-color:var(--amber)}
+  .banner.bad{border-left-color:var(--red);background:#1c1620}
+  footer{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);
+    color:var(--muted);font-size:12px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  /* ---- Live Architecture tab ---- */
+  .arch-legend{display:flex;gap:18px;flex-wrap:wrap;margin:2px 0 14px;font-size:12.5px;color:var(--muted)}
+  .arch-legend .lg{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:middle}
+  .lg-g{background:var(--green)} .lg-a{background:var(--yellow)} .lg-r{background:var(--red)} .lg-m{background:var(--muted)}
+  .arch-wrap{background:linear-gradient(160deg,#141a28,#0d111b);border:1px solid var(--line);
+    border-radius:16px;padding:12px;overflow:hidden}
+  .arch-wrap svg{display:block;width:100%;height:auto}
+  .an-title{font:600 13px 'Segoe UI',sans-serif;fill:var(--ink)}
+  .an-sub{font:11px 'Cascadia Code',Consolas,monospace;fill:var(--muted)}
+  .an-label{font:12px 'Segoe UI',sans-serif;fill:var(--muted)}
+  .an-val{font:600 12.5px 'Cascadia Code',Consolas,monospace;fill:var(--ink)}
+  .arch-flow{stroke-dasharray:6 8;animation:archdash 1.1s linear infinite}
+  @keyframes archdash{to{stroke-dashoffset:-14}}
+
+  /* ---- Details tab: sticky section nav + grouped sections ---- */
+  .det-nav{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:7px;
+    background:rgba(15,20,32,.92);backdrop-filter:blur(6px);padding:11px 4px;margin:0 0 10px;
+    border-bottom:1px solid var(--line)}
+  .det-nav a{font-size:12.5px;color:var(--muted);text-decoration:none;background:var(--panel);
+    border:1px solid var(--line);border-radius:999px;padding:5px 13px;transition:color .15s,border-color .15s}
+  .det-nav a:hover{color:var(--ink);border-color:var(--accent)}
+  .det-sect{scroll-margin-top:64px;padding:4px 0 16px;border-bottom:1px solid #1b2231;margin-bottom:14px}
+  .det-sect:last-child{border-bottom:none;margin-bottom:0}
+  .det-sub{font-size:14px;margin:20px 0 10px;color:var(--muted);font-weight:600;
+    display:flex;align-items:center;gap:10px}
+
+  /* ---- Common Fix button + modal ---- */
+  .fixbtn{background:var(--accent);color:#06101f;border:1px solid var(--accent);
+    border-radius:9px;padding:8px 14px;font:600 13px/1 inherit;cursor:pointer;transition:filter .15s}
+  .fixbtn:hover{filter:brightness(1.1)}
+  .fixbtn.ghost{background:transparent;color:var(--accent)}
+  .fixbtn.danger{background:var(--red);border-color:var(--red);color:#fff}
+  .fixbtn:disabled{opacity:.5;cursor:not-allowed;filter:none}
+  .fix-overlay{position:fixed;inset:0;background:rgba(6,10,20,.72);z-index:1000;
+    display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+  .fix-overlay[hidden]{display:none}
+  .fix-panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:20px 22px;max-width:760px;width:100%;box-shadow:0 18px 60px rgba(0,0,0,.5)}
+  .fix-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .fix-x{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer}
+  .fix-x:hover{color:var(--ink)}
+  .fix-note{font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.5}
+  .fix-list{display:flex;flex-direction:column;gap:9px;margin-bottom:14px}
+  .fix-item{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:11px 13px;display:flex;gap:11px;align-items:flex-start}
+  .fix-item .meta{flex:1}
+  .fix-item .title{font-weight:600;font-size:13.5px}
+  .fix-item .why{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.45}
+  .fix-item input[type=checkbox]{margin-top:3px;width:16px;height:16px;flex:none}
+  .fix-risk{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;
+    font-weight:600;margin-left:6px;vertical-align:middle}
+  .risk-safe{background:#123227;color:#4dd08a}
+  .risk-caution{background:#3a2f12;color:#ffd93d}
+  .risk-manual{background:#3a1c1f;color:#ff8a94}
+  .fix-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .fix-result{margin-top:14px;font:12px/1.5 "Cascadia Code",Consolas,monospace;
+    white-space:pre-wrap;color:var(--muted)}
+  .fix-result .ok{color:var(--green)} .fix-result .err{color:var(--red)}
+  .fix-result .skip{color:var(--amber)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="tabs" role="tablist" aria-label="Dashboard views">
+  <button class="tab" id="tab-summary" role="tab" aria-controls="view-summary" aria-selected="true">Summary</button>
+  <button class="tab" id="tab-details" role="tab" aria-controls="view-details" aria-selected="false">Details</button>
+  <button class="tab" id="tab-arch" role="tab" aria-controls="view-architecture" aria-selected="false">Live Architecture</button>
+</nav>
+
+<header>
+  <div>
+    <h1>System Performance Dashboard</h1>
+    <div class="sub">Live performance tracking against your machine's captured baseline</div>
+    <div class="chips" id="chips"></div>
+  </div>
+  <div style="text-align:right">
+    <div class="live"><span class="dot" id="dot"></span><span id="liveTxt">connecting…</span></div>
+    <div class="sub" style="margin-top:6px" id="refreshIn"></div>
+    <label class="toggle" title="Hide the long explanatory notes for a crisp view">
+      <input type="checkbox" id="hideDesc"> Hide descriptions</label>
+    <div style="margin-top:10px">
+      <button id="commonFixBtn" class="fixbtn" title="Detect and fix recurring common issues">
+        &#128295; Common Fix</button>
+    </div>
+  </div>
+</header>
+
+<div id="alerts"></div>
+
+<!-- Common Fix modal (hidden until opened) -->
+<div id="fixModal" class="fix-overlay" role="dialog" aria-modal="true"
+     aria-labelledby="fixModalTitle" hidden>
+  <div class="fix-panel">
+    <div class="fix-head">
+      <h3 id="fixModalTitle" style="margin:0">&#128295; Common Fix</h3>
+      <button id="fixClose" class="fix-x" aria-label="Close">&#10005;</button>
+    </div>
+    <div class="fix-note">Detects recurring common issues and new regressions from
+      the live scorecard. <b>Safe</b> and <b>caution</b> fixes can be applied here
+      (when execution is enabled in the config); <b>manual</b> ones show the exact
+      command to run yourself. Nothing runs until you choose <b>Apply</b>.</div>
+    <div id="fixList" class="fix-list">Loading…</div>
+    <div class="fix-actions">
+      <button id="fixPreview" class="fixbtn ghost">Preview (dry-run)</button>
+      <button id="fixApply" class="fixbtn danger">Apply selected fixes</button>
+    </div>
+    <div id="fixResult" class="fix-result"></div>
+  </div>
+</div>
+
+<div id="view-summary"></div>
+
+<div id="view-details">
+
+<nav class="det-nav" aria-label="Details sections">
+  <a href="#sect-overview">Overview</a>
+  <a href="#sect-scorecard">Scorecard</a>
+  <a href="#sect-trends">Trends</a>
+  <a href="#sect-browser">Browser</a>
+  <a href="#sect-wsl">WSL &amp; kernel</a>
+  <a href="#sect-wifi">Wi-Fi</a>
+  <a href="#sect-network">Network</a>
+  <a href="#sect-hardware">Hardware</a>
+  <a href="#sect-drivers">Drivers</a>
+  <a href="#sect-components">Components</a>
+</nav>
+
+<section class="det-sect" id="sect-overview">
+  <h2>Overview <span class="hint">headline gauges &amp; key metrics</span></h2>
+  <div class="grid g-hero" id="hero"></div>
+  <h3 class="det-sub">Key metrics <span class="hint">value · change vs baseline · live trend</span></h3>
+  <div class="grid g-kpi" id="kpis"></div>
+</section>
+
+<section class="det-sect" id="sect-scorecard">
+  <h2>Success-criteria scorecard <span class="hint">progress = (typical − baseline) ÷ (target − baseline); scored on a rolling median, not a single sample</span></h2>
+  <div id="selfimprove"></div>
+  <div class="card"><div id="scorecard"></div></div>
+</section>
+
+<section class="det-sect" id="sect-trends">
+  <h2>Trends <span class="hint">rolling history, sampled every 20 s</span></h2>
+  <div class="grid g-2" id="charts"></div>
+</section>
+
+<section class="det-sect" id="sect-browser">
+  <h2>Browser processes <span class="hint">ownership analysis — which processes can actually be closed</span></h2>
+  <div class="grid g-3" id="browser"></div>
+</section>
+
+<section class="det-sect" id="sect-wsl">
+  <h2>WSL 2 guest &amp; kernel pools</h2>
+  <div class="grid g-3" id="wsl"></div>
+</section>
+
+<section class="det-sect" id="sect-wifi">
+  <h2>Wi-Fi connection <span class="hint">live association — signal quality, negotiated PHY rates, band &amp; channel</span></h2>
+  <div class="grid g-3" id="wifi"></div>
+</section>
+
+<section class="det-sect" id="sect-network">
+  <h2>Network optimisation <span class="hint">TCP footprint, active adapters &amp; derived optimisation advice</span></h2>
+  <div class="grid g-3" id="netopt"></div>
+</section>
+
+<section class="det-sect" id="sect-hardware">
+  <h2>Hardware health <span class="hint">Device-Manager faults, storage &amp; battery, plus a manual known-issues watchlist</span></h2>
+  <div class="grid g-3" id="hardware"></div>
+</section>
+
+<section class="det-sect" id="sect-drivers">
+  <h2>Drivers health <span class="hint">Signed-driver inventory, stale drivers &amp; driver-specific Device-Manager faults</span></h2>
+  <div class="grid g-3" id="drivers"></div>
+</section>
+
+<section class="det-sect" id="sect-components">
+  <h2>Component upgrades — performance improvement <span class="hint">current vs recommended version · estimated performance gain · major components</span></h2>
+  <div id="components"></div>
+</section>
+
+</div><!-- /view-details -->
+
+<div id="view-architecture">
+  <div class="summary-lead">How System Performance Agent works, end to end — the read-only
+    PowerShell collector samples the Windows host every 20 s; the Python collector persists
+    history and feeds the scoring &amp; self-improving engines; the advisor derives
+    recommendations; and the Flask/waitress API serves the snapshot to this page. Animated
+    arrows show live data flow; the badge is green while the collector is healthy.</div>
+  <div class="arch-legend">
+    <span><i class="lg lg-g"></i>healthy / on target</span>
+    <span><i class="lg lg-a"></i>attention</span>
+    <span><i class="lg lg-r"></i>error / regressed</span>
+    <span style="color:#4da3ff">→ live data flow</span>
+    <span style="color:#ff9f2e">→ recalibrate baseline</span>
+    <span style="color:#4dd08a">→ test-suite validation</span>
+  </div>
+  <div class="arch-wrap"><div id="archDiagram"></div></div>
+</div>
+
+<footer>
+  <div id="footHost">Detecting machine…</div>
+  <div style="margin-top:5px"><b>SysPerf</b> — a read-only System Performance Agent. The collector only
+    reads counters and process tables; no endpoint modifies system state. Targets are derived from this
+    machine's own captured baseline, so the scorecard is meaningful on any Windows 11 machine.</div>
+  <div style="margin-top:5px" id="footMeta"></div>
+</footer>
+</div>
+
+<script>
+"use strict";
+const REFRESH_MS = 20000;
+// Keep the URL token in memory and attach it to every API request.
+const apiToken = new URLSearchParams(window.location.search).get("token") || "";
+function apiFetch(url, options = {}) {
+  const headers = new Headers(options.headers || {});
+  if (apiToken) headers.set("X-SysPerf-Token", apiToken);
+  return fetch(url, {...options, headers});
+}
+const $ = (id) => document.getElementById(id);
+const fmt = (n, d = 0) => (n === null || n === undefined || Number.isNaN(n))
+  ? "—" : Number(n).toLocaleString(undefined, {minimumFractionDigits: d, maximumFractionDigits: d});
+const esc = (s) => String(s).replace(/[&<>"']/g, c =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ---- compact view: hide verbose descriptions (ON by default) ---- */
+(function initCompact() {
+  const cb = $("hideDesc");
+  if (!cb) return;
+  const saved = localStorage.getItem("perfdash_hide_desc");
+  const hide = (saved === null) ? true : (saved === "1");   // default: hidden
+  cb.checked = hide;
+  document.body.classList.toggle("compact", hide);
+  cb.addEventListener("change", () => {
+    document.body.classList.toggle("compact", cb.checked);
+    localStorage.setItem("perfdash_hide_desc", cb.checked ? "1" : "0");
+  });
+})();
+
+/* ---------- generic SVG helpers (no external chart library) ---------- */
+
+function donut(pct, label, sub, color) {
+  const R = 54, C = 2 * Math.PI * R, on = C * Math.max(0, Math.min(100, pct)) / 100;
+  return `<svg viewBox="0 0 140 140" role="img" aria-label="${esc(label)}: ${pct}%"
+      style="max-width:168px;margin:0 auto">
+    <circle cx="70" cy="70" r="${R}" fill="none" stroke="#0b1020" stroke-width="15"/>
+    <circle cx="70" cy="70" r="${R}" fill="none" stroke="${color}" stroke-width="15"
+      stroke-linecap="round" stroke-dasharray="${on} ${C - on}"
+      transform="rotate(-90 70 70)" style="transition:stroke-dasharray .8s ease"/>
+    <text x="70" y="66" text-anchor="middle" fill="#e7ecf5"
+      style="font:600 20px 'Cascadia Code',Consolas,monospace">${pct}%</text>
+    <text x="70" y="86" text-anchor="middle" fill="#9aa7bd" style="font-size:11px">${esc(sub)}</text>
+  </svg>`;
+}
+
+function sparkline(data, color, target) {
+  const pts = data.filter(v => v !== null && v !== undefined);
+  if (pts.length < 2) return `<svg viewBox="0 0 200 40" aria-hidden="true"></svg>`;
+  const W = 200, H = 40, min = Math.min(...pts), max = Math.max(...pts);
+  const span = (max - min) || 1;
+  const x = i => i * W / (pts.length - 1);
+  const y = v => H - 3 - ((v - min) / span) * (H - 8);
+  const line = pts.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+  const area = `${line}L${W},${H}L0,${H}Z`;
+  const uid = "sg" + Math.random().toString(36).slice(2, 8);
+  let tl = "";
+  if (target !== undefined && target >= min && target <= max) {
+    tl = `<line x1="0" y1="${y(target).toFixed(1)}" x2="${W}" y2="${y(target).toFixed(1)}"
+      stroke="#9aa7bd" stroke-width="1" stroke-dasharray="3 3" opacity=".7"/>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img"
+      aria-label="trend, latest ${fmt(pts[pts.length-1])}" style="height:40px">
+    <defs><linearGradient id="${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity=".38"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    <path d="${area}" fill="url(#${uid})"/>${tl}
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="1.8"/>
+  </svg>`;
+}
+
+function lineChart(cfg) {
+  const {series, t, target, targetLabel, unit = ""} = cfg;
+  const W = 620, H = 210, L = 58, R = 14, T = 12, B = 26;
+  const live = series.filter(s => s.data.some(v => v !== null && v !== undefined));
+  if (!live.length || !t.length) return `<div class="note">Collecting data…</div>`;
+  let all = [];
+  live.forEach(s => s.data.forEach(v => { if (v !== null && v !== undefined) all.push(v); }));
+  if (target !== undefined) all.push(target);
+  let min = Math.min(...all), max = Math.max(...all);
+  const pad = (max - min) * 0.12 || Math.max(1, max * 0.05);
+  min = Math.max(0, min - pad); max = max + pad;
+  const span = (max - min) || 1;
+  const n = t.length;
+  const px = i => L + (n === 1 ? 0 : i * (W - L - R) / (n - 1));
+  const py = v => T + (H - T - B) - ((v - min) / span) * (H - T - B);
+
+  let grid = "", ticks = 5;
+  for (let i = 0; i <= ticks; i++) {
+    const v = min + span * i / ticks, y = py(v).toFixed(1);
+    grid += `<line x1="${L}" y1="${y}" x2="${W - R}" y2="${y}" stroke="#222b3d" stroke-width="1"/>
+      <text x="${L - 7}" y="${(+y + 3.5).toFixed(1)}" text-anchor="end" fill="#7d89a0"
+        style="font-size:10px">${fmt(v, v < 20 ? 1 : 0)}</text>`;
+  }
+  let tgt = "";
+  if (target !== undefined) {
+    tgt = `<line x1="${L}" y1="${py(target).toFixed(1)}" x2="${W - R}" y2="${py(target).toFixed(1)}"
+        stroke="#ff9f2e" stroke-width="1.4" stroke-dasharray="5 4"/>
+      <text x="${W - R}" y="${(py(target) - 5).toFixed(1)}" text-anchor="end" fill="#ffbe6e"
+        style="font-size:10px">${esc(targetLabel || "target")} ${fmt(target)}</text>`;
+  }
+  let paths = "";
+  live.forEach(s => {
+    let d = "", open = false;
+    s.data.forEach((v, i) => {
+      if (v === null || v === undefined) { open = false; return; }
+      d += `${open ? "L" : "M"}${px(i).toFixed(1)},${py(v).toFixed(1)}`; open = true;
+    });
+    paths += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2"
+      stroke-linejoin="round"/>`;
+    const lastI = s.data.length - 1, lv = s.data[lastI];
+    if (lv !== null && lv !== undefined)
+      paths += `<circle cx="${px(lastI).toFixed(1)}" cy="${py(lv).toFixed(1)}" r="3.2"
+        fill="${s.color}"/>`;
+  });
+  const tf = (ts) => ts ? new Date(ts * 1000).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : "";
+  const xl = `<text x="${L}" y="${H - 6}" fill="#7d89a0" style="font-size:10px">${tf(t[0])}</text>
+    <text x="${W - R}" y="${H - 6}" text-anchor="end" fill="#7d89a0"
+      style="font-size:10px">${tf(t[n - 1])}</text>`;
+  const legend = live.map(s =>
+    `<span><i style="background:${s.color}"></i>${esc(s.name)}${unit ? " (" + unit + ")" : ""}</span>`
+  ).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(live.map(s=>s.name).join(", "))} over time">
+    ${grid}${tgt}${paths}${xl}
+    <line x1="${L}" y1="${T}" x2="${L}" y2="${H - B}" stroke="#2b3448"/>
+    <line x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}" stroke="#2b3448"/>
+  </svg><div class="legend">${legend}</div>`;
+}
+
+function stackedBar(segs, total, caption) {
+  const W = 620, H = 46;
+  let x = 0, rects = "", labels = "";
+  const sum = segs.reduce((a, s) => a + s.value, 0) || 1;
+  segs.forEach(s => {
+    const w = s.value / sum * W;
+    if (w > 0) {
+      rects += `<rect x="${x.toFixed(1)}" y="0" width="${w.toFixed(1)}" height="26"
+        fill="${s.color}" rx="2"/>`;
+      if (w > 34) labels += `<text x="${(x + w / 2).toFixed(1)}" y="18" text-anchor="middle"
+        fill="#0f1420" style="font:700 12px 'Cascadia Code',monospace">${s.value}</text>`;
+    }
+    x += w;
+  });
+  const legend = segs.map(s =>
+    `<span><i style="background:${s.color}"></i>${esc(s.name)} — <b style="color:#e7ecf5">${s.value}</b></span>`
+  ).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(caption)}">${rects}${labels}
+    <text x="0" y="42" fill="#7d89a0" style="font-size:10.5px">${esc(caption)}</text></svg>
+    <div class="legend">${legend}</div>`;
+}
+
+function donutSegments(items, caption) {
+  const R = 58, IR = 34, CX = 78, CY = 78;
+  const total = items.reduce((a, i) => a + i.value, 0) || 1;
+  let a0 = -Math.PI / 2, paths = "";
+  items.forEach(it => {
+    const a1 = a0 + it.value / total * Math.PI * 2;
+    const big = (a1 - a0) > Math.PI ? 1 : 0;
+    const p = (r, a) => `${(CX + r * Math.cos(a)).toFixed(2)},${(CY + r * Math.sin(a)).toFixed(2)}`;
+    paths += `<path d="M${p(R,a0)}A${R},${R} 0 ${big} 1 ${p(R,a1)}L${p(IR,a1)}A${IR},${IR} 0 ${big} 0 ${p(IR,a0)}Z"
+      fill="${it.color}" stroke="#171d2b" stroke-width="1.5"/>`;
+    a0 = a1;
+  });
+  const legend = items.map(i =>
+    `<span><i style="background:${i.color}"></i>${esc(i.name)} — <b style="color:#e7ecf5">${i.value}</b></span>`
+  ).join("");
+  return `<svg viewBox="0 0 156 156" style="max-width:170px;margin:0 auto" role="img"
+      aria-label="${esc(caption)}">${paths}
+    <text x="78" y="74" text-anchor="middle" fill="#e7ecf5"
+      style="font:600 20px 'Cascadia Code',monospace">${total}</text>
+    <text x="78" y="90" text-anchor="middle" fill="#9aa7bd" style="font-size:10px">procs</text>
+  </svg><div class="legend">${legend}</div>`;
+}
+
+function hbars(items) {
+  // Group max is used only for items that do NOT declare their own reference
+  // max. Count-type metrics (e.g. process counts) must pass an explicit `max`
+  // so they are not scaled against incommensurable units (e.g. disk GB), which
+  // otherwise renders a healthy small count as a misleading near-empty bar.
+  const gmax = Math.max(...items.map(i => i.value)) || 1;
+  return `<table><tbody>${items.map(i => {
+    const m = (i.max != null ? i.max : gmax) || 1;
+    const pct = Math.max(0, Math.min(100, i.value / m * 100));
+    return `<tr>
+    <td>${esc(i.name)}</td>
+    <td style="width:52%"><div class="bar ${i.cls}"><i style="width:${pct.toFixed(1)}%"></i></div></td>
+    <td class="num">${fmt(i.value)}${i.unit || ""}</td></tr>`;
+  }).join("")}</tbody></table>`;
+}
+
+/* ---------------------------- rendering ---------------------------- */
+
+const COL = {commit:"#4da3ff", comp:"#7c8cff", avail:"#4dd08a", vmmem:"#ff4d5e",
+  handles:"#3fd0d4", browser:"#ff9f2e", paged:"#ff6b78", nonpaged:"#ffd93d", cpu:"#9aa7bd"};
+
+function statusCls(s) { return s === "met" ? "tg" : s === "regress" ? "tr"
+  : s === "measuring" ? "tb" : "ta"; }
+function barCls(p, s) { return s === "met" ? "b-g" : p >= 60 ? "b-a" : "b-r"; }
+
+// Per-row self-improving detail: personal best, adaptive stretch target, today's typical.
+function adaptiveNote(a) {
+  if (!a) return "";
+  if (a.learning) return `<div class="note" style="margin:3px 0 0;color:#7c8cff">
+    ⟳ self-improving: learning your pattern (${a.n || 0} samples)…</div>`;
+  const badges = [];
+  if (a.improved_today) badges.push(`<span class="tag tg">★ new personal best today</span>`);
+  else if (a.at_personal_best) badges.push(`<span class="tag tg">at personal best</span>`);
+  return `<div class="note" style="margin:3px 0 0">
+    ⟳ personal best <b>${fmt(a.personal_best,0)}</b>${a.best_date ? ` (${esc(a.best_date)})` : ""}
+    · adaptive target <b>${fmt(a.adaptive_target,0)}</b>
+    · today ~<b>${fmt(a.today_typical,0)}</b>
+    ${a.adaptive_progress !== null && a.adaptive_progress !== undefined
+      ? ` · <b>${a.adaptive_progress}%</b> of goal` : ""}
+    ${badges.join(" ")}</div>`;
+}
+
+function render(d) {
+  const L = d.latest || {}, S = d.scorecard || {}, B = d.browser || {}, M = d.meta || {};
+  const ser = d.series || {};
+
+  /* chips */
+  $("chips").innerHTML = [
+    `Uptime <b>${fmt(L.uptime_h,1)} h</b>`,
+    `RAM <b>${fmt(L.total_ram_mb)} MB</b>`,
+    `CPU <b>${fmt(L.cpu_pct,1)}%</b> · queue <b>${fmt(L.cpu_queue)}</b>`,
+    `Processes <b>${fmt(L.processes)}</b>`,
+    `Services <b>${L.services_running ?? "—"}/${L.services_total ?? "—"}</b>`,
+    `Samples <b>${M.samples}</b>`,
+    `Ver <b>${M.version ?? "—"}</b>`
+  ].map(t => `<span>${t}</span>`).join("");
+
+  /* alerts */
+  const al = [];
+  const vm = S.rows?.find(r => r.key === "vmmem_mb");
+  const trend = S.vmmem_trend ?? 0;
+  if (vm && (vm.status === "regress" || vm.status === "partial")) {
+    al.push(`<div class="banner ${vm.status === "regress" ? "bad" : "warn"}">
+      <b>vmmemWSL: ${esc(vm.note || "")}.</b> Now ${fmt(L.vmmem_mb)} MB (cap 10,240 MB),
+      trending <b>${trend > 0 ? "+" : ""}${fmt(trend,0)} MB/h</b>.
+      ${L.wsl && L.wsl.cap_active
+        ? "The .wslconfig cap IS active."
+        : `<b>The .wslconfig cap is written but NOT active</b> — the guest still sees
+           ${fmt(L.wsl?.total_mb)} MB and ${L.wsl?.nproc} vCPUs. Run <code>wsl --shutdown</code>
+           from PowerShell to apply it.`}
+    </div>`);
+  } else if (vm && vm.status === "measuring") {
+    al.push(`<div class="banner"><b>vmmemWSL trend is still being measured.</b>
+      ${fmt(L.vmmem_mb)} MB, under the 10,240 MB cap. This criterion is
+      "under cap <em>and falling</em>", so it is excluded from the overall score until
+      enough samples exist to establish a slope
+      (${S.scored}/${S.total_criteria} criteria currently scored).
+      ${L.wsl && !L.wsl.cap_active
+        ? "Note the <code>.wslconfig</code> cap is not yet active — run <code>wsl --shutdown</code>."
+        : ""}</div>`);
+  }
+  const bm = (d.baseline && d.baseline.metrics) || {};
+  // Criterion rows keyed for lookup: the SINGLE source of truth for every
+  // baseline/target/threshold shown below (never hardcode a machine-specific number).
+  const rowByKey = {};
+  (S.rows || []).forEach(r => { rowByKey[r.key] = r; });
+  if (bm.pool_paged_mb && L.pool_paged_mb > bm.pool_paged_mb * 1.2) {
+    al.push(`<div class="banner warn"><b>Kernel paged pool elevated.</b> ${fmt(L.pool_paged_mb)} MB vs
+      ${fmt(bm.pool_paged_mb)} MB baseline (+${(((L.pool_paged_mb/bm.pool_paged_mb)-1)*100).toFixed(1)}%).
+      Kernel paged pool grows with resident security/filter drivers and is usually managed by IT.</div>`);
+  }
+  if (M.error) al.push(`<div class="banner bad"><b>Collector error:</b> ${esc(M.error)}</div>`);
+  $("alerts").innerHTML = al.join("");
+
+  /* hero gauges */
+  const oi = computeCategories(d).overall;
+  const oiColor = oi >= 80 ? "#4dd08a" : oi >= 50 ? "#ffd93d" : "#ff4d5e";
+  $("hero").innerHTML = `
+    <div class="card">${donut(oi, "System score", "score", oiColor)}
+      <div style="text-align:center;margin-top:4px"><b>System score</b>
+      <div class="note" style="margin-top:2px">mean of the 10 Summary categories</div></div></div>
+    <div class="card">${donut(100 - oi, "Room for improvement", "room left", "#ff9f2e")}
+      <div style="text-align:center;margin-top:4px"><b>Room for improvement</b>
+      <div class="note" style="margin-top:2px">100 − system score (matches the Summary tab)</div></div></div>
+    <div class="card"><h3>Criteria status</h3>
+      ${hbars([
+        {name:"Met", value:S.counts?.met ?? 0, cls:"b-g"},
+        {name:"Partial", value:S.counts?.partial ?? 0, cls:"b-a"},
+        {name:"Regressed", value:S.counts?.regress ?? 0, cls:"b-r"},
+        {name:"Measuring", value:S.counts?.measuring ?? 0, cls:"b-a"}
+      ])}
+      <div class="note">${S.scored ?? "—"} of ${S.total_criteria ?? 8} criteria scored.
+        Criteria still being measured are excluded from the overall figure rather than
+        assumed good.</div></div>
+    <div class="card"><h3>Memory pressure right now</h3>
+      ${hbars([
+        {name:"Commit charge", value:L.committed_mb, cls:(rowByKey.committed_mb && L.committed_mb<=rowByKey.committed_mb.target)?"b-g":"b-a", unit:" MB"},
+        {name:"Physical RAM", value:L.total_ram_mb, cls:"b-a", unit:" MB"},
+        {name:"Available", value:L.available_mb, cls:(rowByKey.available_mb && L.available_mb>=rowByKey.available_mb.target)?"b-g":"b-a", unit:" MB"},
+        {name:"Compression", value:L.compression_mb, cls:(rowByKey.compression_mb && L.compression_mb<=rowByKey.compression_mb.target)?"b-g":"b-a", unit:" MB"}
+      ])}
+      <div class="note">${L.committed_mb < L.total_ram_mb
+        ? "Commit charge is below physical RAM — compression is off the hot path."
+        : "<b style='color:#ff6b78'>Commit charge exceeds physical RAM</b> — compression is on the hot path."}</div>
+    </div>`;
+
+  /* KPI cards — driven entirely by the scorecard rows so baseline/target and
+     the (smoothed) change/status are a SINGLE source of truth with config.py.
+     No hardcoded baselines/targets here: they would drift from the criteria. */
+  const kpi = (label, key, unit, color) => {
+    const r = rowByKey[key];
+    if (!r) return "";
+    const lower = !r.higher_is_better;
+    const val = L[key];                       // live headline value
+    const chg = r.change_pct;                 // sustained change vs baseline
+    const good = r.status === "met";
+    const worse = r.status === "regress";
+    return `<div class="card kpi ${worse ? "alert" : ""}">
+      <h3>${esc(label)}${good ? '<span class="tag tg">target</span>'
+        : worse ? '<span class="tag tr">regressed</span>' : ""}</h3>
+      <div class="row"><div>
+        <div class="v ${good ? "v-ok" : worse ? "v-bad" : "v-warn"}">${fmt(val)}<span class="u"> ${unit}</span></div>
+        <div class="d ${worse ? "down" : "up"}">${chg > 0 ? "▲ +" : "▼ "}${Math.abs(chg).toFixed(1)}% vs baseline</div>
+        <div class="t">baseline ${fmt(r.baseline)} · target ${lower ? "<" : ">"} ${fmt(r.target)}</div>
+      </div></div>
+      ${sparkline(ser[key] || [], color, r.target)}</div>`;
+  };
+  $("kpis").innerHTML = [
+    kpi("Commit charge", "committed_mb", "MB", COL.commit),
+    kpi("Memory Compression", "compression_mb", "MB", COL.comp),
+    kpi("Available physical", "available_mb", "MB", COL.avail),
+    kpi("vmmemWSL", "vmmem_mb", "MB", COL.vmmem),
+    kpi("Browser processes", "browser_procs", "", COL.browser),
+    kpi("Active app handles", "handles", "", COL.handles)
+  ].join("");
+
+  /* self-improving summary */
+  const A = S.adaptive || {};
+  $("selfimprove").innerHTML = (A.self_improvement_score === null || A.self_improvement_score === undefined)
+    ? `<div class="banner" style="background:#141a2e;border-color:#2a3350;color:#bcc4ff">
+        ⟳ <b>Self-improving scorecard</b> is learning your day-to-day pattern
+        (${A.learning || 0} of ${A.metrics_tracked || 0} metrics still gathering baseline).
+        Adaptive targets appear once enough samples accumulate.</div>`
+    : `<div class="card" style="margin-bottom:14px">
+        <div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap">
+          <div style="min-width:150px">
+            <div class="hint">Self-improvement score</div>
+            <div style="font-size:30px;font-weight:700;color:#4dd08a">${A.self_improvement_score}%</div>
+            <div class="hint">vs your personal-best goals</div>
+          </div>
+          <div class="chips" style="gap:8px">
+            <span>★ improved today <b>${A.improved_today || 0}</b></span>
+            <span>at personal best <b>${A.at_personal_best || 0}</b></span>
+            <span>metrics tracked <b>${A.metrics_scored || 0}/${A.metrics_tracked || 0}</b></span>
+            ${A.learning ? `<span>learning <b>${A.learning}</b></span>` : ""}
+          </div>
+        </div>
+        <div class="note" style="margin-top:8px">Targets ratchet toward the best day you have
+          recorded, then a little beyond it — so the bar tightens as your habits improve. Scored
+          on today's typical value, not a single noisy reading.</div></div>`;
+
+  /* scorecard */
+  const rows = (S.rows || []).map(r => {
+    const hasProg = r.progress !== null && r.progress !== undefined;
+    const bar = hasProg
+      ? `<div class="bar ${barCls(r.progress, r.status)}">
+           <i style="width:${Math.max(2, r.progress)}%"></i><span>${r.progress}%</span></div>`
+      : `<div class="bar"><span style="color:#9aa7bd">measuring…</span></div>`;
+    return `<tr class="r-${r.status}">
+    <td><b>${esc(r.label)}</b>${r.note ? `<div class="note" style="margin:2px 0 0">${esc(r.note)}</div>` : ""}
+      ${r.key === "browser_procs" ? `<div class="note" style="margin:2px 0 0">target = the measured realistic floor for this machine</div>` : ""}
+      ${adaptiveNote(r.adaptive)}</td>
+    <td class="num">${fmt(r.baseline)}</td>
+    <td class="num">${fmt(r.current)}</td>
+    <td class="num">${r.higher_is_better ? "&gt;" : "&lt;"} ${fmt(r.target)}</td>
+    <td class="num ${(r.change_pct > 0) === !r.higher_is_better ? "down" : "up"}">
+      ${r.change_pct > 0 ? "+" : ""}${r.change_pct}%</td>
+    <td>${bar}</td>
+    <td class="num">${hasProg ? r.room + "%" : "—"}</td>
+    <td><span class="tag ${statusCls(r.status)}">${r.status}</span></td></tr>`;
+  }).join("");
+  const st = (S.static || []).map(s => `<tr class="r-info">
+    <td><b>${esc(s.label)}</b>${s.note ? `<div class="note" style="margin:2px 0 0">${esc(s.note)}</div>` : ""}</td>
+    <td class="num">${esc(s.baseline)}</td>
+    <td class="num">${esc(s.current)}</td><td class="num">${esc(s.target)}</td>
+    <td class="num">—</td>
+    <td><span style="color:#9aa7bd">informational — not measured</span></td>
+    <td class="num">—</td><td><span class="tag tb">info</span></td></tr>`).join("");
+  $("scorecard").innerHTML = `<table>
+    <thead><tr><th>Criterion</th><th class="num">Baseline</th><th class="num">Live</th>
+      <th class="num">Target</th><th class="num">Change</th><th>Progress</th>
+      <th class="num">Room</th><th>Status</th></tr></thead>
+    <tbody>${rows}${st}</tbody></table>`;
+
+  /* trend charts */
+  const t = ser.t || [];
+  $("charts").innerHTML = `
+    <div class="card"><h3>Memory pressure</h3>${lineChart({t, unit:"MB", series:[
+      {name:"Commit charge", color:COL.commit, data:ser.committed_mb || []},
+      {name:"Available", color:COL.avail, data:ser.available_mb || []},
+      {name:"Compression", color:COL.comp, data:ser.compression_mb || []}]})}
+      <div class="note">Compression rising while commit charge climbs is the signature of
+        oversubscription.</div></div>
+
+    <div class="card ${(d.vmmem_trend_mb_per_h > 0) ? "alert" : ""}"><h3>vmmemWSL
+      <span class="tag ${d.vmmem_trend_mb_per_h > 0 ? "tr" : "tg"}">
+      ${d.vmmem_trend_mb_per_h > 0 ? "+" : ""}${fmt(d.vmmem_trend_mb_per_h,1)} MB/h</span></h3>
+      ${lineChart({t, unit:"MB", target:(rowByKey.vmmem_mb?.baseline ?? undefined), targetLabel:"baseline",
+        series:[{name:"vmmemWSL", color:COL.vmmem, data:ser.vmmem_mb || []}]})}
+      <div class="note">A flat or falling line means <code>autoMemoryReclaim</code> is working.
+        A rising line means the VM is still hoarding memory.</div></div>
+
+    <div class="card"><h3>Handles &amp; processes</h3>${lineChart({t, target:(rowByKey.handles?.target ?? undefined),
+      series:[{name:"Handles", color:COL.handles, data:ser.handles || []}]})}
+      <div class="note">Handle count tracks browser and extension process sprawl.</div></div>
+
+    <div class="card"><h3>Kernel pools <span class="hint">security-agent interception</span></h3>
+      ${lineChart({t, unit:"MB", series:[
+        {name:"Paged pool", color:COL.paged, data:ser.pool_paged_mb || []},
+        {name:"Non-paged pool", color:COL.nonpaged, data:ser.pool_nonpaged_mb || []}]})}
+      <div class="note">Baselines: paged ${fmt(bm.pool_paged_mb)} MB, non-paged ${fmt(bm.pool_nonpaged_mb)} MB
+        (captured on this machine). Growth here comes from resident security/filter drivers and is
+        typically IT-managed.</div></div>
+
+    <div class="card"><h3>Browser process count</h3>${lineChart({t, target:(rowByKey.browser_procs?.target ?? 72),
+      series:[{name:"Total", color:COL.browser, data:ser.browser_procs || []},
+        {name:"Edge", color:COL.commit, data:ser.edge_procs || []},
+        {name:"WebView2", color:COL.comp, data:ser.wv2_procs || []}]})}
+      <div class="note">Target &lt;${fmt(rowByKey.browser_procs?.target ?? 72)} = the realistic floor
+        (mandatory + in-use processes + a minimal Edge). WebView2 is nearly all non-discretionary.</div></div>
+
+    <div class="card"><h3>CPU utilisation</h3>${lineChart({t, unit:"%",
+      series:[{name:"CPU total", color:COL.cpu, data:ser.cpu_pct || []}]})}
+      <div class="note">Sustained high utilisation or a run-queue above the core count indicates
+        CPU contention rather than a memory problem.</div></div>
+
+    <div class="card"><h3>Network — remote TCP connections</h3>${lineChart({t, target:(rowByKey.net_remote?.target ?? undefined),
+      series:[{name:"Remote", color:COL.avail, data:ser.net_remote || []},
+        {name:"Loopback (local IPC)", color:COL.nonpaged, data:ser.net_loopback || []}]})}
+      <div class="note">Only remote connections count toward the score — loopback is
+        local IPC (dashboards, containers, browser helpers), not network load.
+        Fewer remote connections means less background chatter.</div></div>
+
+    <div class="card"><h3>Startup programs</h3>${lineChart({t, target:(rowByKey.startup_apps?.target ?? undefined),
+      series:[{name:"Auto-start entries", color:COL.browser, data:ser.startup_apps || []}]})}
+      <div class="note">Enabled Run-key and Startup-folder entries. Trimming these
+        shortens boot and reduces idle memory.</div></div>`;
+
+  /* browser ownership */
+  const mand = Object.entries(B.mandatory || {}), inuse = Object.entries(B.inuse || {});
+  const palette = ["#ff4d5e","#ff7a45","#ffa53d","#4da3ff","#7c8cff","#3fd0d4"];
+  const hostItems = [...mand, ...inuse, ...Object.entries(B.other || {})]
+    .map(([k, v], i) => ({name: k, value: v, color: palette[i % palette.length]}));
+  $("browser").innerHTML = `
+    <div class="card"><h3>WebView2 by host application</h3>
+      ${donutSegments(hostItems, "WebView2 processes by host")}
+      <div class="note">${mand.map(([k]) =>
+        `<b>${esc(k)}</b> — ${esc((B.host_labels||{})[k] || "")}`).join(" · ")}</div></div>
+
+    <div class="card"><h3>Closability</h3>
+      ${stackedBar([
+        {name:"Mandatory (corporate / OS)", value:B.mandatory_total || 0, color:"#ff4d5e"},
+        {name:"In active use", value:B.inuse_total || 0, color:"#ffd93d"},
+        {name:"Edge (discretionary)", value:B.edge_total || 0, color:"#4dd08a"}
+      ], B.current_total || 0, "All browser-engine processes by whether they can be closed")}
+      <div class="note"><b>Floor arithmetic:</b> mandatory ${B.mandatory_total} + in-use
+        ${B.inuse_total} = <b>${B.hard_floor}</b> with the standalone browser fully closed.
+        Realistic floor including one browser open: <b>${B.realistic_floor}</b>.
+        Current: <b>${B.current_total}</b>.${B.note ? `<br>${esc(B.note)}` : ""}</div></div>
+
+    <div class="card"><h3>Edge composition <span class="tag tb">${fmt(B.extension_mb)} MB in extensions</span></h3>
+      ${hbars([
+        {name:"Extension processes", value:B.edge_split?.extension ?? 0, cls:"b-r"},
+        {name:"Renderers (tabs)", value:B.edge_split?.renderer ?? 0, cls:"b-a"},
+        {name:"Utility", value:B.edge_split?.utility ?? 0, cls:"b-g"},
+        {name:"Browser main", value:B.edge_split?.main ?? 0, cls:"b-g"}
+      ])}
+      <div class="note">Extension processes are usually the only real lever: each loaded extension can
+        hold its own process. Renderers scale with open tabs and site isolation, so they cannot be
+        consolidated — closing or sleeping tabs is what reduces them.</div></div>`;
+
+  /* WSL + pools */
+  const w = L.wsl || {};
+  $("wsl").innerHTML = `
+    <div class="card ${w.cap_active ? "" : "alert"}"><h3>WSL 2 guest
+      <span class="tag ${w.cap_active ? "tg" : "tr"}">${w.cap_active ? "cap active" : "cap NOT active"}</span></h3>
+      ${hbars([
+        {name:"Guest RAM total", value:w.total_mb, cls:w.cap_active?"b-g":"b-r", unit:" MB"},
+        {name:"Guest available", value:w.available_mb, cls:"b-g", unit:" MB"},
+        {name:"Page cache", value:w.cached_mb, cls:"b-a", unit:" MB"},
+        {name:"Swap", value:w.swap_total_mb, cls:"b-g", unit:" MB"}
+      ])}
+      <div class="note">vCPUs <b>${w.nproc ?? "—"}</b> (target 6) · load1 <b>${fmt(w.load1,2)}</b> ·
+        containers <b>${w.containers_running ?? "—"}</b>.
+        ${w.cap_active ? "The 10 GB / 6 vCPU cap is in effect."
+          : "<b style='color:#ff6b78'>.wslconfig is written but not applied</b> — run <code>wsl --shutdown</code>."}</div></div>
+
+    <div class="card"><h3>Kernel pool vs baseline</h3>
+      ${hbars([
+        {name:"Paged now", value:L.pool_paged_mb, cls:"b-r", unit:" MB"},
+        {name:"Paged baseline", value:bm.pool_paged_mb, cls:"b-g", unit:" MB"},
+        {name:"Non-paged now", value:L.pool_nonpaged_mb, cls:"b-a", unit:" MB"},
+        {name:"Non-paged baseline", value:bm.pool_nonpaged_mb, cls:"b-g", unit:" MB"}
+      ])}
+      <div class="note">Kernel pool usage above baseline is normally driven by resident
+        security/management agents (antivirus, EDR, DLP, device management) loading filter drivers.</div></div>
+
+    <div class="card"><h3>Disk &amp; background churn</h3>
+      ${hbars([
+        {name:`${esc(L.system_drive || "System")} free (GB)`, value:L.c_free_gb,
+          cls:(rowByKey.c_free_gb && L.c_free_gb>=rowByKey.c_free_gb.target)?"b-g":"b-a", max:(rowByKey.c_free_gb?.target ?? L.c_size_gb ?? undefined)},
+        {name:"Target (GB)", value:(rowByKey.c_free_gb?.target ?? null), cls:"b-a", max:(rowByKey.c_free_gb?.target ?? undefined)},
+        {name:"svchost processes", value:L.svchost_procs, cls:"b-a", max:120},
+        {name:"Search indexer procs", value:L.search_procs,
+          cls:(L.search_procs>=3?"b-g":(L.search_procs>0?"b-a":"b-r")), max:3}
+      ])}
+      <div class="note">Disk was ruled out as a bottleneck (99.4% idle, 0.3–0.5 ms latency).
+        C: free is short of target; remaining reclaim needs the deferred Docker image prune
+        and vhdx compaction. <b>Search indexer</b> is healthy when all three hosts run
+        (SearchIndexer + SearchProtocolHost + SearchFilterHost = 3); fewer than 3 means the
+        Windows Search service is degraded or the index is rebuilding.</div></div>`;
+
+  /* Wi-Fi connection */
+  const WF = L.wifi || {};
+  const sigCls = s => (s == null) ? "ta" : s >= 70 ? "tg" : s >= 40 ? "ta" : "tr";
+  const sigColor = s => (s == null) ? "#9aa7bd" : s >= 70 ? "#4dd08a" : s >= 40 ? "#ffd93d" : "#ff4d5e";
+  if (WF.present) {
+    const limited = (WF.signal == null);
+    const rateMax = Math.max(WF.rx_mbps || 0, WF.tx_mbps || 0, WF.link_mbps || 0, 100);
+    const stTag = `<span class="tag ${String(WF.state).toLowerCase() === "connected" ? "tg" : "ta"}">${esc(WF.state || "—")}</span>`;
+    const primary = limited
+      ? `<div class="card"><h3>Wi-Fi link ${stTag}</h3>
+          <div class="kpi"><div class="row"><div>
+            <div class="v v-ok">${fmt(WF.link_mbps)}<span class="u"> Mbps</span></div>
+            <div class="t">negotiated link speed</div></div></div></div>
+          <div class="note keep" style="margin-top:10px">SSID <b>${esc(WF.ssid || "—")}</b><br>
+            ${esc(WF.radio || WF.adapter || "—")}</div></div>`
+      : `<div class="card"><h3>Signal quality
+          <span class="tag ${sigCls(WF.signal)}">${WF.signal}%</span></h3>
+          ${donut(WF.signal, "Wi-Fi signal", "signal", sigColor(WF.signal))}
+          <div class="note keep" style="text-align:center;margin-top:4px">SSID <b>${esc(WF.ssid || "—")}</b><br>
+            ${esc(WF.radio || "—")} · ${esc(WF.band || "—")} · ch ${esc(String(WF.channel ?? "—"))}</div></div>`;
+    const rates = limited
+      ? `<div class="card"><h3>Link detail</h3>
+          ${hbars([{name:"Negotiated link", value:WF.link_mbps ?? 0, cls:"b-g", unit:" Mbps", max:rateMax}])}
+          <div class="note">Signal %, band, channel and Rx/Tx rates need Windows <b>Location</b>
+            permission for the WLAN service (Privacy &amp; security → Location) — currently off, so
+            only adapter-level link speed is shown. Enable it to chart live signal strength.</div></div>`
+      : `<div class="card"><h3>Link rates <span class="hint">negotiated PHY</span></h3>
+          ${hbars([
+            {name:"Receive (Rx)", value:WF.rx_mbps ?? 0, cls:"b-g", unit:" Mbps", max:rateMax},
+            {name:"Transmit (Tx)", value:WF.tx_mbps ?? 0, cls:"b-a", unit:" Mbps", max:rateMax}
+          ])}
+          ${sparkline(ser.wifi_signal || [], sigColor(WF.signal), 70)}
+          <div class="note">Signal-strength trend (dashed line = 70% "good" threshold). Higher
+            Rx/Tx = a faster negotiated link; both fall as signal weakens.</div></div>`;
+    const detail = `<div class="card"><h3>Connection detail</h3>
+        <div class="note keep">
+          State ${stTag}<br>
+          SSID <b>${esc(WF.ssid || "—")}</b><br>
+          ${WF.auth ? `Authentication <b>${esc(WF.auth)}</b><br>` : ""}
+          ${WF.band ? `Band <b>${esc(WF.band)}</b> · Channel <b>${esc(String(WF.channel ?? "—"))}</b><br>` : ""}
+          Radio <b>${esc(WF.radio || WF.adapter || "—")}</b><br>
+          ${WF.bssid ? `BSSID <code>${esc(WF.bssid)}</code><br>` : ""}
+          Category <b>${esc(WF.category || "—")}</b> · IPv4 <b>${esc(WF.ipv4 || "—")}</b></div></div>`;
+    $("wifi").innerHTML = primary + rates + detail;
+  } else {
+    $("wifi").innerHTML = `<div class="card"><h3>Wi-Fi <span class="tag ta">not connected</span></h3>
+      <div class="note keep">No wireless interface is associated — the machine is on Ethernet or
+        has no WLAN adapter. Wi-Fi metrics appear automatically once a wireless network is joined.</div></div>`;
+  }
+
+  /* Network optimisation */
+  const netTgt = rowByKey.net_remote?.target ?? 30;
+  const adapters = L.net_adapters || [];
+  const estMax = Math.max(L.net_established || 0, L.net_loopback || 0, 50);
+  const OV = d.wifi_overlap || {};
+  const PLAN = d.net_plan || [];
+  const sideTag = s => s === "router" ? '<span class="tag tb">router</span>'
+    : s === "os" ? '<span class="tag ta">windows</span>' : '<span class="tag tg">client</span>';
+  const planSev = PLAN.some(a => a.sev === "bad") ? "bad" : PLAN.some(a => a.sev === "warn") ? "warn" : "ok";
+
+  let overlapCard;
+  if (OV.available) {
+    const scoreRows = (OV.ch_scores_24 || []).map(s => {
+      const isRec = s.channel === OV.recommend_24;
+      const bc = s.load <= 0.5 ? "b-g" : s.load <= 1.5 ? "b-a" : "b-r";
+      return `<tr class="${isRec ? "r-met" : ""}">
+        <td>ch ${s.channel}${isRec ? ' <span class="tag tg">clearest</span>' : ""}</td>
+        <td style="width:60%"><div class="bar ${bc}"><i style="width:${Math.min(100, s.load * 40)}%"></i>
+          <span>${s.load}</span></div></td></tr>`;
+    }).join("");
+    overlapCard = `<div class="card ${OV.current_overlap > 0 ? "alert" : ""}"><h3>Band &amp; channel overlap
+      <span class="tag ${OV.current_overlap > 0 ? "tr" : "tg"}">${OV.current_overlap > 0 ? OV.current_overlap + " overlap" : "clear"}</span></h3>
+      <div class="note keep">Visible APs <b>${OV.ap_count}</b> — 2.4 GHz <b>${OV.counts?.g24 ?? 0}</b> ·
+        5 GHz <b>${OV.counts?.g5 ?? 0}</b> · 6 GHz <b>${OV.counts?.g6 ?? 0}</b>. You are on
+        ch <b>${OV.current_channel ?? "—"}</b> (${esc(String(OV.current_band || "—"))} GHz) with
+        <b>${OV.current_overlap ?? "—"}</b> overlapping neighbour(s).</div>
+      <div class="note" style="margin-top:6px">2.4 GHz congestion — only 1 / 6 / 11 are non-overlapping:</div>
+      <table><tbody>${scoreRows}</tbody></table>
+      <div class="note">Recommended: 2.4 GHz → <b>ch ${OV.recommend_24}</b>${OV.recommend_5 ? `, 5 GHz → <b>ch ${OV.recommend_5}</b>` : ""}.
+        Apply on the router — a client cannot change the AP's channel.</div></div>`;
+  } else {
+    overlapCard = `<div class="card"><h3>Band &amp; channel overlap
+      <span class="tag ta">scan unavailable</span></h3>
+      <div class="note keep">${OV.reason === "location"
+        ? "Neighbour scanning needs Windows <b>Location</b> permission (Settings → Privacy &amp; security → Location) for the WLAN service. Enable it and this card auto-populates with live 2.4 / 5 / 6 GHz overlap and the clearest recommended channel."
+        : "No neighbour-scan data yet — gathered on the periodic full sweep once the WLAN scan is permitted."}</div>
+      <div class="note">Rule of thumb: on 2.4 GHz only channels <b>1, 6, 11</b> are non-overlapping;
+        prefer 5 / 6 GHz where possible.</div></div>`;
+  }
+
+  const planCard = `<div class="card ${planSev === "bad" ? "alert" : ""}"><h3>Optimisation &amp; fix plan
+    <span class="tag ${planSev === "bad" ? "tr" : planSev === "warn" ? "ta" : "tg"}">${PLAN.length} action(s)</span></h3>
+    ${PLAN.map(a => `<div class="note keep" style="margin:6px 0">
+      ${a.sev === "bad" ? "⛔" : a.sev === "warn" ? "⚠" : "✓"} ${sideTag(a.side)} ${esc(a.t)}</div>`).join("")}
+    <div class="note" style="margin-top:6px"><b>client</b> settings can be reviewed in Windows Settings or Device Manager; <b>router</b> fixes are applied on your access point;
+      <b>windows</b> = a Windows setting. This dashboard only reports — it changes nothing.</div></div>`;
+
+  $("netopt").innerHTML = `
+    <div class="card"><h3>TCP connection footprint</h3>
+      ${hbars([
+        {name:"Remote established (scored)", value:L.net_remote ?? 0, cls:"b-g", max:estMax},
+        ...(L.net_remote_raw != null ? [{name:"Remote — raw (now)", value:L.net_remote_raw, cls:"b-a", max:estMax}] : []),
+        ...(L.net_remote_hosts != null ? [{name:"Distinct remote hosts", value:L.net_remote_hosts, cls:"b-a", max:estMax}] : []),
+        {name:"Loopback (local IPC)", value:L.net_loopback ?? 0, cls:"b-a", max:estMax},
+        {name:"Listening ports", value:L.net_listen ?? 0, cls:"b-a", max:estMax},
+        {name:"Established total", value:L.net_established ?? 0, cls:"b-a", max:estMax}
+      ])}
+      <div class="note">Only <b>remote</b> connections count toward the score — loopback is
+        local IPC (dev servers, containers, browser helpers), not network load.
+        Fewer remote connections means less background chatter. Target &lt;${fmt(netTgt)}.</div></div>
+
+    <div class="card"><h3>Active adapters <span class="hint">link speed &amp; profile</span></h3>
+      ${adapters.length
+        ? adapters.map(a => `<div class="note keep" style="margin:4px 0">🔌 <b>${esc(a.name)}</b>
+            <span class="tag ${String(a.status).toLowerCase() === "up" ? "tg" : "ta"}">${esc(a.status || "")}</span>
+            <span class="hint">${esc(a.desc || "")}${a.link_mbps ? " · " + fmt(a.link_mbps) + " Mbps" : ""}</span></div>`).join("")
+        : `<div class="note keep">Adapter inventory is collected on the periodic full sweep — populating…</div>`}
+      <div class="note keep" style="margin-top:8px">Profile <b>${esc(L.net_category || "—")}</b> ·
+        IPv4 <b>${esc(L.net_ipv4_conn || "—")}</b> · IPv6 <b>${esc(L.net_ipv6_conn || "—")}</b></div></div>
+
+    ${overlapCard}
+    ${planCard}`;
+
+  /* hardware health */
+  const H = d.hardware || {};
+  const sevCls = s => ({critical:"tr",major:"tr",minor:"ta",low:"ta"}[String(s).toLowerCase()] || "ta");
+  const batMap = {1:"discharging", 2:"on AC", 3:"fully charged", 4:"low", 5:"critical"};
+  const batTxt = H.battery ? `${H.battery.charge}% · ${batMap[H.battery.status] || "status " + H.battery.status}` : "—";
+  $("hardware").innerHTML = `
+    <div class="card ${(H.faults || 0) > 0 ? "alert" : ""}"><h3>Device health
+      <span class="tag ${(H.faults || 0) > 0 ? "tr" : "tg"}">${(H.faults || 0) > 0 ? H.faults + " fault(s)" : "all OK"}</span></h3>
+      ${(H.problem_list && H.problem_list.length)
+        ? `<div class="note keep">${H.problem_list.map(p => `⚠ ${esc(p.name)} — code ${p.code}`).join("<br>")}</div>`
+        : `<div class="note keep">No device reports a Device Manager error code — touchpad, keyboard,
+           disk and battery all enumerate as OK. Functional glitches Windows still calls "OK"
+           are tracked in the watchlist below.</div>`}</div>
+
+    <div class="card"><h3>Storage &amp; battery</h3>
+      ${(H.disks || []).map(dk => `<div class="note keep" style="margin:3px 0">💾 ${esc(dk.name)}
+        <span class="tag ${dk.health === "Healthy" ? "tg" : "tr"}">${esc(dk.health)}</span>
+        <span class="hint">${esc(dk.media)} · ${esc(dk.op)}</span></div>`).join("")
+        || `<div class="note keep">No physical disks reported.</div>`}
+      <div class="note keep" style="margin-top:8px">🔋 Battery <b>${esc(batTxt)}</b></div></div>
+
+    <div class="card"><h3>Input devices <span class="hint">touchpad / pointing</span></h3>
+      ${([...(H.touchpad || []), ...(H.pointing || [])]
+          .filter((v, i, a) => a.findIndex(x => x.name === v.name) === i)
+          .map(t => `<div class="note keep" style="margin:3px 0">${t.code === 0 ? "🖱" : "⚠"} ${esc(t.name)}
+            <span class="tag ${t.code === 0 ? "tg" : "tr"}">${t.code === 0 ? esc(t.status || "OK") : "code " + t.code}</span></div>`).join(""))
+        || `<div class="note keep">No pointing devices found.</div>`}</div>
+
+    <div class="card ${(H.open_issues || 0) > 0 ? "alert" : ""}"><h3>Known-issue watchlist
+      <span class="tag ${(H.open_issues || 0) > 0 ? "ta" : "tg"}">${H.open_issues || 0} open</span></h3>
+      ${(H.watchlist && H.watchlist.length)
+        ? H.watchlist.map(w => `<div style="margin:6px 0;padding:7px 9px;background:#0b1020;border-radius:6px">
+            <b>${esc(w.component)}</b> — ${esc(w.issue)}
+            <span class="tag ${sevCls(w.severity)}">${esc(w.severity || "")}</span>
+            <span class="tag ${String(w.status).toLowerCase() === "resolved" ? "tg" : "ta"}">${esc(w.status || "")}</span>
+            ${w.note ? `<div class="note" style="margin-top:4px">${esc(w.note)}</div>` : ""}</div>`).join("")
+        : `<div class="note keep">No tracked issues.</div>`}
+      <div class="note" style="margin-top:6px">Edit <code>hw_watchlist.json</code> to add or resolve
+        items. Windows cannot auto-detect functional faults such as a sticky touchpad button, so
+        those are tracked here manually.</div></div>`;
+
+  /* drivers health */
+  const DR = (d.hardware && d.hardware.drivers) || {};
+  $("drivers").innerHTML = `
+    <div class="card"><h3>Driver inventory
+      <span class="tag tb">${DR.total == null ? "—" : fmt(DR.total) + " signed"}</span></h3>
+      <div class="kpi"><div class="row"><div><span class="v">${fmt(DR.total)}</span>
+        <span class="u">signed drivers</span></div></div></div>
+      <div class="note keep" style="margin-top:10px">Unsigned
+        <span class="tag ${(DR.unsigned || 0) > 0 ? "ta" : "tg"}">${fmt(DR.unsigned)}</span>
+        &nbsp;·&nbsp; Stale (&gt;4&nbsp;yr)
+        <span class="tag ${(DR.stale || 0) > 0 ? "ta" : "tg"}">${fmt(DR.stale)}</span></div></div>
+
+    <div class="card ${(DR.problem || 0) > 0 ? "alert" : ""}"><h3>Driver faults
+      <span class="tag ${(DR.problem || 0) > 0 ? "tr" : "tg"}">${(DR.problem || 0) > 0 ? DR.problem + " fault(s)" : "all OK"}</span></h3>
+      ${(DR.problem_list && DR.problem_list.length)
+        ? `<div class="note keep">${DR.problem_list.map(p => `⚠ ${esc(p.name)} — code ${p.code}`).join("<br>")}</div>`
+        : `<div class="note keep">No driver-specific Device Manager fault codes (missing, corrupt,
+           failed or unsigned drivers). All device drivers load OK.</div>`}</div>
+
+    <div class="card"><h3>Stale drivers <span class="hint">important · 3rd-party · &gt;4&nbsp;yr</span></h3>
+      ${(DR.stale_list && DR.stale_list.length)
+        ? DR.stale_list.map(s => `<div class="note keep" style="margin:3px 0">🧩 ${esc(s.name)}
+            <span class="tag ta">${esc(s.date || "?")}</span>
+            <span class="hint">v${esc(s.version || "?")}${s.class ? " · " + esc(s.class) : ""}${s.provider ? " · " + esc(s.provider) : ""}</span></div>`).join("")
+        : `<div class="note keep">No important 3rd-party drivers older than 4 years — or driver
+           data not yet sampled (collected on the periodic full sweep).</div>`}</div>`;
+
+  /* component upgrades — performance improvement advisory */
+  const CP = d.components || {};
+  const cprows = (CP.rows || []).map(c => {
+    const pbar = "Not measured";
+    const status = c.outdated
+      ? `<span class="tag tr">upgrade</span>`
+      : `<span class="tag ta">not verified</span>`;
+    const curTxt = esc(c.current || "—") + (c.current_date
+      ? ` <span class="hint">(${esc(c.current_date)}${c.months_old != null ? ", " + c.months_old + " mo" : ""})</span>` : "");
+    return `<tr class="${c.outdated ? "r-regress" : "r-met"}">
+      <td><b>${esc(c.name)}</b>
+        <div class="note" style="margin:2px 0 0">${esc(c.why || "")}</div></td>
+      <td>${esc(c.category || "")}</td>
+      <td class="num">${curTxt}</td>
+      <td class="num">${esc(c.latest || "—")}${c.channel ? `<div class="hint">via ${esc(c.channel)}</div>` : ""}${c.upstream ? `<div class="hint">upstream ${esc(c.upstream)}</div>` : ""}</td>
+      <td style="width:120px">${pbar}</td>
+      <td>${esc(c.owner || "")}</td>
+      <td>${status}</td></tr>`;
+  }).join("");
+  $("components").innerHTML = `
+    <div class="grid g-hero" style="margin-bottom:14px">
+      <div class="card"><h3>Components inventoried</h3>
+        <div class="kpi"><div class="row"><div>
+          <div class="v ${(CP.upgrades || 0) > 0 ? "v-warn" : "v-ok"}">${CP.total ?? 0}</div>
+          <div class="t">Check installed versions against vendor updates</div></div></div></div></div>
+      <div class="card"><h3>Measured performance gain</h3>
+        <div class="kpi"><div class="row"><div>
+          <div class="v v-ok">—</div>
+          <div class="t">Requires before/after benchmarking</div></div></div></div></div>
+      <div class="card"><h3>Assessment</h3>
+        <div class="note keep">Dated <b>${esc(CP.assessment_date || "—")}</b>.<br>
+          Installed versions are measured locally. Latest releases must be checked with the vendor.
+          An older driver date alone does not prove an update is needed.</div></div>
+    </div>
+    <div class="card">
+      <table><thead><tr>
+        <th>Component</th><th>Category</th><th class="num">Current</th><th class="num">Latest / target</th>
+        <th>Perf gain</th><th>Owner</th><th>Status</th></tr></thead>
+        <tbody>${cprows || `<tr><td colspan="7"><div class="note">Component inventory is
+          collected on the periodic full sweep — populating…</div></td></tr>`}</tbody></table>
+      ${CP.note ? `<div class="note" style="margin-top:10px">${esc(CP.note)}</div>` : ""}
+      <div class="note">Performance gains cannot be inferred from version numbers. All upgrades are
+        user- or IT-initiated; this dashboard only reports, it changes nothing.</div></div>`;
+
+  $("footMeta").innerHTML = `Sampling every ${M.sample_seconds}s · collector run time
+    ${M.last_duration_s}s · ${M.samples} samples retained · server ${esc(M.server_time || "")}`;
+
+  /* machine identity from the profile (portable — no hardcoded host) */
+  const P = d.profile || {};
+  const ramGb = P.total_ram_mb ? (P.total_ram_mb / 1024).toFixed(1) + " GB" : null;
+  const hostBits = [
+    P.hostname ? `Host <b>${esc(P.hostname)}</b>` : null,
+    [P.machine_vendor, P.machine_model].filter(Boolean).map(esc).join(" ") || null,
+    P.cpu_name ? `${esc(P.cpu_name)}${P.cpu_cores ? ` · ${P.cpu_cores}C/${P.cpu_threads}T` : ""}` : null,
+    ramGb,
+    P.os_caption ? `${esc(P.os_caption)}${P.os_build ? " " + esc(P.os_build) : ""}` : null,
+    (M.runtime ? `runtime ${esc(M.runtime)}` : null)
+  ].filter(Boolean).join(" · ");
+  $("footHost").innerHTML = hostBits || "Machine details appear after the first full sample…";
+  document.title = `${M.app || "System Performance Agent"}${P.hostname ? " — " + P.hostname : ""}`;
+
+  renderSummary(d);
+  renderArchitecture(d);
+}
+
+/* ---- Summary tab: the whole Details page distilled into 10 scored categories ---- */
+function computeCategories(d) {
+  const L = d.latest || {}, S = d.scorecard || {}, H = d.hardware || {},
+        DR = H.drivers || {}, C = d.components || {}, OV = d.wifi_overlap || {}, WF = L.wifi || {};
+  const prog = {}; (S.rows || []).forEach(r => { prog[r.key] = r.progress; });   // 0-100 or null
+  const clamp = x => Math.max(0, Math.min(100, Math.round(x)));
+  const mean = arr => { const v = arr.filter(x => x !== null && x !== undefined && !isNaN(x));
+    return v.length ? Math.round(v.reduce((s, x) => s + x, 0) / v.length) : null; };
+  const cpuScore = (L.cpu_pct != null) ? clamp(100 - L.cpu_pct - (L.cpu_queue > 0 ? 10 : 0)) : null;
+  const stoScore = mean([prog.c_free_gb, (L.hw_disks_unhealthy ? clamp(100 - L.hw_disks_unhealthy * 40) : 100)]);
+  let netScore = mean([prog.net_remote, prog.startup_apps]);
+  if (netScore != null && OV.available && OV.current_overlap > 0) netScore = clamp(netScore - 10);
+  let wifiScore = null;
+  if (WF.present) {
+    if (WF.signal != null) wifiScore = clamp(WF.signal);
+    else { const l = WF.link_mbps || 0;
+      wifiScore = l >= 1000 ? 100 : l >= 600 ? 90 : l >= 400 ? 80 : l >= 300 ? 70 : l >= 200 ? 55 : l >= 100 ? 45 : 30; }
+  }
+  const hwScore = clamp(100 - (H.faults || 0) * 25 - (DR.problem || 0) * 25
+    - Math.min(20, (DR.stale || 0) * 3) - (L.hw_disks_unhealthy || 0) * 30);
+  const compScore = C.total ? clamp(100 * (C.total - (C.upgrades || 0)) / C.total) : null;
+  const wslScore = (prog.vmmem_mb != null) ? prog.vmmem_mb
+    : (L.vmmem_mb != null && (L.wsl_cap_mb || L.total_ram_mb)
+        ? (cap => clamp(100 * (cap - L.vmmem_mb) / cap))(L.wsl_cap_mb || L.total_ram_mb * 0.35) : null);
+  // Memory maps to the actionable-commit criterion where present, else raw commit.
+  const memScore = mean([prog.committed_mb != null ? prog.committed_mb : prog.committed_app_mb,
+                         prog.compression_mb, prog.available_mb]);
+  const cats = [
+    ["Memory pressure",       memScore,             "commit · compression · available RAM"],
+    ["WSL 2 (vmmemWSL)",      wslScore,             "guest RAM headroom under the cap"],
+    ["Browser footprint",     prog.browser_procs,   "Edge + WebView2 process count"],
+    ["Application handles",   prog.handles,         "actionable app handle count"],
+    ["CPU & processes",       cpuScore,             "utilisation + run-queue depth"],
+    ["Storage",               stoScore,             "free space + disk health"],
+    ["Network optimisation",  netScore,             "remote TCP · startup apps · band overlap"],
+    ["Wi-Fi connectivity",    wifiScore,            "signal / negotiated link rate"],
+    ["Hardware & drivers",    hwScore,              "device + driver faults, stale drivers"],
+    ["Component currency",    compScore,            "runtimes/drivers on recommended versions"]
+  ];
+  let sum = 0, n = 0; cats.forEach(c => { if (c[1] !== null && c[1] !== undefined) { sum += c[1]; n++; } });
+  return { cats, overall: n ? Math.round(sum / n) : 0 };
+}
+
+function renderSummary(d) {
+  const { cats, overall } = computeCategories(d);
+  const rows = cats.map(([name, score, hint]) => {
+    const has = (score !== null && score !== undefined);
+    const room = has ? 100 - score : null;
+    const bc = !has ? "" : score >= 80 ? "b-g" : score >= 50 ? "b-a" : "b-r";
+    const bar = has ? `<div class="bar ${bc}"><i style="width:${Math.max(2, score)}%"></i><span>${score}</span></div>`
+      : `<div class="bar"><span style="color:#9aa7bd">measuring…</span></div>`;
+    const rc = !has ? "" : room <= 20 ? "up" : room >= 50 ? "down" : "flat";
+    return `<tr class="${!has ? "" : score >= 80 ? "r-met" : score >= 50 ? "r-partial" : "r-regress"}">
+      <td><b>${esc(name)}</b><div class="note" style="margin:2px 0 0">${esc(hint)}</div></td>
+      <td style="width:34%">${bar}</td>
+      <td class="num ${rc}">${has ? room + "%" : "—"}</td></tr>`;
+  }).join("");
+  const oc = overall >= 80 ? "#4dd08a" : overall >= 50 ? "#ffd93d" : "#ff4d5e";
+
+  $("view-summary").innerHTML = `
+    <div class="summary-lead">The whole dashboard in 10 categories — each scored 0-100 with the
+      remaining room for improvement. Open the <b>Details</b> tab for the underlying charts and tables.</div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <h3 style="margin:0">System scorecard</h3>
+        <div><span class="hint">overall</span>
+          <b style="font-size:22px;color:${oc}">${overall}</b><span class="hint"> / 100</span></div>
+      </div>
+      <table><thead><tr><th>Category</th><th>Score</th><th class="num">Room for improvement</th></tr></thead>
+        <tbody>${rows}</tbody></table>
+      <div class="note">Score = progress from this machine's captured baseline toward target (for measured criteria)
+        or live health (CPU, Wi-Fi, hardware, currency). Room for improvement = 100 − score. Categories
+        still gathering enough samples show "measuring".</div></div>`;
+}
+
+/* ---- Live Architecture: how System Performance Agent works (data-flow) ---- */
+function renderArchitecture(d) {
+  const host = $("archDiagram");
+  if (!host) return;
+  const M = d.meta || {}, sc = d.scorecard || {}, A = sc.adaptive || {},
+        cnt = sc.counts || {}, adv = d.advice || {};
+  const ok = !M.error;
+  const parts = [], geo = {};
+
+  function node(id, x, y, bw, title, sub, rows, accent) {
+    const headH = 36, rh = 22, h = headH + rows.length * rh + 12;
+    const body = rows.map((r, i) => {
+      const yy = y + headH + 17 + i * rh;
+      return `<circle cx="${x + 16}" cy="${yy - 4}" r="4.5" fill="${r.dot || "#6b7688"}"/>
+        <text class="an-label" x="${x + 30}" y="${yy}">${esc(r.label)}</text>
+        <text class="an-val" x="${x + bw - 14}" y="${yy}" text-anchor="end">${esc(String(r.val))}</text>`;
+    }).join("");
+    parts.push(`<g><rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="13" fill="#171d2b" stroke="#2b3448"/>
+      <path d="M${x},${y + 13} a13,13 0 0 1 13,-13 h${bw - 26} a13,13 0 0 1 13,13 v23 h-${bw} z" fill="${accent || "#1d2435"}"/>
+      <text class="an-title" x="${x + 14}" y="${y + 23}">${esc(title)}</text>
+      ${sub ? `<text class="an-sub" x="${x + bw - 12}" y="${y + 23}" text-anchor="end">${esc(sub)}</text>` : ""}
+      ${body}</g>`);
+    geo[id] = { x, y, w: bw, h, cx: x + bw / 2, cy: y + h / 2 };
+  }
+
+  function edge(a, b, opt) {
+    opt = opt || {};
+    const A1 = geo[a], B1 = geo[b];
+    if (!A1 || !B1) return;
+    let p1, p2, c1, c2;
+    if (opt.side === "loop") {
+      p1 = [A1.x + A1.w, A1.cy]; p2 = [B1.x + B1.w, B1.cy];
+      c1 = [1215, A1.cy]; c2 = [1215, B1.cy];
+    } else if (Math.abs(B1.cy - A1.cy) >= Math.abs(B1.cx - A1.cx)) {
+      if (B1.cy > A1.cy) { p1 = [A1.cx, A1.y + A1.h]; p2 = [B1.cx, B1.y]; }
+      else { p1 = [A1.cx, A1.y]; p2 = [B1.cx, B1.y + B1.h]; }
+      const my = (p1[1] + p2[1]) / 2; c1 = [p1[0], my]; c2 = [p2[0], my];
+    } else {
+      if (B1.cx > A1.cx) { p1 = [A1.x + A1.w, A1.cy]; p2 = [B1.x, B1.cy]; }
+      else { p1 = [A1.x, A1.cy]; p2 = [B1.x + B1.w, B1.cy]; }
+      const mx = (p1[0] + p2[0]) / 2; c1 = [mx, p1[1]]; c2 = [mx, p2[1]];
+    }
+    const dpath = `M${p1[0]},${p1[1]} C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${p2[0]},${p2[1]}`;
+    const stroke = opt.color || "#4da3ff", mk = opt.mk || (opt.color ? "amber" : "blue");
+    parts.push(`<path d="${dpath}" fill="none" stroke="#26304a" stroke-width="2.5"/>`);
+    parts.push(`<path d="${dpath}" fill="none" stroke="${stroke}" stroke-width="2.5"
+      opacity="${opt.faint ? ".55" : ".9"}" class="arch-flow" marker-end="url(#arrow-${mk})"/>`);
+    if (opt.label) {
+      const lx = opt.side === "loop" ? 1150 : (p1[0] + p2[0]) / 2;
+      const ly = opt.side === "loop" ? 200 : (p1[1] + p2[1]) / 2;
+      parts.push(`<rect x="${lx - opt.label.length * 3.4 - 6}" y="${ly - 9}"
+          width="${opt.label.length * 6.8 + 12}" height="17" rx="8" fill="#0d111b" stroke="#2b3448"/>
+        <text class="an-sub" x="${lx}" y="${ly + 3}" text-anchor="middle" style="fill:${stroke}">${esc(opt.label)}</text>`);
+    }
+  }
+
+  const green = "#4dd08a", red = "#ff4d5e", blue = "#4da3ff", amber = "#ff9f2e";
+  const CEN = 430, WN = 380, LEFT = 40, RIGHT = 850, SW = 310;
+
+  node("host", CEN, 20, WN, "1 · Windows host", esc(M.runtime || "host"), [
+    { label: "Sampler", val: "collect_win.ps1", dot: green },
+    { label: "Shell", val: "PowerShell · read-only", dot: green }], "#243150");
+  node("collector", CEN, 172, WN, "2 · Collector", "collector.py · thread", [
+    { label: "Cadence", val: (M.sample_seconds || 20) + " s", dot: blue },
+    { label: "Samples retained", val: fmt(M.samples), dot: blue },
+    { label: "Last sweep", val: fmt(M.last_duration_s, 2) + " s", dot: blue },
+    { label: "Status", val: ok ? "healthy" : "error", dot: ok ? green : red }], "#1f2c3a");
+  node("history", LEFT, 214, SW, "History store", "history.jsonl", [
+    { label: "Window", val: "~4 h rolling", dot: blue },
+    { label: "On disk", val: "append + trim", dot: blue }], "#20303a");
+  node("adaptive", RIGHT, 214, SW, "Self-improving scorer", "adaptive.py", [
+    { label: "Self-improvement", val: A.self_improvement_score != null ? A.self_improvement_score + " %" : "learning", dot: "#7c8cff" },
+    { label: "Metrics scored", val: (A.metrics_scored ?? 0) + " / " + (A.metrics_tracked ?? 0), dot: "#7c8cff" },
+    { label: "Adaptive targets", val: "personal best", dot: "#7c8cff" }], "#282444");
+  node("scoring", CEN, 344, WN, "3 · Scoring & snapshot", "scoring.py · profile.py", [
+    { label: "Criteria scored", val: (sc.scored ?? 0) + " / " + (sc.total_criteria ?? 0), dot: blue },
+    { label: "Met", val: fmt(cnt.met), dot: green },
+    { label: "Partial / Regressed", val: fmt(cnt.partial) + " / " + fmt(cnt.regress), dot: (cnt.regress ? red : cnt.partial ? amber : green) }], "#1f2c3a");
+  node("advisor", RIGHT, 470, SW, "Advisor", "advisor.py · read-only", [
+    { label: "Recommendations", val: adv.total != null ? fmt(adv.total) : "—", dot: (adv.total ? amber : green) },
+    { label: "Guidance", val: "no auto-changes", dot: green }], "#2a2140");
+  node("api", CEN, 516, WN, "4 · Flask API", "app.py · waitress", [
+    { label: "GET", val: "/api/metrics · /advice", dot: green },
+    { label: "GET", val: "/api/profile · /health", dot: green },
+    { label: "POST", val: "/api/recalibrate", dot: amber }], "#243150");
+  node("browser", CEN, 700, WN, "5 · Browser dashboard", "this page", [
+    { label: "Refresh", val: (M.sample_seconds || 20) + " s poll", dot: blue },
+    { label: "Views", val: "Summary · Details · Arch", dot: blue }], "#243150");
+  node("tests", LEFT, 470, SW, "Test suite", "pytest · tests/", [
+    { label: "Scope", val: "unit + integration", dot: green },
+    { label: "Runs", val: "on every change", dot: green }], "#16302a");
+
+  edge("host", "collector", { label: "JSON sample" });
+  edge("collector", "history", {});
+  edge("collector", "adaptive", {});
+  edge("collector", "scoring", {});
+  edge("history", "scoring", {});
+  edge("adaptive", "scoring", {});
+  edge("scoring", "api", { label: "snapshot JSON" });
+  edge("scoring", "advisor", { faint: true });
+  edge("advisor", "api", { faint: true, label: "advice" });
+  edge("api", "browser", { label: "fetch /api/metrics" });
+  edge("browser", "collector", { side: "loop", color: amber, label: "recalibrate" });
+  edge("tests", "collector", { color: green, mk: "green", faint: true });
+  edge("tests", "scoring", { color: green, mk: "green", faint: true, label: "validates" });
+  edge("tests", "api", { color: green, mk: "green", faint: true });
+
+  host.innerHTML = `<svg viewBox="0 0 1260 830" role="img"
+      aria-label="Live architecture of the System Performance Agent"
+      preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="arrow-blue" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="${blue}"/></marker>
+      <marker id="arrow-amber" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="${amber}"/></marker>
+      <marker id="arrow-green" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="${green}"/></marker>
+    </defs>
+    ${parts.join("")}
+    <g><circle cx="70" cy="26" r="6" fill="${ok ? green : red}">
+      <animate attributeName="opacity" values="1;.3;1" dur="1.6s" repeatCount="indefinite"/></circle>
+      <text class="an-sub" x="84" y="30" style="fill:${ok ? green : red}">${ok ? "LIVE" : "ERROR"}</text></g>
+  </svg>`;
+}
+
+/* ---- view tabs: Summary (default) / Details ---- */
+(function initTabs() {
+  const views = { summary: $("view-summary"), details: $("view-details"),
+                  architecture: $("view-architecture") };
+  const tabs  = { summary: $("tab-summary"),  details: $("tab-details"),
+                  architecture: $("tab-arch") };
+  if (!views.summary || !views.details || !views.architecture) return;
+  function setView(v) {
+    if (!views[v]) v = "summary";
+    Object.keys(views).forEach(k => {
+      views[k].style.display = (k === v) ? "" : "none";
+      tabs[k].classList.toggle("active", k === v);
+      tabs[k].setAttribute("aria-selected", k === v ? "true" : "false");
+    });
+    localStorage.setItem("perfdash_view", v);
+  }
+  tabs.summary.addEventListener("click", () => setView("summary"));
+  tabs.details.addEventListener("click", () => setView("details"));
+  tabs.architecture.addEventListener("click", () => setView("architecture"));
+  setView(localStorage.getItem("perfdash_view") || "summary");
+})();
+
+/* ------------------------------ polling ------------------------------ */
+let timer = null, countdown = REFRESH_MS / 1000, failures = 0, inFlight = false;
+
+async function tick() {
+  // Guard against overlapping polls: if a previous fetch is still in flight
+  // (slow response under load), skip this cycle instead of stacking requests.
+  // Without this, a fetch that takes >1s keeps countdown<=0 and the 1s ticker
+  // launches a new fetch+render every second — an accelerating feedback loop
+  // that grows browser/backend load (and the measured metrics) over time.
+  if (inFlight) return;
+  inFlight = true;
+  // Reset the cadence up front so the ticker never re-fires mid-fetch.
+  countdown = REFRESH_MS / 1000;
+  try {
+    const r = await apiFetch("api/metrics", {cache: "no-store"});
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    if (!d.latest || !Object.keys(d.latest).length) {
+      $("dot").className = "dot stale";
+      $("liveTxt").textContent = "waiting for first sample…";
+      return;
+    }
+    render(d);
+    failures = 0;
+    const age = d.latest._t ? Math.round(Date.now() / 1000 - d.latest._t) : null;
+    const stale = age !== null && age > REFRESH_MS / 1000 * 3;
+    $("dot").className = "dot" + (d.meta.error ? " err" : stale ? " stale" : "");
+    $("liveTxt").textContent = d.meta.error ? "collector error"
+      : `live · updated ${age}s ago`;
+  } catch (e) {
+    failures++;
+    $("dot").className = "dot err";
+    $("liveTxt").textContent = `connection failed (${failures})`;
+  } finally {
+    inFlight = false;
+    countdown = REFRESH_MS / 1000;
+  }
+}
+
+setInterval(() => {
+  if (inFlight) return;               // don't count down while a poll is running
+  countdown--;
+  $("refreshIn").textContent = countdown > 0 ? `next refresh in ${countdown}s` : "refreshing…";
+  if (countdown <= 0) tick();
+}, 1000);
+
+tick();
+/* ------------------------- Common Fix modal ------------------------- */
+(function initCommonFix() {
+  const btn = $("commonFixBtn"), modal = $("fixModal"), listEl = $("fixList"),
+        resEl = $("fixResult"), closeBtn = $("fixClose"),
+        previewBtn = $("fixPreview"), applyBtn = $("fixApply");
+  if (!btn || !modal) return;
+  let token = null, enabled = false;
+  const riskCls = r => r === "safe" ? "risk-safe" : r === "caution" ? "risk-caution" : "risk-manual";
+  const selectedIds = () => [...listEl.querySelectorAll("input[type=checkbox]:checked")].map(c => c.value);
+
+  async function loadFixes() {
+    listEl.innerHTML = "Loading…"; resEl.innerHTML = "";
+    previewBtn.disabled = true; applyBtn.disabled = true;
+    try {
+      const r = await apiFetch("api/fixes", {cache: "no-store"});
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const d = await r.json();
+      token = d.token; enabled = d.enabled;
+      renderFixes(d.fixes || []);
+    } catch (e) {
+      listEl.innerHTML = `<div class="fix-item"><div class="meta"><div class="title">Could not load fixes</div>
+        <div class="why">${esc(e.message)}</div></div></div>`;
+    }
+  }
+
+  function renderFixes(fixes) {
+    if (!fixes.length) {
+      listEl.innerHTML = `<div class="fix-item"><div class="meta"><div class="title">No issues detected</div>
+        <div class="why">All monitored criteria are healthy right now.</div></div></div>`;
+      applyBtn.disabled = true; previewBtn.disabled = true; return;
+    }
+    applyBtn.disabled = !enabled; previewBtn.disabled = false;
+    listEl.innerHTML = fixes.map(f => `
+      <label class="fix-item">
+        <input type="checkbox" value="${esc(f.id)}" ${!f.executable ? "disabled" : (f.risk === "safe" ? "checked" : "")}>
+        <div class="meta">
+          <div class="title">${esc(f.title)}
+            <span class="fix-risk ${riskCls(f.risk)}">${esc(f.risk)}</span>
+            ${f.reversible ? "" : '<span class="fix-risk risk-caution">not reversible</span>'}
+            ${f.persistent ? '<span class="fix-risk risk-safe">persistent</span>' : ""}
+            ${f.session_killing ? '<span class="fix-risk risk-manual">session-killing</span>' : ""}
+          </div>
+          <div class="why">${esc(f.reason)}</div>
+          ${f.executable ? "" : `<div class="why"><b>Manual:</b> ${esc(f.manual_hint)}</div>`}
+        </div>
+      </label>`).join("");
+    if (!enabled) resEl.innerHTML =
+      '<span class="skip">Execution is disabled (set fixes.enabled=true) — preview only.</span>';
+  }
+
+  async function post(confirm) {
+    const ids = selectedIds();
+    if (!ids.length) { resEl.textContent = "Select at least one fix."; return; }
+    previewBtn.disabled = true; applyBtn.disabled = true;
+    resEl.innerHTML = confirm ? "Applying…" : "Previewing…";
+    try {
+      const r = await apiFetch("api/fix", {method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ids, confirm, token})});
+      const d = await r.json();
+      if (!r.ok) { resEl.innerHTML = `<span class="err">${esc(d.error || ("HTTP " + r.status))}</span>`; return; }
+      renderResults(d);
+    } catch (e) { resEl.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+    finally { previewBtn.disabled = false; applyBtn.disabled = !enabled; }
+  }
+
+  function renderResults(d) {
+    const rows = d.results || [];
+    if (d.mode === "preview") {
+      resEl.innerHTML = "<b>Dry-run — nothing executed:</b>\n" + rows.map(r =>
+        r.would_run ? `• ${esc(r.title)} [${esc(r.risk)}] → ${esc(r.shell)}: ${esc(r.would_run)}`
+          : `• ${esc(r.title)} [${esc(r.risk)}] → MANUAL: ${esc(r.manual_hint)}`).join("\n");
+      return;
+    }
+    resEl.innerHTML = "<b>Applied:</b>\n" + rows.map(r => {
+      if (r.status === "skipped")
+        return `<span class="skip">• ${esc(r.title)} — skipped (manual): ${esc(r.manual_hint)}</span>`;
+      const cls = r.status === "ok" ? "ok" : "err";
+      return `<span class="${cls}">• ${esc(r.title)} — ${esc(r.status)} (rc=${r.returncode})</span>` +
+        (r.output ? `\n    ${esc(String(r.output).slice(0, 300))}` : "");
+    }).join("\n");
+    setTimeout(() => { if (typeof tick === "function") tick(); }, 1500);
+  }
+
+  const open = () => { modal.hidden = false; loadFixes(); };
+  const close = () => { modal.hidden = true; };
+  btn.addEventListener("click", open);
+  closeBtn.addEventListener("click", close);
+  modal.addEventListener("click", e => { if (e.target === modal) close(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !modal.hidden) close(); });
+  previewBtn.addEventListener("click", () => post(false));
+  applyBtn.addEventListener("click", () => {
+    if (!selectedIds().length) { resEl.innerHTML = '<span class="skip">Select at least one fix.</span>'; return; }
+    if (confirm("Apply the selected fixes now? Safe/caution fixes will run on this machine.")) post(true);
+  });
+})();
+</script>
+</body>
+</html>

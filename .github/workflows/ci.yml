@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Linux proves the core is platform-independent; Windows is the real
+        # target and the only place the PowerShell collector can be exercised.
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.9', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: python -m ruff check src tests
+
+      - name: Test
+        run: python -m pytest
+
+      - name: Startup settings regression test (Windows only)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./tests/test_startup.ps1
+
+      - name: Collector smoke test (Windows only)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # The collector must emit valid JSON with the keys the app depends on.
+          $json = & powershell -NoProfile -ExecutionPolicy Bypass `
+            -File src/sysperf/scripts/collect_win.ps1 -Full
+          if ($LASTEXITCODE -ne 0) { throw "Collector failed: $LASTEXITCODE" }
+          $obj = $json | ConvertFrom-Json
+          foreach ($key in 'committed_mb','available_mb','total_ram_mb','handles',
+                           'processes','c_free_gb','startup_apps','net_remote',
+                           'hostname','os_build','drv_total') {
+            if ($null -eq $obj.$key) { throw "collector did not emit $key" }
+          }
+          Write-Host "collector OK — $($obj.PSObject.Properties.Name.Count) keys"
+
+      - name: End-to-end smoke test (Windows only)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          PYTHONPATH: src
+          SYSPERF_DATA_DIR: ${{ runner.temp }}/sysperf-ci
+        run: |
+          python -m pip install -r requirements.txt
+          python -m sysperf --report
+          if ($LASTEXITCODE -ne 0) { throw "Report failed" }
+          python -m sysperf --where
+          if ($LASTEXITCODE -ne 0) { throw "CLI failed" }
+
+  package:
+    name: build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install build twine
+      - run: python -m build
+      - run: python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  powershell:
+    name: analyse PowerShell
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser -SkipPublisherCheck
+          $issues = Invoke-ScriptAnalyzer -Path . -Recurse -Severity Error,Warning `
+            -ExcludeRule PSAvoidUsingWriteHost, PSUseShouldProcessForStateChangingFunctions
+          if ($issues) { $issues | Format-Table -AutoSize; throw "$($issues.Count) issue(s)" }
+          Write-Host 'PowerShell analysis clean'
