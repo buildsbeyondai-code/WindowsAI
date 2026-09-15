@@ -23,7 +23,7 @@ undiscovered defects remain.
 | TEMP cleanup | Permanent deletion advertised as safe/reversible | Manual Windows Storage review; reversible=false |
 | WSL tuning | Overwrote existing configuration, reused backup, wrong INI sections | Dashboard action manual-only; standalone script merges settings, keeps unique backup, supports WhatIf and no-action default |
 | Startup script | Unconditionally changed power plan even on battery | Separate explicit power/service switches; report previous power GUID |
-| Runner | Missing PowerShell raised before exception handling | Catch interpreter discovery failures; existing failing test now passes |
+| Runner | Missing PowerShell raised before exception handling | Catch interpreter discovery failures; surface PowerShell/native command errors instead of reporting false success; existing failing test now passes |
 | Collector bridge | Ignored non-zero exit and depended on locale encoding | Reject failed commands; explicit UTF-8 output/input |
 | Config | PowerShell UTF-8 BOM files ignored; invalid typed fields crashed or enabled actions | utf-8-sig loading and default-backed type validation |
 | Sampling | Invalid JSON record shape crashed sampling/history loading | Reject invalid samples; skip non-object history lines |
@@ -46,6 +46,7 @@ undiscovered defects remain.
 | Installer lifecycle | Existing port ignored; NoAutoStart left old startup entries; uninstall process matching too broad | Use saved port, remove old autostart, exact executable matching, preserve unrelated data-dir env setting |
 | Dependencies | Flask 3.0.3 and Waitress 3.0.0 pinned | Flask 3.1.3 / Waitress 3.0.2; regression tests and package build |
 | Packaging | Source distribution lacked installers/docs | MANIFEST.in; wheel retains static and PowerShell assets |
+| PowerShell compatibility | CI found 12 encoding/error-handler/naming warnings | UTF-8 BOM for Windows PowerShell 5.1, diagnostic catches, singular helper name |
 | Quality gates | Original lint failed and Linux test runner crashed | Clean configured Ruff rules; regression suite; native script tests and explicit CI exit checks |
 
 ## Validation

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Installs SysPerf (System Performance Agent) for the current user.
 
@@ -75,7 +75,7 @@ Write-Ok "Windows build $($osVer.Build), PowerShell $($PSVersionTable.PSVersion)
 # ---------------------------------------------------------------------------
 Write-Step 'Locating Python 3.9 or later'
 
-function Get-PythonCandidates {
+function Get-PythonCandidate {
     $found = New-Object System.Collections.Generic.List[string]
     # The py launcher is the most reliable way to find a real install.
     $py = Get-Command 'py.exe' -ErrorAction SilentlyContinue
@@ -85,7 +85,7 @@ function Get-PythonCandidates {
             foreach ($line in $listed) {
                 if ($line -match '([A-Za-z]:\\.+?python\.exe)\s*$') { $found.Add($Matches[1].Trim()) }
             }
-        } catch {}
+        } catch { Write-Verbose "Optional probe failed: $($_.Exception.Message)" }
     }
     foreach ($name in 'python3.exe', 'python.exe') {
         foreach ($cmd in (Get-Command $name -All -ErrorAction SilentlyContinue)) {
@@ -108,7 +108,7 @@ function Test-PythonVersion {
 }
 
 $python = $null
-foreach ($candidate in (Get-PythonCandidates)) {
+foreach ($candidate in (Get-PythonCandidate)) {
     if (Test-PythonVersion $candidate) { $python = $candidate; break }
 }
 
@@ -137,7 +137,7 @@ Install Python from https://www.python.org/downloads/windows/ (tick
     # A fresh install is not on this session's PATH yet.
     $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' +
                 [Environment]::GetEnvironmentVariable('Path', 'Machine')
-    foreach ($candidate in (Get-PythonCandidates)) {
+    foreach ($candidate in (Get-PythonCandidate)) {
         if (Test-PythonVersion $candidate) { $python = $candidate; break }
     }
     if (-not $python) {
@@ -331,7 +331,7 @@ if (-not $NoStart) {
         try {
             $r = Invoke-WebRequest -Uri "${url}api/health" -UseBasicParsing -TimeoutSec 3
             if ($r.StatusCode -eq 200) { $ok = $true; break }
-        } catch {}
+        } catch { Write-Verbose "Optional probe failed: $($_.Exception.Message)" }
     }
     if ($ok) {
         Write-Ok "Dashboard responding at $url"
