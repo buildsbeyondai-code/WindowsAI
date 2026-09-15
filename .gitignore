@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# SysPerf runtime state (never commit machine data)
+.sysperf-data/
+history.jsonl
+baseline.json
+adaptive_state.json
+sysperf.config.json
+hw_watchlist.json
+service.log
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
