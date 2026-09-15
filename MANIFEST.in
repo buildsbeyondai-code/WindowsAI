@@ -1,0 +1,4 @@
+include *.ps1 *.sh *.txt *.md *.html *.json
+recursive-include docs *.md *.py *.html
+recursive-include tests *.py *.ps1 *.js
+recursive-include .github *.yml

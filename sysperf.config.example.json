@@ -1,0 +1,73 @@
+{
+  "//": "SysPerf configuration. Copy to your data directory as sysperf.config.json.",
+  "//_location": "Windows: %LOCALAPPDATA%\\SysPerf\\sysperf.config.json — run 'sysperf --where' to confirm.",
+  "//_note": "Every key is optional. Anything omitted keeps its built-in default. Restart SysPerf after editing.",
+
+  "//_server": "Loopback only by default. Setting a non-loopback host makes SysPerf generate and require an auth token, written back into this file.",
+  "host": "127.0.0.1",
+  "port": 5056,
+  "auth_token": "",
+  "open_browser": false,
+
+  "//_sampling": "sample_seconds is the fast tier. The slow tier (services, startup, network, hardware, drivers) runs every full_every-th sample because it costs a few seconds.",
+  "sample_seconds": 20,
+  "full_every": 15,
+  "max_samples": 720,
+  "history_max_bytes": 12000000,
+
+  "//_scoring": "Counts breathe constantly, so the score uses a rolling median of the last score_smooth_window samples rather than the latest reading. Set to 1 to score the raw value. regress_band_pct is the noise dead-band before a metric counts as regressed.",
+  "score_smooth_window": 15,
+  "smooth_window_overrides": { "net_remote": 180 },
+  "regress_band_pct": 2.0,
+
+  "//_targets": "Fractions of THIS machine's capacity, applied once when the baseline is captured. Raising a fraction makes the target easier; lowering it makes it stricter.",
+  "targets": {
+    "commit_of_ram": 0.75,
+    "commit_improve": 0.85,
+    "compression_of_ram": 0.05,
+    "available_of_ram": 0.3,
+    "available_improve": 1.25,
+    "handles_improve": 0.85,
+    "disk_free_fraction": 0.15,
+    "startup_apps_max": 10,
+    "startup_apps_improve": 0.55,
+    "net_remote_floor": 25,
+    "net_remote_improve": 0.7,
+    "browser_extra_headroom": 4,
+    "wsl_cap_of_ram": 0.35
+  },
+
+  "//_adaptive": "The personal-best layer. Learns each metric's own history and sets a stretch goal just beyond your best day.",
+  "adaptive": {
+    "enabled": true,
+    "stretch": 0.05,
+    "min_day_samples": 3,
+    "learn_samples": 20
+  },
+
+  "//_browser_hosts": "Which applications' embedded-browser (WebView2) processes you cannot close, and which are merely in use. Add your own — anything unlisted counts as discretionary and raises the number SysPerf expects you to reduce.",
+  "browser_hosts": {
+    "mandatory": {
+      "OneDrive": "File sync",
+      "SearchHost": "Windows Start / Search",
+      "ShellExperienceHost": "Windows shell",
+      "PanGPA": "Enterprise VPN client"
+    },
+    "in_use": {
+      "ms-teams": "Microsoft Teams",
+      "OUTLOOK": "Microsoft Outlook",
+      "Code": "Visual Studio Code"
+    }
+  },
+
+  "//_advisor": "Recommendations. reboot_after_hours is when long uptime starts being suggested as a fix.",
+  "advisor": {
+    "enabled": true,
+    "stale_driver_years": 4,
+    "reboot_after_hours": 168,
+    "max_recommendations": 20
+  },
+
+  "//_privacy": "No data ever leaves the machine. anonymize additionally replaces application and device names with stable hashes in the API payload, so the dashboard is safe to screen-share.",
+  "anonymize": false
+}
