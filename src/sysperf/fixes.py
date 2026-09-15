@@ -177,11 +177,11 @@ def build_registry() -> list:
             detect=_detect_temp),
         Fix(id="empty_recycle_bin", title="Empty the Recycle Bin",
             category="storage", risk="caution", reversible=False, shell="pwsh",
-            command="Clear-RecycleBin -Force -ErrorAction SilentlyContinue",
+            command="Clear-RecycleBin -Force -ErrorAction Stop",
             detect=_detect_recycle),
         Fix(id="restart_explorer", title="Restart Windows Explorer",
             category="handles", risk="caution", reversible=True, shell="pwsh",
-            command=("Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue; "
+            command=("Stop-Process -Name explorer -Force -ErrorAction Stop; "
                      "Start-Sleep -Seconds 1; if (-not (Get-Process explorer -ErrorAction "
                      "SilentlyContinue)) { Start-Process explorer }"),
             detect=_detect_explorer),
@@ -231,7 +231,9 @@ def default_runner(shell: str, command: str, timeout: float = 60.0) -> tuple:
         if shell == "pwsh":
             from .platform_win import powershell_exe
             argv = [powershell_exe(), "-NoProfile", "-NonInteractive",
-                    "-ExecutionPolicy", "Bypass", "-Command", command]
+                    "-ExecutionPolicy", "Bypass", "-Command",
+                    "$ErrorActionPreference = 'Stop'; $global:LASTEXITCODE = 0; "
+                    "& { " + command + " }; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"]
         elif shell == "bash":
             argv = ["/bin/bash", "-c", command]
         else:

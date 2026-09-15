@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 #  SysPerf — Windows metrics collector
 #  Part of the System Performance Agent (https://github.com/) — Apache-2.0
 # =============================================================================
@@ -460,14 +460,14 @@ if ($Full) {
                     try {
                         $dt = [datetime]::ParseExact($dtStr, $f, [Globalization.CultureInfo]::InvariantCulture)
                         break
-                    } catch {}
+                    } catch { Write-Verbose "Optional probe failed: $($_.Exception.Message)" }
                 }
-                if (-not $dt) { try { $dt = [datetime]$dtStr } catch {} }
+                if (-not $dt) { try { $dt = [datetime]$dtStr } catch { Write-Verbose "Optional probe failed: $($_.Exception.Message)" } }
             }
             $drvList += [pscustomobject]@{ pub = $pub; orig = $orig; provider = $prov
                                            class = $cls; signer = $sign; version = $ver; date = $dt }
         }
-    } catch {}
+    } catch { Write-Verbose "Optional probe failed: $($_.Exception.Message)" }
     $out.drv_total    = $drvList.Count
     $out.drv_unsigned = @($drvList | Where-Object { -not $_.signer }).Count
 
@@ -533,7 +533,7 @@ if ($Full) {
         $bx = [xml]$bootEvt.ToXml()
         $bt = ($bx.Event.EventData.Data | Where-Object { $_.Name -eq 'BootTime' }).'#text'
         if ($bt) { $out.boot_time_s = [math]::Round([double]$bt / 1000, 1) }
-    } catch {}
+    } catch { Write-Verbose "Optional probe failed: $($_.Exception.Message)" }
 
     $appStartSec = {
         param($rx)
@@ -550,7 +550,7 @@ if ($Full) {
                     if ($tt) { return [math]::Round([double]$tt / 1000, 1) }
                 }
             }
-        } catch {}
+        } catch { Write-Verbose "Optional probe failed: $($_.Exception.Message)" }
         return $null
     }
     $vx = & $appStartSec 'explorer\.exe'; if ($null -ne $vx) { $out.explorer_launch_s = $vx }
@@ -564,7 +564,7 @@ if ($Full) {
         if ($tz -and $tz.CurrentTemperature -gt 0) {
             $out.cpu_temp_c = [math]::Round(($tz.CurrentTemperature / 10) - 273.15, 1)
         }
-    } catch {}
+    } catch { Write-Verbose "Optional probe failed: $($_.Exception.Message)" }
 }
 
 $out | ConvertTo-Json -Depth 4 -Compress

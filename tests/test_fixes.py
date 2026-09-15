@@ -96,7 +96,10 @@ def test_default_runner_pwsh(monkeypatch):
         return type("R", (), {"returncode": 0, "stdout": "out", "stderr": ""})()
     monkeypatch.setattr(F.subprocess, "run", fake_run)
     rc, out = default_runner("pwsh", "Get-Date")
-    assert rc == 0 and out == "out" and seen["argv"][-2:] == ["-Command", "Get-Date"]
+    assert rc == 0 and out == "out" and seen["argv"][-2] == "-Command"
+    assert "& { Get-Date }" in seen["argv"][-1]
+    assert "$ErrorActionPreference = 'Stop'" in seen["argv"][-1]
+    assert "exit $LASTEXITCODE" in seen["argv"][-1]
 
 
 def test_default_runner_bash(monkeypatch):

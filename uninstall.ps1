@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Removes SysPerf for the current user.
 
