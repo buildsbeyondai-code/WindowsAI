@@ -75,7 +75,9 @@ class Supervisor:
 
     # ------------------------------------------------------------- process --
     def start_child(self) -> None:
-        env = dict(self.env, SYSPERF_SUPERVISED="1")
+        # PYTHONUNBUFFERED: the child's stdout is the runtime log file, which Python
+        # would otherwise block-buffer (8 KB), delaying every line by minutes to hours.
+        env = dict(self.env, SYSPERF_SUPERVISED="1", PYTHONUNBUFFERED="1")
         if self.starts:
             env["SYSPERF_NO_BROWSER"] = "1"           # only the first start opens a tab
         self.child = self._spawn(self.child_argv, env=env, stdout=sys.stdout,

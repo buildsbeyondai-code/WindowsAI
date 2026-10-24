@@ -55,6 +55,7 @@ def test_start_sets_env_and_only_first_start_opens_browser(tmp_path):
     s.start_child()
     s.start_child()
     assert w.spawned_env[0]["SYSPERF_SUPERVISED"] == "1"
+    assert w.spawned_env[0]["PYTHONUNBUFFERED"] == "1"          # log lines land at once
     assert "SYSPERF_NO_BROWSER" not in w.spawned_env[0]
     assert w.spawned_env[1]["SYSPERF_NO_BROWSER"] == "1"
     events = [json.loads(x)["event"] for x in (tmp_path / "supervisor_log.jsonl")
