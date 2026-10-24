@@ -1455,9 +1455,26 @@ def _start(name: str, target, *args) -> threading.Thread:
     return health_monitor.register_thread(name, th)
 
 
+def _log_to_stream() -> logging.Handler:
+    """Send INFO+ to stdout/stderr (the runtime log under the sign-in task).
+
+    ``logging.basicConfig`` is a no-op once the root logger has any handler, and
+    the diagnostics ErrorBuffer is attached at import — so the stream handler is
+    added explicitly, once.
+    """
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    for h in root.handlers:
+        if type(h) is logging.StreamHandler:
+            return h
+    h = logging.StreamHandler()
+    h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    root.addHandler(h)
+    return h
+
+
 def main() -> None:
-    logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s %(levelname)s %(message)s")
+    _log_to_stream()
     _start("collector", collector.loop)
     health_monitor.add_probe("collector", lambda: collector.last_ok_at,
                              max(600.0, 3 * SAMPLE_SECONDS + COLLECT_TIMEOUT_FULL_S),
