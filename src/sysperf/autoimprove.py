@@ -133,7 +133,11 @@ class AutoImprover:
         # last_at (it IS the last cycle) but must not shift the schedule, so the
         # countdown is anchored here instead.
         self.loop_tick: float | None = None
-        self.lock = threading.Lock()
+        # Re-entrant: cycle() holds the lock through _finish(), whose on_cycle hook
+        # (app._evolution_tick) calls status(), which takes it again. A plain Lock
+        # self-deadlocked the loop thread and every API reading status
+        # (observed 2026-10-24: /api/autoimprove, /api/learning, /api/actions hung).
+        self.lock = threading.RLock()
         self.state = {"mode": mode, "cycles": 0, "cooldowns": {}, "ledger": {},
                       "pending": None, "proposals": [], "last": None,
                       "last_at": None}
