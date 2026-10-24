@@ -4999,7 +4999,9 @@ tick();
       <circle cx="75" cy="75" r="${RR}" fill="none" stroke="${oc}" stroke-width="13" stroke-linecap="round"
         stroke-dasharray="${on} ${CIRC - on}" transform="rotate(-90 75 75)" style="transition:stroke-dasharray .8s ease"/></svg>`;
     const running = !s.gate || ["analyzing","planning","generating","testing","benchmarking"].includes(s.state);
-    const pill = `<span class="evo-pill ${s.gate ? "warn" : "ok"}"><span class="d"></span>${esc(STATE_TEXT[s.state] || s.state)}</span>`;
+    // "next scheduled attempt in N s" is a healthy wait, not a blocker.
+    const waiting = !!s.gate && /^next scheduled attempt/.test(s.gate);
+    const pill = `<span class="evo-pill ${s.gate && !waiting ? "warn" : "ok"}"><span class="d"></span>${esc(STATE_TEXT[s.state] || s.state)}</span>`;
     const cards = req.map(([k, name, ok, hint]) => `<div class="sum-row glass3d ${ok ? "g" : "r"}">
       <span class="rico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg></span>
       <span class="rl"><span class="rname">${esc(name)}</span><span class="rhint">${esc(hint)}</span></span>
@@ -5012,7 +5014,9 @@ tick();
             <div class="grade" style="color:${oc}">${pct === 100 ? "Ready" : "Setup needed"}</div></div></div>
         <div class="sum-right">
           <div class="sum-head"><h3>AI Self-Evolution ${pill}</h3>
-            <p>${s.gate ? "Not running: " + esc(s.gate) : (running ? "Running — next attempt " + (s.next_due ? fmtT(s.next_due) : "on schedule") : "")}</p></div>
+            <p>${waiting ? "Ready — next evolution cycle at " + esc(fmtT(s.next_due))
+              : s.gate ? "Not running: " + esc(s.gate)
+              : (running ? "Running — next attempt " + (s.next_due ? fmtT(s.next_due) : "on schedule") : "")}</p></div>
           <div class="sum-stats">
             <div class="sum-stat ${c.total ? "met" : "meas"}"><div class="n">${c.total || 0}</div><div class="l">Candidates</div></div>
             <div class="sum-stat met"><div class="n">${c.retained || 0}</div><div class="l">Retained</div></div>
