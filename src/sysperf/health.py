@@ -90,8 +90,13 @@ def _win_rss_mb() -> float | None:                       # pragma: no cover - Wi
                 "QuotaNonPagedPoolUsage", "PagefileUsage", "PeakPagefileUsage")]
     pmc = PMC()
     pmc.cb = ctypes.sizeof(PMC)
-    proc = ctypes.windll.kernel32.GetCurrentProcess()
-    if not ctypes.windll.psapi.GetProcessMemoryInfo(proc, ctypes.byref(pmc), pmc.cb):
+    # Declare the types: the pseudo-handle (-1) is pointer-sized, and the default
+    # int conversion truncates it on 64-bit Windows, so the call failed.
+    k32, psapi = ctypes.windll.kernel32, ctypes.windll.psapi
+    k32.GetCurrentProcess.restype = wintypes.HANDLE
+    psapi.GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.POINTER(PMC), wintypes.DWORD]
+    psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
+    if not psapi.GetProcessMemoryInfo(k32.GetCurrentProcess(), ctypes.byref(pmc), pmc.cb):
         return None
     return round(pmc.WorkingSetSize / 1048576, 1)
 
