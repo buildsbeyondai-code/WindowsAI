@@ -258,6 +258,10 @@ STANDBY_BROKER_SCRIPT_DIR = _os.environ.get(
 # threshold across several consecutive intervals, with a cooldown so it cannot
 # thrash. Honours FIX_ENABLED. State (enabled flag + last action) is persisted.
 PROCWATCH_STATE_FILE = DATA_DIR / "procwatch_state.json"
+# Tray-app auto-quit (trayquit.py): settings + recent quits, and the quit log.
+TRAYQUIT_STATE_FILE = DATA_DIR / "trayquit_state.json"
+TRAYQUIT_LOG_FILE = DATA_DIR / "trayquit_log.jsonl"
+TRAYQUIT_INTERVAL_S = float(_os.environ.get("PERFDASH_TRAYQUIT_INTERVAL", 15))
 PROCWATCH_ENABLED = _os.environ.get(
     "PERFDASH_PROCWATCH_ENABLED", "1") not in ("0", "false", "no", "")
 # Restart when explorer's CPU% (share of ALL logical processors) is at/above this

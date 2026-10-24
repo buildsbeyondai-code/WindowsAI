@@ -1553,6 +1553,39 @@
     <div id="appctlMsg" class="fix-result"></div>
   </div>
 
+  <div class="ac-ctl" id="tqCard">
+    <h3>Quit tray apps when closed <span class="hint">frees the RAM apps keep
+      holding in the system tray after you close their window</span></h3>
+    <div id="tqStatus" class="chips" style="margin:2px 0 10px"></div>
+    <div id="tqApps">Loading…</div>
+    <div class="acts" style="margin-top:10px">
+      <button id="tqToggle" class="fixbtn">Turn off</button>
+      <label class="note keep" style="margin:0;display:flex;align-items:center;gap:6px">Quit after
+        <select id="tqGrace" class="fixbtn ghost" style="padding:5px 8px">
+          <option value="30">30 s</option><option value="60">1 min</option>
+          <option value="120">2 min</option><option value="300">5 min</option>
+          <option value="900">15 min</option></select> in the tray</label>
+      <input id="tqAdd" placeholder="add app (process name, e.g. Teams)" maxlength="64"
+        style="padding:7px 10px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);min-width:220px">
+      <button id="tqAddBtn" class="fixbtn ghost">Add</button>
+    </div>
+    <div id="tqSuggest" style="margin-top:10px"></div>
+    <div id="tqMsg" class="fix-result"></div>
+    <details class="collapse" style="margin-top:10px">
+      <summary>Recent auto-quits <span class="tag tb" id="tqRecentPill">—</span></summary>
+      <div class="cbody"><div id="tqRecent"></div></div>
+    </details>
+    <details class="collapse" style="margin-top:10px">
+      <summary>How it decides</summary>
+      <div class="cbody"><div class="note keep" style="margin:0">Every 15 s the dashboard
+        checks each listed app. An app is quit only when <b>none</b> of its processes has a
+        visible window — a minimized window still counts as open — for the chosen time,
+        and never within a minute of it starting. Only apps on your list are touched;
+        Windows, security software, browsers, WSL and this dashboard can never be added.
+        Reopen an app from the Start menu as usual — it starts fresh.</div></div>
+    </details>
+  </div>
+
   <div class="ac-ctl" id="wslCard">
     <h3>WSL memory <span class="hint">reclaim the WSL2 VM's RAM</span></h3>
     <div id="wslInfo" class="sum">Loading…</div>
@@ -4675,6 +4708,7 @@ tick();
       refreshWsl();
       refreshOnedrive();
       refreshProcwatch();
+      refreshTrayquit();
     } catch (e) {
       $("appctlMsg").innerHTML = `<span class="err">${esc(e.message)}</span>`;
     }
@@ -4916,6 +4950,80 @@ tick();
         : `<span class="err">${esc(d.error || ("HTTP " + r.status))}</span>`;
       refreshProcwatch();
     } catch (e) { msg.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  }
+
+  // Tray auto-quit card.
+  async function refreshTrayquit(given) {
+    if (!$("tqCard")) return;
+    try {
+      const s = given || await fetch("api/trayquit", {cache: "no-store"}).then(r => r.json());
+      const off = !s.execution_enabled;
+      const live = s.apps_live || [];
+      const inTray = live.filter(a => a.state === "in tray");
+      const trayMb = inTray.reduce((n, a) => n + (a.mem_mb || 0), 0);
+      $("tqStatus").innerHTML = [
+        `<span>Auto-quit <b class="${s.enabled ? "v-ok" : ""}">${s.enabled ? "ON" : "OFF"}</b></span>`,
+        `<span>In tray now <b class="${inTray.length ? "v-warn" : "v-ok"}">${inTray.length}</b>${trayMb ? ` · <b>${fmt(trayMb)} MB</b>` : ""}</span>`,
+        `<span>Freed (24 h) <b class="v-ok">${fmt(s.freed_24h_mb || 0)} MB</b> · ${fmt(s.quits_24h || 0)} quits</span>`,
+        off ? `<span class="v-warn">execution disabled — reporting only</span>` : ""].join("");
+      const stateTag = a => !a.running ? `<span class="tag tb">not running</span>`
+        : a.state === "open" ? `<span class="tag tg">window open</span>`
+        : a.state === "starting" ? `<span class="tag tb">starting</span>`
+        : `<span class="tag ta">in tray ${fmt(a.hidden_for_s || 0)}s</span>`;
+      const quitIn = a => (a.state === "in tray" && s.enabled && !off)
+        ? `quits in ${Math.max(0, s.grace_s - (a.hidden_for_s || 0))}s` : "";
+      $("tqApps").innerHTML = live.length ? live.map(a => `<div class="ac-app">
+          <div><div class="an">${esc(a.name)} ${stateTag(a)}</div>
+            <div class="am">${a.running ? `${fmt(a.procs)} process${a.procs === 1 ? "" : "es"}` : "—"}${quitIn(a) ? " · " + quitIn(a) : ""}</div></div>
+          <div class="acur">${a.running ? fmt(a.mem_mb) : "—"}<i>MB RAM</i></div><div></div>
+          <div class="ac-acts"><button class="fixbtn ghost" data-tq-remove="${esc(a.name)}">Remove</button></div>
+        </div>`).join("") : `<div class="note keep">No apps listed — add one below.</div>`;
+      const sg = s.suggestions || [];
+      $("tqSuggest").innerHTML = sg.length ? `<div class="note keep" style="margin:0 0 6px">Other
+          windowless apps holding RAM — add any you don't need running in the background:</div>
+        <div class="acts">${sg.map(x => `<button class="fixbtn ghost" data-tq-add="${esc(x.name)}">+ ${esc(x.name)} · ${fmt(x.mem_mb)} MB</button>`).join("")}</div>` : "";
+      const rec = s.recent || [];
+      $("tqRecentPill").textContent = rec.length;
+      $("tqRecent").innerHTML = rec.length ? rec.map(e => `<div class="note keep" style="margin:3px 0">
+          <b>${esc(e.name)}</b> quit ${new Date(e.at * 1000).toLocaleString()} · freed ~<b>${fmt(e.freed_mb)} MB</b>
+          (${fmt(e.procs)} processes, ${fmt(e.hidden_s)}s in tray)</div>`).join("")
+        : `<div class="note keep" style="margin:0">Nothing quit yet.</div>`;
+      const tg = $("tqToggle");
+      tg.textContent = s.enabled ? "Turn off" : "Turn on";
+      tg.classList.toggle("ghost", s.enabled);
+      tg.disabled = off;
+      const gs = $("tqGrace");
+      if (document.activeElement !== gs) {
+        if (![...gs.options].some(o => +o.value === s.grace_s))
+          gs.add(new Option(s.grace_s + " s", s.grace_s));
+        gs.value = String(s.grace_s);
+      }
+      window.__tqEnabled = s.enabled;
+    } catch (e) { /* keep last-known */ }
+  }
+  async function trayquitSet(body, note) {
+    const msg = $("tqMsg");
+    msg.innerHTML = note || "Saving…";
+    try {
+      const {r, d} = await postJson("api/trayquit", body);
+      msg.innerHTML = r.ok ? `<span class="ok">Saved.</span>`
+        : `<span class="err">${esc(d.error || ("HTTP " + r.status))}</span>`;
+      if (r.ok) refreshTrayquit(d);
+    } catch (e) { msg.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  }
+  if ($("tqCard")) {
+    $("tqToggle").addEventListener("click", () => trayquitSet({enabled: !window.__tqEnabled}));
+    $("tqGrace").addEventListener("change", e => trayquitSet({grace_s: +e.target.value}));
+    const addTyped = () => { const v = $("tqAdd").value.trim().replace(/\.exe$/i, "");
+      if (v) { $("tqAdd").value = ""; trayquitSet({add: v}, `Adding ${esc(v)}…`); } };
+    $("tqAddBtn").addEventListener("click", addTyped);
+    $("tqAdd").addEventListener("keydown", e => { if (e.key === "Enter") addTyped(); });
+    $("tqCard").addEventListener("click", e => {
+      const a = e.target.closest("[data-tq-add]"), rm = e.target.closest("[data-tq-remove]");
+      if (a) trayquitSet({add: a.dataset.tqAdd}, `Adding ${esc(a.dataset.tqAdd)}…`);
+      if (rm) trayquitSet({remove: rm.dataset.tqRemove}, `Removing ${esc(rm.dataset.tqRemove)}…`);
+    });
+    setInterval(() => { if (view.style.display !== "none") refreshTrayquit(); }, 15000);
   }
 
   window.perfdashAppctl = {refresh};

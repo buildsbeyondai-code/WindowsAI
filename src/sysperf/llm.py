@@ -218,7 +218,9 @@ class AnthropicProvider(Provider):
                  max_retries: int = 4, backoff_base_s: float = 1.0,
                  prices: Optional[dict] = None, opener=None, sleep=time.sleep):
         self.api_key = api_key
-        self.auto = (model or "auto").strip().lower() == "auto"
+        # Only an explicit "auto" selects automatically (build_provider defaults
+        # the setting to it); None keeps the explicit "no model configured" error.
+        self.auto = (model or "").strip().lower() == "auto"
         self.model = None if self.auto else model
         self._auto_at = 0.0
         self.base_url = base_url.rstrip("/")

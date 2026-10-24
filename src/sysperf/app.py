@@ -39,6 +39,7 @@ from . import procwatch as procwatch_mod
 from . import session_policy as session_policy_mod
 from . import rca as rca_mod
 from . import livestats as livestats_mod
+from . import trayquit as trayquit_mod
 from .config import (HOST, PORT, SNAPSHOT_TTL, STATIC_DIR, ADAPTIVE_FILE,
                     FIX_ENABLED, TRENDS_FILE, AUTO_STATE_FILE, AUTO_LOG_FILE,
                     AUTO_LOG_MAX_LINES, SELFTEST_REPORT_FILE, SELFTEST_ROOT,
@@ -47,6 +48,7 @@ from .config import (HOST, PORT, SNAPSHOT_TTL, STATIC_DIR, ADAPTIVE_FILE,
                     ONEDRIVE_DEFAULT_STOPPED, ONEDRIVE_LOCK_POLICY,
                     ONEDRIVE_CONTROL_FILE,
                     PROCWATCH_STATE_FILE, PROCWATCH_ENABLED, PROCWATCH_CPU_PCT,
+                    TRAYQUIT_STATE_FILE, TRAYQUIT_LOG_FILE, TRAYQUIT_INTERVAL_S,
                     PROCWATCH_SUSTAIN, PROCWATCH_COOLDOWN_S, PROCWATCH_INTERVAL_S,
                     PROCWATCH_MAX_AGE_S,
                     SESSION_POLICY_INTERVAL_S, SESSION_POLICY_RECONCILE,
@@ -198,6 +200,10 @@ proc_watchdog = procwatch_mod.ExplorerCpuWatchdog(
     threshold_pct=PROCWATCH_CPU_PCT, sustain=PROCWATCH_SUSTAIN,
     cooldown_s=PROCWATCH_COOLDOWN_S, enabled=PROCWATCH_ENABLED,
     fix_enabled=FIX_ENABLED, max_age_s=PROCWATCH_MAX_AGE_S)
+# Quit listed tray apps (ChatGPT, WhatsApp, ...) once their window has been closed
+# for a grace period, so their RAM is returned. Honours FIX_ENABLED.
+tray_quitter = trayquit_mod.TrayQuitter(TRAYQUIT_STATE_FILE, TRAYQUIT_LOG_FILE,
+                                        fix_enabled=FIX_ENABLED)
 app = Flask(__name__, static_folder=None)
 
 # Per-process CSRF token: required on POST /api/fix so a mutating action cannot
@@ -445,6 +451,28 @@ def api_procwatch_set():
     if "enabled" not in body:
         return jsonify({"error": "body must include boolean 'enabled'"}), 400
     return jsonify({"enabled": proc_watchdog.set_enabled(bool(body.get("enabled")))})
+
+
+@app.get("/api/trayquit")
+def api_trayquit():
+    """Tray auto-quit status: settings, live app states, suggestions, recent quits."""
+    return jsonify(tray_quitter.status())
+
+
+@app.post("/api/trayquit")
+def api_trayquit_set():
+    """Change tray auto-quit. Body: {"token", "enabled"?, "grace_s"?, "add"?, "remove"?}."""
+    body = request.get_json(silent=True) or {}
+    if body.get("token") != FIX_TOKEN:
+        return jsonify({"error": "invalid or missing CSRF token"}), 403
+    try:
+        tray_quitter.configure(enabled=body.get("enabled"), grace_s=body.get("grace_s"),
+                               add=body.get("add"), remove=body.get("remove"))
+    except (ValueError, TypeError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    if PLATFORM == "windows":
+        tray_quitter.tick()           # reflect the change immediately
+    return jsonify(tray_quitter.status())
 
 
 @app.post("/api/procwatch/run")
@@ -928,6 +956,9 @@ def main() -> None:
     threading.Thread(target=code_evolution.loop, args=(lambda: action_policy.level,),
                      daemon=True).start()
     threading.Thread(target=_verify_actions_loop, daemon=True).start()
+    if PLATFORM == "windows":
+        threading.Thread(target=tray_quitter.loop, args=(TRAYQUIT_INTERVAL_S,),
+                         daemon=True).start()
     # Loopback bind is deliberate (see config.HOST) — read-only telemetry, no auth.
     serve(app, host=HOST, port=PORT)
 
