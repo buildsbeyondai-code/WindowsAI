@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Linux proves the core is platform-independent; Windows is the real
+        # target and the only place the PowerShell collector can be exercised.
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.9', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Dependency consistency
+        run: python -m pip check
+
+      - name: Compile every module
+        run: python -m compileall -q src tests tools
+
+      - name: Lint
+        run: python -m ruff check src tests
+
+      # 4.0: the self-evolution tests execute generated code only inside a
+      # sandbox. Ubuntu 24.04 restricts unprivileged user namespaces through
+      # AppArmor, which bubblewrap needs; lift it on the throwaway runner so
+      # those tests really run instead of skipping. On Windows they skip and
+      # report why (no isolation backend), which is the documented behaviour.
+      - name: Isolation backend for evolution tests (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          bwrap --ro-bind / / --unshare-all --die-with-parent true && echo "bwrap OK"
+
+      - name: Test
+        run: python -m pytest -rs
+
+      - name: Collector smoke test (Windows only)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # The collector must emit valid JSON with the keys the app depends on.
+          # (3.x pointed at a scripts/ subfolder that never existed, so this
+          # step could not pass.)
+          $json = & powershell -NoProfile -ExecutionPolicy Bypass `
+            -File src/sysperf/collect_win.ps1 -Full
+          $obj = $json | ConvertFrom-Json
+          foreach ($key in 'committed_mb','available_mb','total_ram_mb','handles',
+                           'processes','c_free_gb','startup_apps','net_remote',
+                           'hostname','os_build','drv_total') {
+            if ($null -eq $obj.$key) { throw "collector did not emit $key" }
+          }
+          Write-Host "collector OK — $($obj.PSObject.Properties.Name.Count) keys"
+
+      - name: End-to-end smoke test (Windows only)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          PYTHONPATH: src
+          SYSPERF_DATA_DIR: ${{ runner.temp }}/sysperf-ci
+        run: |
+          python -m sysperf --version
+          python -m sysperf --where
+          python -m sysperf --report
+          # Windows validation script (also runnable by hand on a real machine).
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools/validate-windows.ps1 -SkipPytest
+
+  package:
+    name: build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install build twine
+      - run: python -m build
+      - run: python -m twine check dist/*
+      - name: Installed wheel carries the UI, collector and catalogs
+        run: |
+          python -m venv /tmp/v && /tmp/v/bin/pip install -q dist/*.whl
+          /tmp/v/bin/python -m sysperf --version
+          /tmp/v/bin/python - <<'PY'
+          import importlib.resources as r, sysperf
+          pkg = r.files("sysperf")
+          for f in ("static/index.html", "collect_win.ps1", "components.json"):
+              assert pkg.joinpath(f).is_file(), f
+          for m in ("llm", "evodb", "optactions", "codevolve"):
+              __import__("sysperf." + m)
+          print("wheel OK", sysperf.__version__)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  powershell:
+    name: analyse PowerShell
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser -SkipPublisherCheck
+          $issues = Invoke-ScriptAnalyzer -Path . -Recurse -Severity Error,Warning `
+            -ExcludeRule PSAvoidUsingWriteHost, PSUseShouldProcessForStateChangingFunctions
+          if ($issues) { $issues | Format-Table -AutoSize; throw "$($issues.Count) issue(s)" }
+          Write-Host 'PowerShell analysis clean'

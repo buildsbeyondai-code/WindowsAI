@@ -1,0 +1,71 @@
+{
+  "_comment": [
+    "Allowlist for the SysPerf host-exec broker. Only the basename of argv[0] is",
+    "matched; the broker resolves it to an absolute host path itself, so a",
+    "container cannot point 'docker' at a binary of its own choosing.",
+    "",
+    "powershell.exe / pwsh.exe  - the collector sample and every remediation",
+    "wslpath                    - translates /app paths for the Windows side",
+    "wsl.exe                    - 'wsl --version' for the components panel",
+    "the rest                   - read-only '--version' probes (components.py)",
+    "",
+    "Template: install-container.sh renders @SYSPERF_DIST@ and @SYSPERF_DATA@",
+    "into broker/policy.json."
+  ],
+  "allow": [
+    "powershell.exe",
+    "pwsh.exe",
+    "wslpath",
+    "wsl.exe",
+    "docker",
+    "lsb_release",
+    "uname",
+    "python3",
+    "node",
+    "npm",
+    "nginx",
+    "gunicorn",
+    "git",
+    "kiro-cli"
+  ],
+
+  "_program_paths_comment": [
+    "Absolute paths for programs the broker cannot resolve from its own PATH.",
+    "systemd gives the unit a minimal PATH without the /mnt/c interop entries,",
+    "so 'which wsl.exe' fails even though an interactive shell finds it."
+  ],
+  "program_paths": {
+    "wsl.exe": "/mnt/c/Windows/System32/wsl.exe"
+  },
+
+  "_path_map_comment": [
+    "The container sees the package at /app/sysperf, its state at /data and the",
+    "distribution at /dist. PowerShell on the Windows side can only open host",
+    "paths, so each prefix is rewritten to its host equivalent. Longest prefix",
+    "wins, so /app/sysperf is matched before /app."
+  ],
+  "path_map": {
+    "/app/sysperf": "@SYSPERF_DIST@/src/sysperf",
+    "/app": "@SYSPERF_DIST@/src",
+    "/data": "@SYSPERF_DATA@",
+    "/dist": "@SYSPERF_DIST@"
+  },
+
+  "_script_roots_comment": [
+    "A -File argument must land inside one of these after translation. This is",
+    "what stops the container asking the host to run a script it wrote itself",
+    "anywhere else."
+  ],
+  "script_roots": [
+    "@SYSPERF_DIST@",
+    "@SYSPERF_DATA@"
+  ],
+
+  "_allow_arbitrary_pwsh_comment": [
+    "fixes.py builds [PS_EXE, '-Command', <remediation>] at runtime, so this",
+    "flag is what makes the remediation feature work. It is arbitrary execution",
+    "on the Windows host, logged to broker.log. Set false for a read-only",
+    "dashboard: sampling and probes keep working, applying fixes stops."
+  ],
+  "allow_arbitrary_pwsh": true
+}

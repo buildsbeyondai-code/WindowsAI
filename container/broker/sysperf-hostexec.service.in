@@ -1,0 +1,39 @@
+[Unit]
+Description=SysPerf host-exec broker (allowlisted host execution for the container)
+Documentation=file://@SYSPERF_DIST@/container/README.md
+After=network-online.target
+Before=docker.service
+
+[Service]
+Type=simple
+User=@SYSPERF_USER@
+Group=@SYSPERF_GROUP@
+WorkingDirectory=@SYSPERF_DIST@/container/broker
+ExecStart=/usr/bin/python3 @SYSPERF_DIST@/container/broker/hostexec_broker.py
+Restart=always
+RestartSec=3
+
+# The socket lives in a RuntimeDirectory so systemd creates it with the right
+# owner on every start. Preserve=yes is essential, not cosmetic: the container
+# bind-mounts this directory, and without it systemd deletes the directory on
+# every restart, leaving the container's mount pointing at a dead inode and the
+# dashboard unable to reach the broker until it too was restarted.
+RuntimeDirectory=sysperf-hostexec
+RuntimeDirectoryMode=0750
+RuntimeDirectoryPreserve=yes
+Environment=SYSPERF_BROKER_SOCKET=/run/sysperf-hostexec/sock
+Environment=SYSPERF_BROKER_POLICY=@SYSPERF_DIST@/container/broker/policy.json
+
+StandardOutput=journal
+StandardError=journal
+
+# This process exists to execute things on the host, so it cannot be sandboxed
+# the way the container is. What it can be is narrow: no new privileges, and no
+# write access outside the paths it actually uses.
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+
+[Install]
+WantedBy=multi-user.target

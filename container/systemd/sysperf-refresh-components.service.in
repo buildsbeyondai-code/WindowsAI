@@ -1,0 +1,15 @@
+[Unit]
+Description=Refresh SysPerf component-upgrade advisory catalog (daily)
+Documentation=file://@SYSPERF_DIST@/src/sysperf/refresh_components.py
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=@SYSPERF_USER@
+Group=@SYSPERF_GROUP@
+WorkingDirectory=@SYSPERF_DATA@
+# The catalog is state, not code: write it where the dashboard reads it.
+Environment=SYSPERF_COMPONENTS_DIR=@SYSPERF_DATA@
+ExecStart=/usr/bin/python3 @SYSPERF_DIST@/src/sysperf/refresh_components.py
+NoNewPrivileges=yes

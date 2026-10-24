@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily refresh of SysPerf component-upgrade advisory catalog
+
+[Timer]
+# Once per day. Persistent=true runs the job on next boot if the machine
+# (or WSL) was off at the scheduled time, so the advisory never silently stales.
+OnCalendar=*-*-* 06:30:00
+Persistent=true
+RandomizedDelaySec=300
+Unit=sysperf-refresh-components.service
+
+[Install]
+WantedBy=timers.target

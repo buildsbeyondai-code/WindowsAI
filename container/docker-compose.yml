@@ -1,0 +1,72 @@
+services:
+  sysperf:
+    build:
+      context: .
+      # Written by build.sh, which pins the base image to the digest it just
+      # resolved. Run build.sh before `docker compose up`.
+      dockerfile: Dockerfile.resolved
+    image: sysperf-dashboard:local
+    container_name: sysperf-dashboard
+    restart: unless-stopped
+
+    # Published to loopback only. The app has no login: put a reverse proxy
+    # with authentication in front of it before exposing it to anything else,
+    # and never change this to 0.0.0.0.
+    ports:
+      - "127.0.0.1:${SYSPERF_PORT:-5056}:5056"
+
+    volumes:
+      # State: history.jsonl, adaptive_state.json, trends, evolutions and the
+      # two catalogs. Same directory install-wsl.sh uses, so switching between
+      # the container and the systemd user service does not orphan history.
+      - type: bind
+        source: ${SYSPERF_DATA_DIR:-${HOME}/.local/share/sysperf}
+        target: /data
+      # The unpacked distribution. Only the integrated test suite uses it (it
+      # needs tests/ and somewhere writable for its cache); the running code is
+      # the image's own copy.
+      - type: bind
+        source: ${SYSPERF_DIST:-..}
+        target: /dist
+      # The only host coupling. Everything the app needs to run on the Windows
+      # side goes through this socket and is allowlisted by the broker.
+      - type: bind
+        source: /run/sysperf-hostexec
+        target: /run/sysperf-hostexec
+
+    # No capabilities, no privileged mode, default seccomp, immutable root
+    # filesystem. Measured alternative for comparison: running the collector
+    # in-container needs CAP_SYS_ADMIN *and* seccomp=unconfined to mount
+    # binfmt_misc and open the AF_VSOCK interop socket -- effectively host root.
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+
+    # A pegged host is the normal operating condition for this dashboard, so it
+    # must not be able to make things worse.
+    cpus: "1.0"
+    mem_limit: 512m
+    pids_limit: 256
+
+    healthcheck:
+      test:
+        - CMD
+        - /usr/local/bin/python3
+        - -c
+        - |
+          import json, urllib.request as u
+          json.load(u.urlopen('http://127.0.0.1:5056/api/health', timeout=8))
+      interval: 30s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
