@@ -11,28 +11,44 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
-from .background_process import run_hidden
 import threading
 import time
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .platform_paths import to_host_path
 from . import config as _cfg
 from . import machine_profile
-from .config import (PS_EXE, PLATFORM, CAN_COLLECT, COLLECT_SCRIPT, HISTORY_FILE, SAMPLE_SECONDS,
-                    SNAPSHOT_TTL, FULL_EVERY, MAX_SAMPLES, HISTORY_MAX_BYTES,
-                    COLLECT_TIMEOUT_S, COLLECT_TIMEOUT_FULL_S,
-                    REVISION, CARRY_FORWARD_KEYS, SERIES_KEYS,
-                    WIFI_LINK_SMOOTH_WINDOW, WIFI_NETWORK_PLAN_MBPS,
-                    WIFI_PHY_EFFICIENCY, WIFI_CAPABILITY_PCTL,
-                    WIFI_MIN_CAPABILITY_SAMPLES)
-from .scoring import build_scorecard, vmmem_trend
+from .background_process import run_hidden
 from .browser import browser_breakdown
-from .hardware import build_hardware
 from .components import build_components
+from .config import (
+    CAN_COLLECT,
+    CARRY_FORWARD_KEYS,
+    COLLECT_SCRIPT,
+    COLLECT_TIMEOUT_FULL_S,
+    COLLECT_TIMEOUT_S,
+    FULL_EVERY,
+    HISTORY_FILE,
+    HISTORY_MAX_BYTES,
+    MAX_SAMPLES,
+    PLATFORM,
+    PS_EXE,
+    REVISION,
+    SAMPLE_SECONDS,
+    SERIES_KEYS,
+    SNAPSHOT_TTL,
+    WIFI_CAPABILITY_PCTL,
+    WIFI_LINK_SMOOTH_WINDOW,
+    WIFI_MIN_CAPABILITY_SAMPLES,
+    WIFI_NETWORK_PLAN_MBPS,
+    WIFI_PHY_EFFICIENCY,
+)
+from .hardware import build_hardware
 from .netopt import analyze_overlap, optimisation_plan
+from .platform_paths import to_host_path
+from .pwsh_session import SessionError
+from .scoring import build_scorecard, vmmem_trend
 
 log = logging.getLogger("perfdash")
 
@@ -122,9 +138,38 @@ def _with_wifi_typical(latest: dict, hist: list[dict]) -> dict:
     return out
 
 
+def _parse_probe(raw: str) -> dict:
+    """The metrics object from the probe's output.
+
+    The script prints exactly one compact JSON line, but a persistent shell can
+    interleave a stray warning line, so the last line that looks like an object
+    is taken when the whole text is not valid JSON.
+    """
+    raw = raw.replace("\r", "").strip()
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        objs = [ln for ln in raw.splitlines() if ln.startswith("{")]
+        if not objs:
+            raise
+        data = json.loads(objs[-1])
+    if not isinstance(data, dict) or not data:
+        raise ValueError('PowerShell probe did not return a metrics object')
+    return data
+
+
 class Collector:
-    def __init__(self, scorer) -> None:
+    def __init__(self, scorer, store=None, shell=None) -> None:
         self.scorer = scorer
+        # Optional SQLite history (historydb.HistoryStore). Without one the
+        # rolling JSONL file is used, exactly as before 4.1.
+        self.store = store
+        # Optional persistent PowerShell (pwsh_session.PwshSession). Without one
+        # every sample spawns a fresh process.
+        self.shell = shell
+        self.shell_fallbacks = 0
+        self.sample_failures = 0
+        self.last_ok_at = None
         # Optional automatic target-realism override store (target_review.py).
         # Injected after construction by app.py; None in unit tests, which keeps
         # the scorecard on the plan targets exactly as before.
@@ -160,6 +205,13 @@ class Collector:
 
     # ------------------------------------------------------------- history ---
     def _load_history(self) -> None:
+        if self.store is not None:
+            try:
+                self.history.extend(self.store.recent(MAX_SAMPLES))
+            except Exception as exc:
+                log.warning("could not load history: %s", exc)
+            self._seed_from_history()
+            return
         if not HISTORY_FILE.exists():
             return
         try:
@@ -171,15 +223,24 @@ class Collector:
                         self.history.append(historical)
                 except json.JSONDecodeError:
                     continue
-            if self.history:
-                self.latest = dict(self.history[-1])
-                self.seeded_latest = True      # not from this session - see started_at
-            log.info("loaded %d historical samples", len(self.history))
-            self.scorer.seed(list(self.history))
+            self._seed_from_history()
         except OSError as exc:
             log.warning("could not load history: %s", exc)
 
+    def _seed_from_history(self) -> None:
+        if self.history:
+            self.latest = dict(self.history[-1])
+            self.seeded_latest = True      # not from this session - see started_at
+        log.info("loaded %d historical samples", len(self.history))
+        self.scorer.seed(list(self.history))
+
     def _persist(self, sample: dict) -> None:
+        if self.store is not None:
+            try:
+                self.store.append(sample)
+            except Exception as exc:
+                log.warning("persist failed: %s", exc)
+            return
         try:
             with HISTORY_FILE.open("a") as fh:
                 fh.write(json.dumps(sample) + "\n")
@@ -197,23 +258,13 @@ class Collector:
         # the slow probe returns (minutes on a pegged host). A light sample first
         # gives fast CPU/memory data immediately; Full then runs every FULL_EVERY.
         full = self.sample_count > 0 and self.sample_count % FULL_EVERY == 0
-        cmd = [PS_EXE, "-NoProfile", "-ExecutionPolicy", "Bypass",
-               "-File", self._ps_script_win]
-        if full:
-            cmd.append("-Full")
         started = time.time()
         timeout = COLLECT_TIMEOUT_FULL_S if full else COLLECT_TIMEOUT_S
         try:
-            res = run_hidden(cmd, capture_output=True, text=True,
-                                 timeout=timeout)
-            raw = res.stdout.replace("\r", "").strip()
-            if not raw:
-                raise RuntimeError(res.stderr.strip()[:200] or "empty output")
-            data = json.loads(raw)
-            if not isinstance(data, dict) or not data:
-                raise ValueError('PowerShell probe did not return a metrics object')
-        except Exception as exc:                      # noqa: BLE001 - report any failure
+            data = _parse_probe(self._probe(full, timeout))
+        except Exception as exc:
             self.error = f"{type(exc).__name__}: {exc}"
+            self.sample_failures += 1
             log.warning("sample failed: %s", self.error)
             return
 
@@ -237,12 +288,43 @@ class Collector:
             self.error = None
             self.seeded_latest = False          # `latest` is now a live reading
             self.sample_count += 1
+            self.last_ok_at = data["_t"]
             self._snap_cache = None            # invalidate cache on fresh sample
         self._persist(data)
         self.scorer.update(data)
         if machine_profile.maybe_capture(list(self.history)):
             with self.lock:
                 self._snap_cache = None
+
+    def _probe(self, full: bool, timeout: float) -> str:
+        """Run the collector script once and return its stdout.
+
+        The warm session is tried first; if it fails the sample falls back to a
+        fresh process, so a broken session costs one slow sample, not a gap.
+        """
+        args = ("-Full",) if full else ()
+        if self.shell is not None:
+            try:
+                return self.shell.run(self._ps_script_win, args, timeout)
+            except SessionError as exc:
+                self.shell_fallbacks += 1
+                log.warning("persistent PowerShell failed (%s); using a one-shot process",
+                            exc)
+        cmd = [PS_EXE, "-NoProfile", "-ExecutionPolicy", "Bypass",
+               "-File", self._ps_script_win, *args]
+        res = run_hidden(cmd, capture_output=True, text=True, timeout=timeout)
+        raw = res.stdout.replace("\r", "").strip()
+        if not raw:
+            raise RuntimeError(res.stderr.strip()[:200] or "empty output")
+        return raw
+
+    def stats(self) -> dict:
+        """Collector health facts for the diagnostics panel."""
+        return {"samples_taken": self.sample_count, "failures": self.sample_failures,
+                "last_duration_s": self.last_duration, "last_ok_at": self.last_ok_at,
+                "error": self.error, "shell": self.shell.stats() if self.shell else None,
+                "shell_fallbacks": self.shell_fallbacks,
+                "store": "sqlite" if self.store is not None else "jsonl"}
 
     @staticmethod
     def _wsl_metrics() -> dict:

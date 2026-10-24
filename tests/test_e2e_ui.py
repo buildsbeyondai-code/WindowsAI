@@ -148,6 +148,7 @@ def _expand_all(page):
 
 # ------------------------------------------------------------------- tabs -------
 TABS = {
+    "tab-home": "view-home", "tab-settings": "view-settings",
     "tab-summary": "view-summary", "tab-details": "view-details",
     "tab-arch": "view-architecture", "tab-auto": "view-auto",
     "tab-appctl": "view-appctl", "tab-evo": "view-evo",
@@ -513,15 +514,17 @@ def test_each_application_row_offers_exactly_one_action(browser, site):
     apps, and the disabled halves carried no information."""
     page = _open(browser, site, hash_="#app-control")
     page.wait_for_timeout(1200)
-    rows = page.eval_on_selector_all(".ac-app", "rs => rs.length")
+    # The top-CPU list only: tray auto-quit rows (#tqApps) deliberately offer the
+    # Allow / Never / Ask consent choice plus Remove.
+    rows = page.eval_on_selector_all("#appctlList .ac-app", "rs => rs.length")
     assert rows >= 1
     per_row = page.eval_on_selector_all(
-        ".ac-app .ac-acts",
+        "#appctlList .ac-app .ac-acts",
         "as => as.map(a => a.querySelectorAll('button').length)")
     assert all(n <= 1 for n in per_row), per_row
     # and no control is rendered disabled — an unavailable action is omitted
     assert page.eval_on_selector_all(
-        ".ac-app .ac-acts button", "bs => bs.every(b => !b.disabled)")
+        "#appctlList .ac-app .ac-acts button", "bs => bs.every(b => !b.disabled)")
     page.close()
 
 
@@ -677,6 +680,10 @@ CONDITIONAL = {
     "pwMsg": "a status line, written only after a watchdog action",
     "wslMsg": "a status line, written only after a shutdown request",
     "fixResult": "written only after a preview or apply",
+    "tqMsg": "a status line, written only after a tray auto-quit change",
+    "setMsg": "a status line, written only after a Settings action",
+    "setRestartTxt": "names the settings awaiting a restart; empty until one is saved",
+    "sevDeployMsg": "a status line, written only after Roll back is used",
     "odACControlBanner": "shown only when OneDrive control is switched off",
     "fixList": "populated only once the Common Fix modal is opened",
     "fixModal": "the modal body is static markup, not a render target",
@@ -764,7 +771,8 @@ def test_self_evolution_tab_shows_recorded_cycle_and_diff(browser, site):
                else "#sevHistory .evo-pick")
     page.wait_for_timeout(500)
     detail = page.inner_text("#sevDetail")
-    assert "seen = set()" in detail and "Benchmark" in detail
+    # the table header is text-transform:uppercase, so innerText reads "BENCHMARK"
+    assert "seen = set()" in detail and "benchmark" in detail.lower()
     page.click("#sevApprove")
     page.wait_for_timeout(400)
     assert any("api/codevolve/review" in u for u in page.posted)

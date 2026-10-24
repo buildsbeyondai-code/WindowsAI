@@ -14,6 +14,14 @@ Safety
   not have drawn its window yet); a minimized window still counts as open.
 * Only processes in the dashboard's own Windows session are considered.
 * Honours FIX_ENABLED: with execution disabled it only reports.
+* Consent (4.1): every app is ``ask`` until you decide. An app that would be
+  quit but has no decision yet is held as "awaiting consent" and a
+  notification asks you; ``allow`` lets it be quit from then on, ``never``
+  keeps it running for good.
+* Busy guard (4.1): an app using more than ``busy_cpu_pct`` of a core since
+  the previous check (a call, a download, a sync) is left alone that round.
+* Undo (4.1): the executable path is recorded at quit time, and ``reopen``
+  starts exactly that file again — never a path supplied by a request.
 
 Windows reads (process list, visible windows, memory, start time) are made
 in-process with ctypes — no PowerShell spawn per check. ``WinApi`` is injected
@@ -26,7 +34,7 @@ import logging
 import threading
 import time
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable
 
 from .appctl import CRITICAL, NAME_RE
 
@@ -58,8 +66,8 @@ def allowed(name: str) -> bool:
     return bool(NAME_RE.match(name or "")) and n not in CRITICAL and n not in BLOCKED
 
 
-class WinApi:
-    """Thin ctypes wrapper; every call is read-only except ``terminate``."""
+class WinApi:  # pragma: no cover - Windows ctypes; tests/test_trayquit_win.py runs it on Windows
+    """Thin ctypes wrapper; every call is read-only except ``terminate`` and ``launch``."""
 
     def __init__(self):
         import ctypes
@@ -70,7 +78,7 @@ class WinApi:
         self.psapi = ctypes.windll.psapi
         try:
             self.dwm = ctypes.windll.dwmapi
-        except OSError:                                  # pragma: no cover
+        except OSError:
             self.dwm = None
         sid = wintypes.DWORD()
         self.k32.ProcessIdToSessionId(self.k32.GetCurrentProcessId(), ctypes.byref(sid))
@@ -157,7 +165,7 @@ class WinApi:
         finally:
             self.k32.CloseHandle(h)
 
-    def started(self, pid: int) -> Optional[float]:
+    def started(self, pid: int) -> float | None:
         c, w = self.c, self.w
         h = self._open(pid, 0x1000)
         if not h:
@@ -171,6 +179,43 @@ class WinApi:
         finally:
             self.k32.CloseHandle(h)
 
+    def cpu_s(self, pid: int) -> float | None:
+        """Kernel + user CPU seconds the process has consumed so far."""
+        c, w = self.c, self.w
+        h = self._open(pid, 0x1000)
+        if not h:
+            return None
+        try:
+            ft = [w.FILETIME() for _ in range(4)]
+            if not self.k32.GetProcessTimes(h, *[c.byref(f) for f in ft]):
+                return None
+            return sum(((f.dwHighDateTime << 32) | f.dwLowDateTime) for f in ft[2:]) / 1e7
+        finally:
+            self.k32.CloseHandle(h)
+
+    def exe_path(self, pid: int) -> str | None:
+        c, w = self.c, self.w
+        h = self._open(pid, 0x1000)
+        if not h:
+            return None
+        try:
+            buf = c.create_unicode_buffer(1024)
+            size = w.DWORD(len(buf))
+            if self.k32.QueryFullProcessImageNameW(h, 0, buf, c.byref(size)):
+                return buf.value
+            return None
+        finally:
+            self.k32.CloseHandle(h)
+
+    def launch(self, path: str) -> bool:
+        """Start an executable detached from this service (used by reopen)."""
+        import subprocess
+        try:
+            subprocess.Popen([path], close_fds=True, creationflags=0x00000008 | 0x00000200)
+            return True
+        except OSError:
+            return False
+
     def terminate(self, pid: int) -> bool:
         h = self._open(pid, 0x0001)                     # PROCESS_TERMINATE
         if not h:
@@ -181,10 +226,14 @@ class WinApi:
             self.k32.CloseHandle(h)
 
 
+CONSENT = ("ask", "allow", "never")
+
+
 class TrayQuitter:
     def __init__(self, state_file: Path, log_file: Path, *, fix_enabled: bool = True,
                  api_factory: Callable[[], object] = WinApi,
-                 clock: Callable[[], float] = time.time):
+                 clock: Callable[[], float] = time.time,
+                 on_event: Callable[[str, dict], None] | None = None):
         self.state_file, self.log_file = Path(state_file), Path(log_file)
         self.fix_enabled = fix_enabled
         self.clock = clock
@@ -194,8 +243,11 @@ class TrayQuitter:
         self.hidden_since: dict = {}          # lower name -> first windowless check
         self.last_view: dict = {}
         self.settings = {"enabled": True, "grace_s": 60, "startup_grace_s": 60,
-                         "apps": list(DEFAULT_APPS)}
+                         "apps": list(DEFAULT_APPS), "consent": {}, "busy_cpu_pct": 3.0}
         self.recent: list = []
+        self.on_event = on_event              # ("quit"|"consent", details) -> None
+        self._cpu_seen: dict = {}             # pid -> (cpu seconds, wall time)
+        self.asked: set = set()               # consent already requested this run
         self._load()
 
     # ------------------------------------------------------------ persistence --
@@ -221,8 +273,24 @@ class TrayQuitter:
         return self._api
 
     # ---------------------------------------------------------------- config --
-    def configure(self, *, enabled=None, grace_s=None, add=None, remove=None) -> dict:
+    def consent_of(self, name: str) -> str:
+        return self.settings["consent"].get(name.lower(), "ask")
+
+    def configure(self, *, enabled=None, grace_s=None, add=None, remove=None,
+                  consent=None, busy_cpu_pct=None) -> dict:
         with self.lock:
+            if consent is not None:
+                if not isinstance(consent, dict) or consent.get("decision") not in CONSENT \
+                        or not isinstance(consent.get("name"), str):
+                    raise ValueError("consent must be {name, decision: ask|allow|never}")
+                name = consent["name"]
+                if name.lower() not in {a.lower() for a in self.settings["apps"]}:
+                    raise ValueError(f"'{name}' is not on the auto-quit list")
+                self.settings["consent"][name.lower()] = consent["decision"]
+            if busy_cpu_pct is not None:
+                if isinstance(busy_cpu_pct, bool) or not isinstance(busy_cpu_pct, (int, float)):
+                    raise ValueError("busy_cpu_pct must be a number")
+                self.settings["busy_cpu_pct"] = max(0.5, min(50.0, float(busy_cpu_pct)))
             if enabled is not None:
                 self.settings["enabled"] = bool(enabled)
             if grace_s is not None:
@@ -237,6 +305,7 @@ class TrayQuitter:
                 self.settings["apps"] = [a for a in self.settings["apps"]
                                          if a.lower() != remove.lower()]
                 self.hidden_since.pop(remove.lower(), None)
+                self.settings["consent"].pop(remove.lower(), None)
             self._save()
             return dict(self.settings)
 
@@ -272,17 +341,33 @@ class TrayQuitter:
                     since = self.hidden_since.setdefault(low, now)
                     row["hidden_for_s"] = round(now - since)
                     row["state"] = "in tray"
-                    if (self.settings["enabled"] and self.fix_enabled
-                            and now - since >= self.settings["grace_s"]):
+                    row["consent"] = self.consent_of(label)
+                    busy = self._busy_pct(pids, now)
+                    row["cpu_pct"] = busy
+                    due = (self.settings["enabled"] and self.fix_enabled
+                           and now - since >= self.settings["grace_s"])
+                    if due and row["consent"] == "never":
+                        row["state"] = "kept (never quit)"
+                    elif due and busy is not None and busy >= self.settings["busy_cpu_pct"]:
+                        row["state"] = "busy"         # a call, download or sync - not now
+                    elif due and row["consent"] == "ask":
+                        row["state"] = "awaiting consent"
+                        if low not in self.asked:
+                            self.asked.add(low)
+                            self._emit("consent", {"name": label, "mem_mb": mem,
+                                                   "hidden_s": round(now - since)})
+                    elif due:
+                        exe = next((p for p in (api.exe_path(pid) for pid in pids) if p), None)
                         killed = sum(1 for pid in pids if api.terminate(pid))
                         ev = {"at": now, "name": label, "procs": killed,
-                              "freed_mb": mem, "hidden_s": round(now - since)}
+                              "freed_mb": mem, "hidden_s": round(now - since), "exe": exe}
                         events.append(ev)
                         self.recent.append(ev)
                         self.hidden_since.pop(low, None)
                         row.update(state="quit", running=False)
                         log.info("trayquit: quit %s (%d procs, ~%d MB) after %ds in tray",
                                  label, killed, mem, ev["hidden_s"])
+                        self._emit("quit", ev)
                 view[low] = row
             # Suggestions: other windowless apps holding real memory.
             sugg = []
@@ -306,11 +391,55 @@ class TrayQuitter:
                     pass
             return events
 
+    def _busy_pct(self, pids: list, now: float) -> float | None:
+        """Percent of one core these processes used since the previous check."""
+        total, known = 0.0, False
+        for pid in pids:
+            cpu = self.api.cpu_s(pid)
+            if cpu is None:
+                continue
+            prev = self._cpu_seen.get(pid)
+            self._cpu_seen[pid] = (cpu, now)
+            if prev and now > prev[1]:
+                total += max(0.0, cpu - prev[0]) / (now - prev[1]) * 100.0
+                known = True
+        return round(total, 1) if known else None
+
+    def _emit(self, kind: str, details: dict) -> None:
+        if self.on_event is None:
+            return
+        try:
+            self.on_event(kind, details)
+        except Exception:
+            log.exception("trayquit event hook failed")
+
+    def reopen(self, name: str) -> dict:
+        """Start again the app most recently quit under ``name``.
+
+        The path comes only from this service's own quit record, so a request
+        can never make it launch an arbitrary program.
+        """
+        with self.lock:
+            ev = next((e for e in reversed(self.recent)
+                       if e.get("name", "").lower() == str(name).lower()), None)
+            if ev is None:
+                raise ValueError(f"no recent auto-quit of '{name}' to undo")
+            if not ev.get("exe"):
+                raise ValueError(f"the executable of '{ev['name']}' was not recorded")
+            ok = self.api.launch(ev["exe"])
+            if ok:
+                ev["reopened_at"] = self.clock()
+                self._save()
+            return {"name": ev["name"], "reopened": ok, "exe": ev["exe"]}
+
     def status(self) -> dict:
         with self.lock:
             day = self.clock() - 86400
             today = [e for e in self.recent if e["at"] >= day]
+            pending = [a["name"] for a in self.last_view.get("apps", [])
+                       if a.get("state") == "awaiting consent"]
             return {**self.settings, "execution_enabled": self.fix_enabled,
+                    "awaiting_consent": pending,
                     "checked_at": self.last_view.get("at"),
                     "apps_live": self.last_view.get("apps", []),
                     "suggestions": self.last_view.get("suggestions", []),
@@ -322,6 +451,6 @@ class TrayQuitter:
         while True:
             try:
                 self.tick()
-            except Exception:                                # noqa: BLE001
+            except Exception:
                 log.exception("trayquit check failed")
             time.sleep(interval)

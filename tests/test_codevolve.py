@@ -264,3 +264,124 @@ def test_interleaved_rounds_need_full_separation():
     assert not r["accept"] and "separation" in r["reason"]
     r = eng.compare(base, {"b": mk([1.50, 1.60, 1.55, 1.52])}, False)
     assert not r["accept"] and "regression" in r["reason"]
+
+
+# ------------------------------------------------- 4.1: deploy, profile, hooks --
+def _retained(tmp_path, repo):
+    eng, db = engine(tmp_path, repo, Fixed(GOOD))
+    kept = []
+    eng.on_retained = kept.append
+    res = eng.run_cycle("manual", "self_evolve")
+    assert res["state"] == "awaiting_approval", res
+    assert kept and kept[0]["title"] == "set membership"
+    return eng, db, db.candidates()[0]
+
+
+@needs_sandbox
+def test_profile_evidence_points_at_the_hot_function(tmp_path, repo):
+    eng, db = engine(tmp_path, repo, Fixed(GOOD))
+    eng.run_cycle("manual", "self_evolve")
+    problem = json.loads(db.cycles()[0]["problem"])
+    prof = [e for e in problem if e["kind"] == "profile_hotspot"]
+    assert prof and prof[0]["file"] == "dedupe.py"
+    assert prof[0]["function"] == "unique_in_order" and prof[0]["weight"] == 2
+
+
+@needs_sandbox
+def test_apply_fast_forwards_and_confirm_clears_the_marker(tmp_path, repo):
+    eng, db, cand = _retained(tmp_path, repo)
+    before = head(repo)
+    out = eng.apply(cand["id"])
+    assert out["applied"] and head(repo) == cand["commit_sha"]
+    assert "seen = set()" in (repo / "dedupe.py").read_text()
+    assert db.candidate(cand["id"])["review_state"] == "approved"   # apply implies approval
+    tags = subprocess.run(["git", "-C", str(repo), "tag"], capture_output=True, text=True).stdout
+    assert f"sysperf-backup/{cand['id']}" in tags
+    marker = eng.pending_apply()
+    assert marker["backup_sha"] == before
+    with pytest.raises(ValueError, match="still being verified"):
+        eng.apply(cand["id"])
+    assert eng.confirm_apply(healthy=False) is None and eng.pending_apply()
+    assert eng.confirm_apply(healthy=True)["id"] == cand["id"]
+    assert eng.pending_apply() is None and eng.confirm_apply(healthy=True) is None
+    st = eng.status("self_evolve")["deploy"]
+    assert [e["event"] for e in st["history"]] == ["confirmed", "applied"]
+    events = [a["event"] for a in db.audit_tail(limit=20)]
+    assert "candidate.applied" in events and "candidate.deployed" in events
+
+
+@needs_sandbox
+def test_rollback_restores_main_from_marker_or_log(tmp_path, repo):
+    eng, db, cand = _retained(tmp_path, repo)
+    before = head(repo)
+    eng.apply(cand["id"])
+    r = eng.rollback(cand["id"])                    # while still pending verification
+    assert r == {"rolled_back": True, "id": cand["id"], "head": before}
+    assert head(repo) == before and eng.pending_apply() is None
+    with pytest.raises(RuntimeError, match="refusing to move it"):
+        eng.rollback(cand["id"])                    # HEAD no longer the applied patch
+    with pytest.raises(ValueError, match="nothing has been applied"):
+        eng.rollback("c-unknown")
+
+
+@needs_sandbox
+def test_rollback_after_confirmation_uses_the_apply_log(tmp_path, repo):
+    eng, db, cand = _retained(tmp_path, repo)
+    before = head(repo)
+    eng.apply(cand["id"])
+    eng.confirm_apply(healthy=True)
+    assert eng.rollback()["head"] == before
+
+
+@needs_sandbox
+def test_apply_refuses_dirty_tree_moved_main_and_wrong_states(tmp_path, repo):
+    eng, db, cand = _retained(tmp_path, repo)
+    (repo / "dedupe.py").write_text((repo / "dedupe.py").read_text() + "\n# local edit\n")
+    with pytest.raises(ValueError, match="uncommitted changes"):
+        eng.apply(cand["id"])
+    subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@x",
+                    "commit", "-qam", "moved on"], check=True)
+    with pytest.raises(ValueError, match="moved on"):
+        eng.apply(cand["id"])
+    with pytest.raises(ValueError, match="only retained"):
+        eng.apply("c-nope")
+    eng.review(cand["id"], "reject")
+    with pytest.raises(ValueError, match="candidate is rejected"):
+        eng.apply(cand["id"])
+
+
+def test_retained_hook_failure_is_logged(tmp_path, repo, caplog):
+    if codevolve.Sandbox().backend == "none":
+        pytest.skip("no isolation backend on this machine")
+    eng, db = engine(tmp_path, repo, Fixed(GOOD))
+
+    def boom(cand):
+        raise RuntimeError("notifier down")
+    eng.on_retained = boom
+    assert eng.run_cycle("manual", "self_evolve")["state"] == "awaiting_approval"
+    assert "on_retained hook failed" in caplog.text
+
+
+def test_profile_without_output_and_marker_helpers(tmp_path):
+    class Box:
+        def run(self, wt, cmd, timeout_s=None):
+            return {"stdout": "no profile here"}
+    eng = codevolve.CodeEvolution.__new__(codevolve.CodeEvolution)
+    eng.sandbox = Box()
+    (tmp_path / "wt").mkdir()
+    assert eng._profile(tmp_path / "wt", ["a.py"]) == []
+    rows = [{"file": f"f{i}.py", "line": i, "function": "g", "own_s": 0.01, "share": 0.1}
+            for i in range(12)] + [{"file": "evo_bench.py", "line": 1, "function": "x",
+                                    "own_s": 1, "share": 0.5}]
+    Box.run = lambda self, wt, cmd, timeout_s=None: {
+        "stdout": "PROFILE_JSON=" + json.dumps(rows)}
+    got = eng._profile(tmp_path / "wt", [f"f{i}.py" for i in range(12)])
+    assert len(got) == 8 and [g["weight"] for g in got] == [2, 2, 2, 1, 1, 1, 1, 1]
+    assert codevolve.read_marker(tmp_path) is None
+    (tmp_path / codevolve.MARKER).write_text("{bad")
+    assert codevolve.read_marker(tmp_path) is None
+    (tmp_path / codevolve.MARKER).write_text('{"id": "x"}')
+    assert codevolve.read_marker(tmp_path) is None              # no backup -> not a marker
+    assert codevolve.read_apply_log(tmp_path / "nope") == []
+    (tmp_path / codevolve.APPLY_LOG).write_text('{"a": 1}\nnot json\n')
+    assert codevolve.read_apply_log(tmp_path) == [{"a": 1}]

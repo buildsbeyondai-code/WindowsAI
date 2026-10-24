@@ -1717,7 +1717,8 @@
    "why_not": null
   },
   "samples": 240,
-  "settings_file": null
+  "settings_file": null,
+  "version": "4.1.0"
  },
  "api/learning": {
   "bands": {
@@ -3773,5 +3774,1957 @@
    "slope_per_day": -1.29,
    "window_days": 14
   }
+ },
+ "api/home": {
+  "consent": [
+   "ChatGPT"
+  ],
+  "counts": {
+   "met": 11,
+   "partial": 5,
+   "regress": 2,
+   "measuring": 1
+  },
+  "evolution": {
+   "pending": null,
+   "awaiting_review": 1
+  },
+  "health": {
+   "errors_1h": 1,
+   "probes": [
+    {
+     "age_s": 45,
+     "label": "Data collection",
+     "last_at": 1792883523.9819105,
+     "name": "collector",
+     "stale": false,
+     "stale_after_s": 600
+    }
+   ],
+   "problems": [],
+   "status": "degraded",
+   "threads": [
+    {
+     "alive": true,
+     "name": "collector"
+    },
+    {
+     "alive": true,
+     "name": "auto-improve"
+    }
+   ],
+   "warnings_1h": 1
+  },
+  "history_keys": [
+   "cpu_pct",
+   "available_mb",
+   "committed_app_mb"
+  ],
+  "last_sample_age_s": 45,
+  "notifications": {
+   "items": [
+    {
+     "at": 1792883569.0198212,
+     "body": "Faster scorecard \u2014 scoring.build_scorecard 18% faster",
+     "id": 3,
+     "kind": "review",
+     "link": "#self-evolution",
+     "read": false,
+     "title": "AI patch ready for review",
+     "toast": true
+    },
+    {
+     "at": 1792883569.0196936,
+     "body": "Freed about 1500 MB after 61 s with no window. Reopen it from App Control.",
+     "id": 2,
+     "kind": "action",
+     "link": "#app-control",
+     "read": false,
+     "title": "Quit ChatGPT from the tray",
+     "toast": true
+    },
+    {
+     "at": 1792883569.0195782,
+     "body": "Memory and browser processes are behind target.",
+     "id": 1,
+     "kind": "score",
+     "link": "#home",
+     "read": true,
+     "title": "System score 72% is below 80%",
+     "toast": true
+    }
+   ],
+   "unread": 2
+  },
+  "score": 72.4,
+  "threshold": 80.0,
+  "today": [
+   {
+    "at": 1792882968.9819105,
+    "kind": "fix",
+    "text": "Applied Flush DNS cache"
+   },
+   {
+    "at": 1792881768.9819105,
+    "kind": "trayquit",
+    "text": "Quit ChatGPT from the tray, freeing about 1500 MB"
+   },
+   {
+    "at": 1792879968.9819105,
+    "kind": "evolution",
+    "text": "Self-evolution cycle completed: candidate rejected \u2014 no statistically clear win"
+   }
+  ],
+  "todo": [
+   {
+    "key": "fix:handles",
+    "title": "Restart Windows Explorer to release leaked handles",
+    "kind": "fix",
+    "why_code": "session_killing",
+    "command": "Stop-Process -Name explorer -Force; Start-Process explorer",
+    "priority": 1
+   },
+   {
+    "key": "decision:browser_procs",
+    "title": "Decide what to do about Browser processes",
+    "kind": "decision",
+    "why_code": "needs_judgement",
+    "command": "",
+    "priority": 2
+   }
+  ]
+ },
+ "api/settings": {
+  "restart_required": [],
+  "sections": {
+   "autonomy": {
+    "defaults": {
+     "level": "observe"
+    },
+    "fields": [
+     {
+      "choices": [
+       "off",
+       "observe",
+       "safe_auto",
+       "self_evolve"
+      ],
+      "help": "off: nothing autonomous \u00b7 observe: recommend only \u00b7 safe_auto: run enabled low-risk actions \u00b7 self_evolve: also improve its own code",
+      "key": "level",
+      "label": "Autonomy level",
+      "max": null,
+      "min": null,
+      "restart": false,
+      "type": "choice"
+     }
+    ],
+    "label": "Autonomy",
+    "values": {
+     "level": "observe"
+    }
+   },
+   "evolution": {
+    "defaults": {
+     "auto_retain": true,
+     "enabled": false,
+     "interval_s": 21600,
+     "max_per_day": 4
+    },
+    "fields": [
+     {
+      "choices": [],
+      "help": "",
+      "key": "enabled",
+      "label": "Evolution enabled",
+      "max": null,
+      "min": null,
+      "restart": false,
+      "type": "bool"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "interval_s",
+      "label": "Run a cycle every (seconds)",
+      "max": 604800,
+      "min": 300,
+      "restart": false,
+      "type": "int"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "max_per_day",
+      "label": "At most cycles per day",
+      "max": 48,
+      "min": 0,
+      "restart": false,
+      "type": "int"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "auto_retain",
+      "label": "Keep winning patches for review",
+      "max": null,
+      "min": null,
+      "restart": false,
+      "type": "bool"
+     }
+    ],
+    "label": "AI self-evolution",
+    "values": {
+     "auto_retain": true,
+     "enabled": false,
+     "interval_s": 21600,
+     "max_per_day": 4
+    }
+   },
+   "general": {
+    "defaults": {
+     "auto_interval_s": 300,
+     "auto_threshold": 80,
+     "fixes_enabled": true,
+     "history_raw_days": 14,
+     "open_browser": true,
+     "persistent_shell": true,
+     "sample_seconds": 60
+    },
+    "fields": [
+     {
+      "choices": [],
+      "help": "How often the machine is measured. Shorter is more detailed but costs more CPU.",
+      "key": "sample_seconds",
+      "label": "Sampling interval (seconds)",
+      "max": 600,
+      "min": 30,
+      "restart": true,
+      "type": "int"
+     },
+     {
+      "choices": [],
+      "help": "The agent investigates and acts when the score drops below this.",
+      "key": "auto_threshold",
+      "label": "Auto-improve threshold (%)",
+      "max": 100,
+      "min": 50,
+      "restart": false,
+      "type": "int"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "auto_interval_s",
+      "label": "Auto-improve scan interval (seconds)",
+      "max": 3600,
+      "min": 60,
+      "restart": true,
+      "type": "int"
+     },
+     {
+      "choices": [],
+      "help": "Off: SysPerf only measures and recommends; nothing is executed.",
+      "key": "fixes_enabled",
+      "label": "Allow SysPerf to run fixes",
+      "max": null,
+      "min": null,
+      "restart": true,
+      "type": "bool"
+     },
+     {
+      "choices": [],
+      "help": "Hourly summaries are kept for over a year regardless.",
+      "key": "history_raw_days",
+      "label": "Keep raw samples for (days)",
+      "max": 90,
+      "min": 1,
+      "restart": false,
+      "type": "int"
+     },
+     {
+      "choices": [],
+      "help": "About twice as fast and lighter than starting one per sample.",
+      "key": "persistent_shell",
+      "label": "Reuse one PowerShell process",
+      "max": null,
+      "min": null,
+      "restart": true,
+      "type": "bool"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "open_browser",
+      "label": "Open the dashboard when SysPerf starts",
+      "max": null,
+      "min": null,
+      "restart": false,
+      "type": "bool"
+     }
+    ],
+    "label": "General",
+    "values": {
+     "auto_interval_s": 300.0,
+     "auto_threshold": 80.0,
+     "fixes_enabled": true,
+     "history_raw_days": 14,
+     "open_browser": true,
+     "persistent_shell": true,
+     "sample_seconds": 60.0
+    }
+   },
+   "notifications": {
+    "defaults": {
+     "kind_action": true,
+     "kind_consent": true,
+     "kind_health": true,
+     "kind_review": true,
+     "kind_score": true,
+     "min_interval_s": 1800,
+     "quiet_end": -1,
+     "quiet_start": -1,
+     "toasts": true
+    },
+    "fields": [
+     {
+      "choices": [],
+      "help": "",
+      "key": "toasts",
+      "label": "Show Windows notifications",
+      "max": null,
+      "min": null,
+      "restart": false,
+      "type": "bool"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "min_interval_s",
+      "label": "Repeat the same alert at most every (seconds)",
+      "max": 86400,
+      "min": 60,
+      "restart": false,
+      "type": "int"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "quiet_start",
+      "label": "Quiet hours start (hour, -1 = off)",
+      "max": 23,
+      "min": -1,
+      "restart": false,
+      "type": "int"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "quiet_end",
+      "label": "Quiet hours end (hour, -1 = off)",
+      "max": 23,
+      "min": -1,
+      "restart": false,
+      "type": "int"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "kind_score",
+      "label": "Notify: Score dropped below the threshold",
+      "max": null,
+      "min": null,
+      "restart": false,
+      "type": "bool"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "kind_action",
+      "label": "Notify: SysPerf applied a fix or quit a tray app",
+      "max": null,
+      "min": null,
+      "restart": false,
+      "type": "bool"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "kind_consent",
+      "label": "Notify: A tray app is waiting for your permission",
+      "max": null,
+      "min": null,
+      "restart": false,
+      "type": "bool"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "kind_review",
+      "label": "Notify: An AI patch is waiting for review",
+      "max": null,
+      "min": null,
+      "restart": false,
+      "type": "bool"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "kind_health",
+      "label": "Notify: The SysPerf service itself has a problem",
+      "max": null,
+      "min": null,
+      "restart": false,
+      "type": "bool"
+     }
+    ],
+    "label": "Notifications",
+    "values": {
+     "kind_action": true,
+     "kind_consent": true,
+     "kind_health": true,
+     "kind_review": true,
+     "kind_score": true,
+     "min_interval_s": 1800,
+     "quiet_end": -1,
+     "quiet_start": -1,
+     "toasts": true
+    }
+   },
+   "trayquit": {
+    "defaults": {
+     "apps": [
+      "ChatGPT",
+      "WhatsApp.Root",
+      "WhatsApp",
+      "Slack",
+      "Discord",
+      "Spotify"
+     ],
+     "busy_cpu_pct": 3.0,
+     "enabled": true,
+     "grace_s": 60
+    },
+    "fields": [
+     {
+      "choices": [],
+      "help": "",
+      "key": "enabled",
+      "label": "Quit tray apps after their window closes",
+      "max": null,
+      "min": null,
+      "restart": false,
+      "type": "bool"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "grace_s",
+      "label": "Wait before quitting (seconds)",
+      "max": 3600,
+      "min": 15,
+      "restart": false,
+      "type": "int"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "busy_cpu_pct",
+      "label": "Leave an app alone above this CPU (%)",
+      "max": 50,
+      "min": 0.5,
+      "restart": false,
+      "type": "float"
+     },
+     {
+      "choices": [],
+      "help": "",
+      "key": "apps",
+      "label": "Apps that may be quit",
+      "max": null,
+      "min": null,
+      "restart": false,
+      "type": "list"
+     }
+    ],
+    "label": "Tray auto-quit",
+    "values": {
+     "apps": [
+      "ChatGPT",
+      "WhatsApp.Root",
+      "WhatsApp",
+      "Slack",
+      "Discord",
+      "Spotify"
+     ],
+     "busy_cpu_pct": 3.0,
+     "enabled": true,
+     "grace_s": 60
+    }
+   }
+  },
+  "order": [
+   "general",
+   "autonomy",
+   "evolution",
+   "notifications",
+   "trayquit"
+  ]
+ },
+ "api/diagnostics": {
+  "collector": {
+   "error": null,
+   "failures": 2,
+   "last_duration_s": 2.71,
+   "last_ok_at": 1792883523.9819105,
+   "samples_taken": 1342,
+   "shell": {
+    "alive": true,
+    "last_error": null,
+    "runs_this_process": 211,
+    "starts": 3,
+    "total_runs": 1342
+   },
+   "shell_fallbacks": 1,
+   "store": "sqlite"
+  },
+  "deploy": {
+   "history": [
+    {
+     "at": 1792878868.9819105,
+     "event": "confirmed",
+     "id": "c-20261025-030034-751e86"
+    },
+    {
+     "applied_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "at": 1792878568.9819105,
+     "backup_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "by": "user",
+     "event": "applied",
+     "id": "c-20261025-030034-751e86",
+     "repo": "/repo",
+     "title": "Faster scorecard"
+    }
+   ],
+   "pending": null
+  },
+  "errors": [
+   {
+    "count": 1,
+    "first": 1792883569.02023,
+    "last": 1792883569.02023,
+    "level": "ERROR",
+    "logger": "sysperf.app",
+    "message": "evolution tick failed"
+   },
+   {
+    "count": 1,
+    "first": 1792883569.0202107,
+    "last": 1792883569.0202107,
+    "level": "WARNING",
+    "logger": "perfdash",
+    "message": "sample failed: TimeoutExpired: probe exceeded 150 s"
+   }
+  ],
+  "footprint": {
+   "avg_cpu_pct": 31.52,
+   "cpu_s": 0.2,
+   "rss_mb": 41.9,
+   "threads": 1,
+   "uptime_s": 0
+  },
+  "health": {
+   "errors_1h": 1,
+   "probes": [
+    {
+     "age_s": 45,
+     "label": "Data collection",
+     "last_at": 1792883523.9819105,
+     "name": "collector",
+     "stale": false,
+     "stale_after_s": 600
+    }
+   ],
+   "problems": [],
+   "status": "degraded",
+   "threads": [
+    {
+     "alive": true,
+     "name": "collector"
+    },
+    {
+     "alive": true,
+     "name": "auto-improve"
+    }
+   ],
+   "warnings_1h": 1
+  },
+  "history": {
+   "bytes": 4292112,
+   "hours": 168,
+   "oldest_hour": 1792278000,
+   "oldest_sample": 1792278768.9819105,
+   "raw_days": 14,
+   "raw_samples": 672,
+   "rollup_days": 400
+  },
+  "supervised": true,
+  "supervisor_log": [
+   {
+    "at": 1792881578.9819105,
+    "event": "started",
+    "pid": 5151
+   },
+   {
+    "at": 1792881568.9819105,
+    "event": "killed",
+    "reason": "no sample for more than 900 s"
+   },
+   {
+    "at": 1792880568.9819105,
+    "event": "resumed"
+   },
+   {
+    "at": 1792797568.9819105,
+    "event": "started",
+    "pid": 4242
+   }
+  ],
+  "version": "4.0.0"
+ },
+ "api/notifications": {
+  "items": [
+   {
+    "at": 1792883569.0198212,
+    "body": "Faster scorecard \u2014 scoring.build_scorecard 18% faster",
+    "id": 3,
+    "kind": "review",
+    "link": "#self-evolution",
+    "read": false,
+    "title": "AI patch ready for review",
+    "toast": true
+   },
+   {
+    "at": 1792883569.0196936,
+    "body": "Freed about 1500 MB after 61 s with no window. Reopen it from App Control.",
+    "id": 2,
+    "kind": "action",
+    "link": "#app-control",
+    "read": false,
+    "title": "Quit ChatGPT from the tray",
+    "toast": true
+   },
+   {
+    "at": 1792883569.0195782,
+    "body": "Memory and browser processes are behind target.",
+    "id": 1,
+    "kind": "score",
+    "link": "#home",
+    "read": true,
+    "title": "System score 72% is below 80%",
+    "toast": true
+   }
+  ],
+  "settings": {
+   "kind_labels": {
+    "action": "SysPerf applied a fix or quit a tray app",
+    "consent": "A tray app is waiting for your permission",
+    "health": "The SysPerf service itself has a problem",
+    "review": "An AI patch is waiting for review",
+    "score": "Score dropped below the threshold"
+   },
+   "kinds": {
+    "action": true,
+    "consent": true,
+    "health": true,
+    "review": true,
+    "score": true
+   },
+   "min_interval_s": 1800,
+   "quiet_end": null,
+   "quiet_start": null,
+   "toast_capable": true,
+   "toasts": true
+  },
+  "unread": 2
+ },
+ "api/history": {
+  "hours": 168,
+  "key": "cpu_pct",
+  "points": [
+   {
+    "avg": 22.438,
+    "max": 24.875,
+    "min": 20.0,
+    "n": 4,
+    "t": 1792278000
+   },
+   {
+    "avg": 27.188,
+    "max": 29.75,
+    "min": 24.375,
+    "n": 4,
+    "t": 1792281600
+   },
+   {
+    "avg": 28.438,
+    "max": 30.875,
+    "min": 26.0,
+    "n": 4,
+    "t": 1792285200
+   },
+   {
+    "avg": 31.438,
+    "max": 34.125,
+    "min": 28.75,
+    "n": 4,
+    "t": 1792288800
+   },
+   {
+    "avg": 34.438,
+    "max": 36.875,
+    "min": 32.0,
+    "n": 4,
+    "t": 1792292400
+   },
+   {
+    "avg": 35.688,
+    "max": 38.5,
+    "min": 33.125,
+    "n": 4,
+    "t": 1792296000
+   },
+   {
+    "avg": 25.438,
+    "max": 27.875,
+    "min": 23.0,
+    "n": 4,
+    "t": 1792299600
+   },
+   {
+    "avg": 24.938,
+    "max": 27.375,
+    "min": 22.5,
+    "n": 4,
+    "t": 1792303200
+   },
+   {
+    "avg": 29.688,
+    "max": 32.25,
+    "min": 26.875,
+    "n": 4,
+    "t": 1792306800
+   },
+   {
+    "avg": 30.938,
+    "max": 33.375,
+    "min": 28.5,
+    "n": 4,
+    "t": 1792310400
+   },
+   {
+    "avg": 33.938,
+    "max": 36.625,
+    "min": 31.25,
+    "n": 4,
+    "t": 1792314000
+   },
+   {
+    "avg": 36.938,
+    "max": 39.375,
+    "min": 34.5,
+    "n": 4,
+    "t": 1792317600
+   },
+   {
+    "avg": 23.188,
+    "max": 26.0,
+    "min": 20.625,
+    "n": 4,
+    "t": 1792321200
+   },
+   {
+    "avg": 27.938,
+    "max": 30.375,
+    "min": 25.5,
+    "n": 4,
+    "t": 1792324800
+   },
+   {
+    "avg": 27.438,
+    "max": 29.875,
+    "min": 25.0,
+    "n": 4,
+    "t": 1792328400
+   },
+   {
+    "avg": 32.188,
+    "max": 34.75,
+    "min": 29.375,
+    "n": 4,
+    "t": 1792332000
+   },
+   {
+    "avg": 33.438,
+    "max": 35.875,
+    "min": 31.0,
+    "n": 4,
+    "t": 1792335600
+   },
+   {
+    "avg": 36.438,
+    "max": 39.125,
+    "min": 33.75,
+    "n": 4,
+    "t": 1792339200
+   },
+   {
+    "avg": 24.438,
+    "max": 26.875,
+    "min": 22.0,
+    "n": 4,
+    "t": 1792342800
+   },
+   {
+    "avg": 25.688,
+    "max": 28.5,
+    "min": 23.125,
+    "n": 4,
+    "t": 1792346400
+   },
+   {
+    "avg": 30.438,
+    "max": 32.875,
+    "min": 28.0,
+    "n": 4,
+    "t": 1792350000
+   },
+   {
+    "avg": 29.938,
+    "max": 32.375,
+    "min": 27.5,
+    "n": 4,
+    "t": 1792353600
+   },
+   {
+    "avg": 34.688,
+    "max": 37.25,
+    "min": 31.875,
+    "n": 4,
+    "t": 1792357200
+   },
+   {
+    "avg": 35.938,
+    "max": 38.375,
+    "min": 33.5,
+    "n": 4,
+    "t": 1792360800
+   },
+   {
+    "avg": 23.938,
+    "max": 26.625,
+    "min": 21.25,
+    "n": 4,
+    "t": 1792364400
+   },
+   {
+    "avg": 26.938,
+    "max": 29.375,
+    "min": 24.5,
+    "n": 4,
+    "t": 1792368000
+   },
+   {
+    "avg": 28.188,
+    "max": 31.0,
+    "min": 25.625,
+    "n": 4,
+    "t": 1792371600
+   },
+   {
+    "avg": 32.938,
+    "max": 35.375,
+    "min": 30.5,
+    "n": 4,
+    "t": 1792375200
+   },
+   {
+    "avg": 32.438,
+    "max": 34.875,
+    "min": 30.0,
+    "n": 4,
+    "t": 1792378800
+   },
+   {
+    "avg": 37.188,
+    "max": 39.75,
+    "min": 34.375,
+    "n": 4,
+    "t": 1792382400
+   },
+   {
+    "avg": 23.438,
+    "max": 25.875,
+    "min": 21.0,
+    "n": 4,
+    "t": 1792386000
+   },
+   {
+    "avg": 26.438,
+    "max": 29.125,
+    "min": 23.75,
+    "n": 4,
+    "t": 1792389600
+   },
+   {
+    "avg": 29.438,
+    "max": 31.875,
+    "min": 27.0,
+    "n": 4,
+    "t": 1792393200
+   },
+   {
+    "avg": 30.688,
+    "max": 33.5,
+    "min": 28.125,
+    "n": 4,
+    "t": 1792396800
+   },
+   {
+    "avg": 35.438,
+    "max": 37.875,
+    "min": 33.0,
+    "n": 4,
+    "t": 1792400400
+   },
+   {
+    "avg": 34.938,
+    "max": 37.375,
+    "min": 32.5,
+    "n": 4,
+    "t": 1792404000
+   },
+   {
+    "avg": 24.688,
+    "max": 27.25,
+    "min": 21.875,
+    "n": 4,
+    "t": 1792407600
+   },
+   {
+    "avg": 25.938,
+    "max": 28.375,
+    "min": 23.5,
+    "n": 4,
+    "t": 1792411200
+   },
+   {
+    "avg": 28.938,
+    "max": 31.625,
+    "min": 26.25,
+    "n": 4,
+    "t": 1792414800
+   },
+   {
+    "avg": 31.938,
+    "max": 34.375,
+    "min": 29.5,
+    "n": 4,
+    "t": 1792418400
+   },
+   {
+    "avg": 33.188,
+    "max": 36.0,
+    "min": 30.625,
+    "n": 4,
+    "t": 1792422000
+   },
+   {
+    "avg": 37.938,
+    "max": 40.375,
+    "min": 35.5,
+    "n": 4,
+    "t": 1792425600
+   },
+   {
+    "avg": 22.438,
+    "max": 24.875,
+    "min": 20.0,
+    "n": 4,
+    "t": 1792429200
+   },
+   {
+    "avg": 27.188,
+    "max": 29.75,
+    "min": 24.375,
+    "n": 4,
+    "t": 1792432800
+   },
+   {
+    "avg": 28.438,
+    "max": 30.875,
+    "min": 26.0,
+    "n": 4,
+    "t": 1792436400
+   },
+   {
+    "avg": 31.438,
+    "max": 34.125,
+    "min": 28.75,
+    "n": 4,
+    "t": 1792440000
+   },
+   {
+    "avg": 34.438,
+    "max": 36.875,
+    "min": 32.0,
+    "n": 4,
+    "t": 1792443600
+   },
+   {
+    "avg": 35.688,
+    "max": 38.5,
+    "min": 33.125,
+    "n": 4,
+    "t": 1792447200
+   },
+   {
+    "avg": 25.438,
+    "max": 27.875,
+    "min": 23.0,
+    "n": 4,
+    "t": 1792450800
+   },
+   {
+    "avg": 24.938,
+    "max": 27.375,
+    "min": 22.5,
+    "n": 4,
+    "t": 1792454400
+   },
+   {
+    "avg": 29.688,
+    "max": 32.25,
+    "min": 26.875,
+    "n": 4,
+    "t": 1792458000
+   },
+   {
+    "avg": 30.938,
+    "max": 33.375,
+    "min": 28.5,
+    "n": 4,
+    "t": 1792461600
+   },
+   {
+    "avg": 33.938,
+    "max": 36.625,
+    "min": 31.25,
+    "n": 4,
+    "t": 1792465200
+   },
+   {
+    "avg": 36.938,
+    "max": 39.375,
+    "min": 34.5,
+    "n": 4,
+    "t": 1792468800
+   },
+   {
+    "avg": 23.188,
+    "max": 26.0,
+    "min": 20.625,
+    "n": 4,
+    "t": 1792472400
+   },
+   {
+    "avg": 27.938,
+    "max": 30.375,
+    "min": 25.5,
+    "n": 4,
+    "t": 1792476000
+   },
+   {
+    "avg": 27.438,
+    "max": 29.875,
+    "min": 25.0,
+    "n": 4,
+    "t": 1792479600
+   },
+   {
+    "avg": 32.188,
+    "max": 34.75,
+    "min": 29.375,
+    "n": 4,
+    "t": 1792483200
+   },
+   {
+    "avg": 33.438,
+    "max": 35.875,
+    "min": 31.0,
+    "n": 4,
+    "t": 1792486800
+   },
+   {
+    "avg": 36.438,
+    "max": 39.125,
+    "min": 33.75,
+    "n": 4,
+    "t": 1792490400
+   },
+   {
+    "avg": 24.438,
+    "max": 26.875,
+    "min": 22.0,
+    "n": 4,
+    "t": 1792494000
+   },
+   {
+    "avg": 25.688,
+    "max": 28.5,
+    "min": 23.125,
+    "n": 4,
+    "t": 1792497600
+   },
+   {
+    "avg": 30.438,
+    "max": 32.875,
+    "min": 28.0,
+    "n": 4,
+    "t": 1792501200
+   },
+   {
+    "avg": 29.938,
+    "max": 32.375,
+    "min": 27.5,
+    "n": 4,
+    "t": 1792504800
+   },
+   {
+    "avg": 34.688,
+    "max": 37.25,
+    "min": 31.875,
+    "n": 4,
+    "t": 1792508400
+   },
+   {
+    "avg": 35.938,
+    "max": 38.375,
+    "min": 33.5,
+    "n": 4,
+    "t": 1792512000
+   },
+   {
+    "avg": 23.938,
+    "max": 26.625,
+    "min": 21.25,
+    "n": 4,
+    "t": 1792515600
+   },
+   {
+    "avg": 26.938,
+    "max": 29.375,
+    "min": 24.5,
+    "n": 4,
+    "t": 1792519200
+   },
+   {
+    "avg": 28.188,
+    "max": 31.0,
+    "min": 25.625,
+    "n": 4,
+    "t": 1792522800
+   },
+   {
+    "avg": 32.938,
+    "max": 35.375,
+    "min": 30.5,
+    "n": 4,
+    "t": 1792526400
+   },
+   {
+    "avg": 32.438,
+    "max": 34.875,
+    "min": 30.0,
+    "n": 4,
+    "t": 1792530000
+   },
+   {
+    "avg": 37.188,
+    "max": 39.75,
+    "min": 34.375,
+    "n": 4,
+    "t": 1792533600
+   },
+   {
+    "avg": 23.438,
+    "max": 25.875,
+    "min": 21.0,
+    "n": 4,
+    "t": 1792537200
+   },
+   {
+    "avg": 26.438,
+    "max": 29.125,
+    "min": 23.75,
+    "n": 4,
+    "t": 1792540800
+   },
+   {
+    "avg": 29.438,
+    "max": 31.875,
+    "min": 27.0,
+    "n": 4,
+    "t": 1792544400
+   },
+   {
+    "avg": 30.688,
+    "max": 33.5,
+    "min": 28.125,
+    "n": 4,
+    "t": 1792548000
+   },
+   {
+    "avg": 35.438,
+    "max": 37.875,
+    "min": 33.0,
+    "n": 4,
+    "t": 1792551600
+   },
+   {
+    "avg": 34.938,
+    "max": 37.375,
+    "min": 32.5,
+    "n": 4,
+    "t": 1792555200
+   },
+   {
+    "avg": 24.688,
+    "max": 27.25,
+    "min": 21.875,
+    "n": 4,
+    "t": 1792558800
+   },
+   {
+    "avg": 25.938,
+    "max": 28.375,
+    "min": 23.5,
+    "n": 4,
+    "t": 1792562400
+   },
+   {
+    "avg": 28.938,
+    "max": 31.625,
+    "min": 26.25,
+    "n": 4,
+    "t": 1792566000
+   },
+   {
+    "avg": 31.938,
+    "max": 34.375,
+    "min": 29.5,
+    "n": 4,
+    "t": 1792569600
+   },
+   {
+    "avg": 33.188,
+    "max": 36.0,
+    "min": 30.625,
+    "n": 4,
+    "t": 1792573200
+   },
+   {
+    "avg": 37.938,
+    "max": 40.375,
+    "min": 35.5,
+    "n": 4,
+    "t": 1792576800
+   },
+   {
+    "avg": 22.438,
+    "max": 24.875,
+    "min": 20.0,
+    "n": 4,
+    "t": 1792580400
+   },
+   {
+    "avg": 27.188,
+    "max": 29.75,
+    "min": 24.375,
+    "n": 4,
+    "t": 1792584000
+   },
+   {
+    "avg": 28.438,
+    "max": 30.875,
+    "min": 26.0,
+    "n": 4,
+    "t": 1792587600
+   },
+   {
+    "avg": 31.438,
+    "max": 34.125,
+    "min": 28.75,
+    "n": 4,
+    "t": 1792591200
+   },
+   {
+    "avg": 34.438,
+    "max": 36.875,
+    "min": 32.0,
+    "n": 4,
+    "t": 1792594800
+   },
+   {
+    "avg": 35.688,
+    "max": 38.5,
+    "min": 33.125,
+    "n": 4,
+    "t": 1792598400
+   },
+   {
+    "avg": 25.438,
+    "max": 27.875,
+    "min": 23.0,
+    "n": 4,
+    "t": 1792602000
+   },
+   {
+    "avg": 24.938,
+    "max": 27.375,
+    "min": 22.5,
+    "n": 4,
+    "t": 1792605600
+   },
+   {
+    "avg": 29.688,
+    "max": 32.25,
+    "min": 26.875,
+    "n": 4,
+    "t": 1792609200
+   },
+   {
+    "avg": 30.938,
+    "max": 33.375,
+    "min": 28.5,
+    "n": 4,
+    "t": 1792612800
+   },
+   {
+    "avg": 33.938,
+    "max": 36.625,
+    "min": 31.25,
+    "n": 4,
+    "t": 1792616400
+   },
+   {
+    "avg": 36.938,
+    "max": 39.375,
+    "min": 34.5,
+    "n": 4,
+    "t": 1792620000
+   },
+   {
+    "avg": 23.188,
+    "max": 26.0,
+    "min": 20.625,
+    "n": 4,
+    "t": 1792623600
+   },
+   {
+    "avg": 27.938,
+    "max": 30.375,
+    "min": 25.5,
+    "n": 4,
+    "t": 1792627200
+   },
+   {
+    "avg": 27.438,
+    "max": 29.875,
+    "min": 25.0,
+    "n": 4,
+    "t": 1792630800
+   },
+   {
+    "avg": 32.188,
+    "max": 34.75,
+    "min": 29.375,
+    "n": 4,
+    "t": 1792634400
+   },
+   {
+    "avg": 33.438,
+    "max": 35.875,
+    "min": 31.0,
+    "n": 4,
+    "t": 1792638000
+   },
+   {
+    "avg": 36.438,
+    "max": 39.125,
+    "min": 33.75,
+    "n": 4,
+    "t": 1792641600
+   },
+   {
+    "avg": 24.438,
+    "max": 26.875,
+    "min": 22.0,
+    "n": 4,
+    "t": 1792645200
+   },
+   {
+    "avg": 25.688,
+    "max": 28.5,
+    "min": 23.125,
+    "n": 4,
+    "t": 1792648800
+   },
+   {
+    "avg": 30.438,
+    "max": 32.875,
+    "min": 28.0,
+    "n": 4,
+    "t": 1792652400
+   },
+   {
+    "avg": 29.938,
+    "max": 32.375,
+    "min": 27.5,
+    "n": 4,
+    "t": 1792656000
+   },
+   {
+    "avg": 34.688,
+    "max": 37.25,
+    "min": 31.875,
+    "n": 4,
+    "t": 1792659600
+   },
+   {
+    "avg": 35.938,
+    "max": 38.375,
+    "min": 33.5,
+    "n": 4,
+    "t": 1792663200
+   },
+   {
+    "avg": 23.938,
+    "max": 26.625,
+    "min": 21.25,
+    "n": 4,
+    "t": 1792666800
+   },
+   {
+    "avg": 26.938,
+    "max": 29.375,
+    "min": 24.5,
+    "n": 4,
+    "t": 1792670400
+   },
+   {
+    "avg": 28.188,
+    "max": 31.0,
+    "min": 25.625,
+    "n": 4,
+    "t": 1792674000
+   },
+   {
+    "avg": 32.938,
+    "max": 35.375,
+    "min": 30.5,
+    "n": 4,
+    "t": 1792677600
+   },
+   {
+    "avg": 32.438,
+    "max": 34.875,
+    "min": 30.0,
+    "n": 4,
+    "t": 1792681200
+   },
+   {
+    "avg": 37.188,
+    "max": 39.75,
+    "min": 34.375,
+    "n": 4,
+    "t": 1792684800
+   },
+   {
+    "avg": 23.438,
+    "max": 25.875,
+    "min": 21.0,
+    "n": 4,
+    "t": 1792688400
+   },
+   {
+    "avg": 26.438,
+    "max": 29.125,
+    "min": 23.75,
+    "n": 4,
+    "t": 1792692000
+   },
+   {
+    "avg": 29.438,
+    "max": 31.875,
+    "min": 27.0,
+    "n": 4,
+    "t": 1792695600
+   },
+   {
+    "avg": 30.688,
+    "max": 33.5,
+    "min": 28.125,
+    "n": 4,
+    "t": 1792699200
+   },
+   {
+    "avg": 35.438,
+    "max": 37.875,
+    "min": 33.0,
+    "n": 4,
+    "t": 1792702800
+   },
+   {
+    "avg": 34.938,
+    "max": 37.375,
+    "min": 32.5,
+    "n": 4,
+    "t": 1792706400
+   },
+   {
+    "avg": 24.688,
+    "max": 27.25,
+    "min": 21.875,
+    "n": 4,
+    "t": 1792710000
+   },
+   {
+    "avg": 25.938,
+    "max": 28.375,
+    "min": 23.5,
+    "n": 4,
+    "t": 1792713600
+   },
+   {
+    "avg": 28.938,
+    "max": 31.625,
+    "min": 26.25,
+    "n": 4,
+    "t": 1792717200
+   },
+   {
+    "avg": 31.938,
+    "max": 34.375,
+    "min": 29.5,
+    "n": 4,
+    "t": 1792720800
+   },
+   {
+    "avg": 33.188,
+    "max": 36.0,
+    "min": 30.625,
+    "n": 4,
+    "t": 1792724400
+   },
+   {
+    "avg": 37.938,
+    "max": 40.375,
+    "min": 35.5,
+    "n": 4,
+    "t": 1792728000
+   },
+   {
+    "avg": 22.438,
+    "max": 24.875,
+    "min": 20.0,
+    "n": 4,
+    "t": 1792731600
+   },
+   {
+    "avg": 27.188,
+    "max": 29.75,
+    "min": 24.375,
+    "n": 4,
+    "t": 1792735200
+   },
+   {
+    "avg": 28.438,
+    "max": 30.875,
+    "min": 26.0,
+    "n": 4,
+    "t": 1792738800
+   },
+   {
+    "avg": 31.438,
+    "max": 34.125,
+    "min": 28.75,
+    "n": 4,
+    "t": 1792742400
+   },
+   {
+    "avg": 34.438,
+    "max": 36.875,
+    "min": 32.0,
+    "n": 4,
+    "t": 1792746000
+   },
+   {
+    "avg": 35.688,
+    "max": 38.5,
+    "min": 33.125,
+    "n": 4,
+    "t": 1792749600
+   },
+   {
+    "avg": 25.438,
+    "max": 27.875,
+    "min": 23.0,
+    "n": 4,
+    "t": 1792753200
+   },
+   {
+    "avg": 24.938,
+    "max": 27.375,
+    "min": 22.5,
+    "n": 4,
+    "t": 1792756800
+   },
+   {
+    "avg": 29.688,
+    "max": 32.25,
+    "min": 26.875,
+    "n": 4,
+    "t": 1792760400
+   },
+   {
+    "avg": 30.938,
+    "max": 33.375,
+    "min": 28.5,
+    "n": 4,
+    "t": 1792764000
+   },
+   {
+    "avg": 33.938,
+    "max": 36.625,
+    "min": 31.25,
+    "n": 4,
+    "t": 1792767600
+   },
+   {
+    "avg": 36.938,
+    "max": 39.375,
+    "min": 34.5,
+    "n": 4,
+    "t": 1792771200
+   },
+   {
+    "avg": 23.188,
+    "max": 26.0,
+    "min": 20.625,
+    "n": 4,
+    "t": 1792774800
+   },
+   {
+    "avg": 27.938,
+    "max": 30.375,
+    "min": 25.5,
+    "n": 4,
+    "t": 1792778400
+   },
+   {
+    "avg": 27.438,
+    "max": 29.875,
+    "min": 25.0,
+    "n": 4,
+    "t": 1792782000
+   },
+   {
+    "avg": 32.188,
+    "max": 34.75,
+    "min": 29.375,
+    "n": 4,
+    "t": 1792785600
+   },
+   {
+    "avg": 33.438,
+    "max": 35.875,
+    "min": 31.0,
+    "n": 4,
+    "t": 1792789200
+   },
+   {
+    "avg": 36.438,
+    "max": 39.125,
+    "min": 33.75,
+    "n": 4,
+    "t": 1792792800
+   },
+   {
+    "avg": 24.438,
+    "max": 26.875,
+    "min": 22.0,
+    "n": 4,
+    "t": 1792796400
+   },
+   {
+    "avg": 25.688,
+    "max": 28.5,
+    "min": 23.125,
+    "n": 4,
+    "t": 1792800000
+   },
+   {
+    "avg": 30.438,
+    "max": 32.875,
+    "min": 28.0,
+    "n": 4,
+    "t": 1792803600
+   },
+   {
+    "avg": 29.938,
+    "max": 32.375,
+    "min": 27.5,
+    "n": 4,
+    "t": 1792807200
+   },
+   {
+    "avg": 34.688,
+    "max": 37.25,
+    "min": 31.875,
+    "n": 4,
+    "t": 1792810800
+   },
+   {
+    "avg": 35.938,
+    "max": 38.375,
+    "min": 33.5,
+    "n": 4,
+    "t": 1792814400
+   },
+   {
+    "avg": 23.938,
+    "max": 26.625,
+    "min": 21.25,
+    "n": 4,
+    "t": 1792818000
+   },
+   {
+    "avg": 26.938,
+    "max": 29.375,
+    "min": 24.5,
+    "n": 4,
+    "t": 1792821600
+   },
+   {
+    "avg": 28.188,
+    "max": 31.0,
+    "min": 25.625,
+    "n": 4,
+    "t": 1792825200
+   },
+   {
+    "avg": 32.938,
+    "max": 35.375,
+    "min": 30.5,
+    "n": 4,
+    "t": 1792828800
+   },
+   {
+    "avg": 32.438,
+    "max": 34.875,
+    "min": 30.0,
+    "n": 4,
+    "t": 1792832400
+   },
+   {
+    "avg": 37.188,
+    "max": 39.75,
+    "min": 34.375,
+    "n": 4,
+    "t": 1792836000
+   },
+   {
+    "avg": 23.438,
+    "max": 25.875,
+    "min": 21.0,
+    "n": 4,
+    "t": 1792839600
+   },
+   {
+    "avg": 26.438,
+    "max": 29.125,
+    "min": 23.75,
+    "n": 4,
+    "t": 1792843200
+   },
+   {
+    "avg": 29.438,
+    "max": 31.875,
+    "min": 27.0,
+    "n": 4,
+    "t": 1792846800
+   },
+   {
+    "avg": 30.688,
+    "max": 33.5,
+    "min": 28.125,
+    "n": 4,
+    "t": 1792850400
+   },
+   {
+    "avg": 35.438,
+    "max": 37.875,
+    "min": 33.0,
+    "n": 4,
+    "t": 1792854000
+   },
+   {
+    "avg": 34.938,
+    "max": 37.375,
+    "min": 32.5,
+    "n": 4,
+    "t": 1792857600
+   },
+   {
+    "avg": 24.688,
+    "max": 27.25,
+    "min": 21.875,
+    "n": 4,
+    "t": 1792861200
+   },
+   {
+    "avg": 25.938,
+    "max": 28.375,
+    "min": 23.5,
+    "n": 4,
+    "t": 1792864800
+   },
+   {
+    "avg": 28.938,
+    "max": 31.625,
+    "min": 26.25,
+    "n": 4,
+    "t": 1792868400
+   },
+   {
+    "avg": 31.938,
+    "max": 34.375,
+    "min": 29.5,
+    "n": 4,
+    "t": 1792872000
+   },
+   {
+    "avg": 33.188,
+    "max": 36.0,
+    "min": 30.625,
+    "n": 4,
+    "t": 1792875600
+   },
+   {
+    "avg": 37.938,
+    "max": 40.375,
+    "min": 35.5,
+    "n": 4,
+    "t": 1792879200
+   }
+  ]
+ },
+ "api/trayquit": {
+  "apps": [
+   "ChatGPT",
+   "WhatsApp.Root",
+   "WhatsApp",
+   "Slack",
+   "Discord",
+   "Spotify"
+  ],
+  "apps_live": [
+   {
+    "consent": "ask",
+    "cpu_pct": 0.0,
+    "hidden_for_s": 122,
+    "mem_mb": 1500,
+    "name": "ChatGPT",
+    "procs": 1,
+    "running": true,
+    "state": "awaiting consent",
+    "window": false
+   },
+   {
+    "name": "WhatsApp.Root",
+    "running": false
+   },
+   {
+    "name": "WhatsApp",
+    "running": false
+   },
+   {
+    "consent": "ask",
+    "cpu_pct": 65.6,
+    "hidden_for_s": 122,
+    "mem_mb": 400,
+    "name": "Slack",
+    "procs": 1,
+    "running": true,
+    "state": "busy",
+    "window": false
+   },
+   {
+    "name": "Discord",
+    "running": false
+   },
+   {
+    "consent": "never",
+    "cpu_pct": 0.0,
+    "hidden_for_s": 122,
+    "mem_mb": 200,
+    "name": "Spotify",
+    "procs": 1,
+    "running": true,
+    "state": "kept (never quit)",
+    "window": false
+   }
+  ],
+  "awaiting_consent": [
+   "ChatGPT"
+  ],
+  "busy_cpu_pct": 3.0,
+  "checked_at": 1792883490.9819105,
+  "consent": {
+   "spotify": "never",
+   "whatsapp": "allow"
+  },
+  "enabled": true,
+  "execution_enabled": true,
+  "freed_24h_mb": 720,
+  "grace_s": 60,
+  "quits_24h": 2,
+  "recent": [
+   {
+    "at": 1792876368.9819105,
+    "exe": "C:\\Apps\\Discord.exe",
+    "freed_mb": 420,
+    "hidden_s": 75,
+    "name": "Discord",
+    "procs": 3,
+    "reopened_at": 1792876568.9819105
+   },
+   {
+    "at": 1792883429.9819105,
+    "exe": "C:\\Apps\\WhatsApp.exe",
+    "freed_mb": 300,
+    "hidden_s": 61,
+    "name": "WhatsApp",
+    "procs": 1
+   }
+  ],
+  "startup_grace_s": 60,
+  "suggestions": [
+   {
+    "mem_mb": 260,
+    "name": "Notion",
+    "procs": 1
+   }
+  ]
  }
 }

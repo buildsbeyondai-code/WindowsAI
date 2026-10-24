@@ -280,3 +280,8 @@ def test_smoothing_windows_are_defined_in_time_not_sample_counts():
     from sysperf import config
     assert config.SMOOTH_WINDOW_OVERRIDES["net_remote"] * config.SAMPLE_SECONDS == 3600
     assert config.WIFI_LINK_SMOOTH_WINDOW * config.SAMPLE_SECONDS == 1800
+
+
+def test_row_note_net_remote_mentions_excluded_infrastructure():
+    n = _row_note("net_remote", 25, {"net_established": 60, "net_remote_infra": 7})
+    assert "7 OS/sync infrastructure" in n

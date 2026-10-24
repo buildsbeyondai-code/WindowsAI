@@ -46,7 +46,6 @@ import json
 import logging
 import os
 import re
-import subprocess
 from .background_process import run_hidden
 import sys
 import tempfile
@@ -62,11 +61,6 @@ BASE = Path(os.environ.get("SYSPERF_COMPONENTS_DIR")
 COMPONENTS_FILE = BASE / "components.json"
 LOG_FILE = BASE / "refresh_components.log"
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-    handlers=[logging.FileHandler(LOG_FILE), logging.StreamHandler(sys.stdout)],
-)
 log = logging.getLogger("refresh_components")
 
 # catalog key -> apt package name (supported channel = apt / vendor apt repo)
@@ -289,5 +283,17 @@ def refresh() -> int:
     return 0
 
 
+def main() -> int:
+    """Script entry point. Logging is configured here, not at import, so importing
+    this module (the test suite, the self-test) never touches the root logger or
+    creates a log file next to the code."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+        handlers=[logging.FileHandler(LOG_FILE), logging.StreamHandler(sys.stdout)],
+    )
+    return refresh()
+
+
 if __name__ == "__main__":
-    raise SystemExit(refresh())
+    raise SystemExit(main())

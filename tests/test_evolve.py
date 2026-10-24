@@ -834,3 +834,45 @@ def test_the_library_is_internally_consistent():
         assert spec["shell"] in ("pwsh", "bash"), name
         for param in spec["params"]:
             assert "{" + param + "}" in spec["manual_hint"], (name, param)
+
+
+# ------------------------------------- automatic adjudication (auto_adopt) --
+def _candidate(cid, metric, risk="safe", reversible=True, missing=None, state="candidate"):
+    return {"id": cid, "recipe": cid, "title": cid, "family": "f", "metric": metric,
+            "label": metric, "risk": risk, "reversible": reversible, "shell": "pwsh",
+            "rationale": "r", "manual_hint": "h", "params": {},
+            "missing_params": missing or [], "state": state, "executable": False,
+            "generation": 1}
+
+
+def test_auto_adopt_adopts_gap_fillers_and_holds_the_rest(tmp_path):
+    state = {"recipes": {
+        "gap": _candidate("gap", "cpu_pct"),
+        "dup": _candidate("dup", "handles"),                    # already mapped
+        "manual": _candidate("manual", "disk_active_pct", risk="manual"),
+        "oneway": _candidate("oneway", "cpu_queue", reversible=False),
+        "done": _candidate("done", "x", state="promoted")}}
+    (tmp_path / "evolve_state.json").write_text(json.dumps(state))
+    promoted = []
+    eng = EvolutionEngine(FakeView(), BASE_MAP, tmp_path / "evolve_state.json",
+                          tmp_path / "evolutions", EVOLVE_EVERY, auto_adopt=True,
+                          on_promote=promoted.append)
+    r = eng.state["recipes"]
+    assert r["gap"]["state"] == "promoted" and promoted
+    assert r["dup"]["held_reason"].startswith("redundant")
+    assert r["manual"]["held_reason"] == "needs human judgement"
+    assert r["oneway"]["held_reason"] == "not reversible / incomplete"
+    assert r["done"]["state"] == "promoted"
+    assert eng.auto_adjudicate() == []                          # nothing left to decide
+    saved = json.loads((tmp_path / "evolve_state.json").read_text())
+    assert saved["recipes"]["dup"]["state"] == "held"
+
+
+def test_auto_adjudicate_is_off_without_auto_adopt_and_runs_after_a_pass(tmp_path):
+    eng = _engine(tmp_path, FakeView())
+    assert eng.auto_adjudicate() == []
+    eng.auto_adopt = True
+    calls = []
+    eng.auto_adjudicate = lambda: calls.append(True) or []
+    eng.run_pass(force=True)
+    assert calls == [True]

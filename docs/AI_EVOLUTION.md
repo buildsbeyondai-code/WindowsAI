@@ -105,8 +105,24 @@ evidence (sandboxed baseline tests + benchmarks, AST findings)
   -> sandboxed benchmark: baseline vs candidate, N repetitions, median + MAD
   -> decision -> commit on sysperf-evolve/<id>  (never merged)
   -> human review: Approve records consent and shows the merge command;
+                   Apply & restart (4.1) approves, deploys and verifies;
                    Reject deletes the branch
 ```
+
+**Deploying a patch (4.1).** *Apply & restart* refuses unless the repository has
+no uncommitted changes and main is still exactly the commit the candidate was
+measured on. It then tags the current HEAD `sysperf-backup/<id>`, fast-forwards
+main to the candidate branch, writes `pending_apply.json` and asks the supervisor
+to restart SysPerf. The restarted service confirms the patch once it has produced
+a healthy sample. If it crashes repeatedly or is not healthy within five minutes,
+the supervisor rolls back to the backup with `git reset --keep` (which refuses
+rather than discard uncommitted work) and records why in `apply_log.jsonl`.
+*Roll back* on the Deployment card does the same on request.
+
+**Evidence (4.1).** Besides benchmark hotspots and static findings, each cycle
+profiles the benchmarks with cProfile inside the sandbox and passes the
+repository functions with the most self time to the model (`profile_hotspot`),
+and the planner is told that only changes to benchmarked code can be retained.
 
 **Configure it:**
 

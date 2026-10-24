@@ -7,6 +7,7 @@ shaped like the collector's real history (MAX_SAMPLES samples, one per minute,
 every CRITERIA key present) and fully deterministic, so a change in timing is a
 change in the code, not in the data.
 """
+import json
 import os
 import sys
 import tempfile
@@ -14,8 +15,8 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
 
-from sysperf import appctl, config, scoring, trends    # noqa: E402
-from sysperf.adaptive import AdaptiveScorer             # noqa: E402
+from sysperf import appctl, collector, config, cpuwatch, scoring, trends
+from sysperf.adaptive import AdaptiveScorer
 
 _TMP = Path(tempfile.mkdtemp(prefix="evo_bench_"))
 _KEYS = [c[0] for c in config.CRITERIA]
@@ -64,6 +65,29 @@ def _trend_ingest_summary():
     st.summary(_LATEST)
 
 
+_PROBE = "WARNING: slow probe\n" + json.dumps(dict(_LONG[-1], wifi_scan={"nets": [
+    {"ssid": f"net{i}", "signal": i % 100, "channel": i % 165} for i in range(120)]}))
+_STORE = trends.TrendStore(_TMP / "absent" / "analyze.json")
+for _s in (_sample(i * 60) for i in range(28 * 24)):        # a month of hourly samples
+    _STORE.ingest(_s, _CARD, persist=False)
+
+
+def _parse_probe():
+    for _ in range(400):
+        collector._parse_probe(_PROBE)
+
+
+def _consistent_cpu():
+    for _ in range(10):
+        cpuwatch.consistent_cpu(_HIST)
+
+
+def _trend_analyze():
+    for _ in range(20):
+        for k in _KEYS:
+            _STORE.analyze(k)
+
+
 def _top_apps():
     for _ in range(15):
         appctl.top_apps(_HIST)
@@ -76,4 +100,7 @@ BENCHMARKS = {
     "scoring._smoothed_current": _smoothed_current,
     "trends.TrendStore.ingest+summary": _trend_ingest_summary,
     "appctl.top_apps (cpuwatch.consistent_cpu, last_exe)": _top_apps,
+    "collector._parse_probe": _parse_probe,
+    "cpuwatch.consistent_cpu": _consistent_cpu,
+    "trends.TrendStore.analyze": _trend_analyze,
 }

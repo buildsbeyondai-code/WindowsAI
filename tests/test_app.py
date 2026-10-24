@@ -12,10 +12,15 @@ from tests.test_rca import FakeStore
 
 class FakeCollector:
     """Lightweight stand-in so importing app does no heavy I/O."""
-    def __init__(self, scorer):
+    def __init__(self, scorer, store=None, shell=None):
         self.latest = {"vmmem_mb": 1}
         self.history = [1, 2, 3]
         self.error = None
+        self.last_ok_at = None
+        self.store, self.shell = store, shell
+
+    def stats(self):
+        return {"samples_taken": 3, "store": "sqlite"}
 
     def loop(self):        # referenced by main()'s thread target
         pass
@@ -841,17 +846,27 @@ def test_main(monkeypatch):
     started = {}
 
     class FakeThread:
-        def __init__(self, target=None, daemon=None, args=(), kwargs=None):
+        def __init__(self, target=None, daemon=None, args=(), kwargs=None, name=None):
             self.target = target
 
         def start(self):
             started["thread"] = True
 
+        def is_alive(self):
+            return True
+
     monkeypatch.setattr(app.threading, "Thread", FakeThread)
     monkeypatch.setattr(app.app, "run", lambda **k: started.setdefault("run", True))
+    monkeypatch.setattr(app, "PLATFORM", "windows")
     _stub_wsgi_server(monkeypatch, started)
     app.main()
     assert started.get("thread") and started.get("run")
+    # every worker is registered with the health monitor, with freshness probes
+    names = {t["name"] for t in app.health_monitor.check()["threads"]}
+    assert {"collector", "auto-improve", "self-evolution", "housekeeping",
+            "tray-quit"} <= names
+    assert {p["name"] for p in app.health_monitor.check()["probes"]} >= {
+        "collector", "auto-improve", "tray-quit"}
 
 
 def test_main_guard(monkeypatch):

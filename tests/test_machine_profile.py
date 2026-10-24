@@ -220,3 +220,84 @@ def test_slipping_far_past_a_target_still_reaches_zero():
     assert slipped_progress(30, 25, False) == 60.0      # 20% over -> 60%
     assert slipped_progress(40, 25, False) == 0.0       # 60% over -> 0%
     assert slipped_progress(1, 0, False) == 0.0         # zero target: any miss is 0
+
+
+# ----------------------------------------------------- 4.1 + remaining paths --
+def _db(path, rows):
+    import sqlite3
+    con = sqlite3.connect(path)
+    con.execute("CREATE TABLE samples (t REAL PRIMARY KEY, data TEXT NOT NULL)")
+    for i, r in enumerate(rows):
+        con.execute("INSERT INTO samples VALUES (?, ?)", (float(i), r))
+    con.commit()
+    con.close()
+
+
+def test_sqlite_history_identifies_and_archives_a_foreign_machine(isolated, tmp_path):
+    _db(tmp_path / "history.db", [json.dumps({"_host": "x"}),
+                                  json.dumps({"_host": "old-desktop"})])
+    (tmp_path / "notifications.json").write_text("{}")
+    mp.startup(tmp_path)
+    dest = list((tmp_path / "archive").glob("OLD-DESKTOP-*"))
+    assert dest and (dest[0] / "history.db").exists() and (dest[0] / "notifications.json").exists()
+
+
+def test_db_owner_edge_cases(tmp_path):
+    assert mp._db_owner(tmp_path / "none.db") is None
+    _db(tmp_path / "empty.db", [])
+    assert mp._db_owner(tmp_path / "empty.db") is None
+    _db(tmp_path / "nohost.db", [json.dumps({"a": 1})])
+    assert mp._db_owner(tmp_path / "nohost.db") is None
+    _db(tmp_path / "junk.db", ["not json"])
+    assert mp._db_owner(tmp_path / "junk.db") is None
+    (tmp_path / "notadb.db").write_text("garbage")
+    assert mp._db_owner(tmp_path / "notadb.db") is None
+
+
+def test_history_tail_without_a_host_and_bad_lines(isolated, tmp_path):
+    (tmp_path / "history.jsonl").write_text('not json\n[1]\n{"a": 1}\n')
+    assert mp._history_owner(tmp_path) is None
+
+
+def test_user_target_fractions_override_defaults(monkeypatch):
+    monkeypatch.setitem(config.SETTINGS, "targets", {"commit_of_ram": 0.5, "junk": 9,
+                                                     "available_of_ram": "x"})
+    f = mp._fractions()
+    assert f["commit_of_ram"] == 0.5 and "junk" not in f
+    assert f["available_of_ram"] == mp.TARGET_DEFAULTS["available_of_ram"]
+
+
+def test_save_and_archive_failures_are_logged(isolated, tmp_path, caplog, monkeypatch):
+    mp.save({"a": 1}, tmp_path / "missing" / "baseline.json")
+    assert "could not save" in caplog.text
+    (tmp_path / "history.jsonl").write_text("{}")
+
+    def boom(src, dst):
+        raise OSError("locked")
+    monkeypatch.setattr(mp.os, "replace", boom)
+    assert mp.archive_foreign_state(tmp_path, "OTHER") is None
+    assert "could not archive" in caplog.text
+
+
+def test_live_targets_without_a_floor(monkeypatch):
+    import sysperf.browser as browser
+    monkeypatch.setattr(browser, "browser_breakdown", lambda latest: {"realistic_floor": 0})
+    assert mp.live_targets({"wv2_hosts": 3}) == {}
+
+
+def test_apply_refreshes_trend_lookup_tables(isolated, monkeypatch):
+    import sys
+    import types
+    calls = []
+    fake = types.SimpleNamespace(refresh_criteria=lambda: calls.append(True))
+    monkeypatch.setitem(sys.modules, "sysperf.trends", fake)
+    mp.apply(None)
+    assert calls == [True]
+
+
+def test_capture_is_skipped_once_this_machine_is_complete(isolated, monkeypatch):
+    prof = mp.derive(_hist())
+    prof["machine"] = "THIS-PC"
+    mp.apply(prof)
+    monkeypatch.setattr(config, "PROFILE_PENDING", frozenset())
+    assert mp.maybe_capture(_hist()) is False

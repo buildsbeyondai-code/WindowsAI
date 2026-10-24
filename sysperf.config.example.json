@@ -8,7 +8,7 @@
   "auth_token": "",
   "open_browser": false,
   "//_sampling": "sample_seconds is the fast tier. The slow tier (services, startup, network, hardware, drivers) runs every full_every-th sample because it costs a few seconds.",
-  "sample_seconds": 20,
+  "sample_seconds": 60,
   "full_every": 15,
   "max_samples": 720,
   "history_max_bytes": 12000000,

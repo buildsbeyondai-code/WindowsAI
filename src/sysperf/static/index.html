@@ -1087,23 +1087,95 @@
   .auto-subnav a.active{background:var(--accent);color:#fff;border-color:var(--accent)}
   body.dark .auto-subnav a{background:#1c1c1e}
   body.dark .auto-subnav a.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+  /* ---- 4.1: Home, Settings & diagnostics, notification bell ---- */
+  .bell{position:relative;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+    border-radius:9px;padding:6px 10px;cursor:pointer;font:inherit;line-height:1}
+  .bell:hover{border-color:var(--accent)}
+  .bell .cnt{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;border-radius:9px;
+    background:var(--red);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;
+    justify-content:center;padding:0 5px}
+  .bell .cnt[hidden]{display:none}
+  .notif-panel{position:absolute;right:0;top:calc(100% + 8px);width:min(420px,92vw);z-index:40;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    box-shadow:0 18px 40px -18px #000;padding:10px}
+  .notif-panel[hidden]{display:none}
+  .notif-head{display:flex;justify-content:space-between;align-items:center;margin:0 2px 8px;
+    font-size:12.5px;color:var(--muted)}
+  .notif-item{display:block;width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;
+    color:var(--ink);padding:8px 10px;border-radius:8px;cursor:pointer;font:inherit}
+  .notif-item:hover{background:var(--panel2)}
+  .notif-item.unread{border-left-color:var(--accent);background:rgba(77,163,255,.07)}
+  .notif-item b{display:block;font-size:13px}
+  .notif-item span{display:block;font-size:12px;color:var(--muted)}
+  .notif-item i{font-style:normal;font-size:11px;color:var(--muted)}
+  .hdr-anchor{position:relative}
+  /* the header is its own stacking context (backdrop blur); lift it above the views so
+     the notification dropdown is never painted underneath the cards below it */
+  header{position:relative;z-index:30}
+  .home-bar{display:flex;justify-content:flex-end;margin:-6px 0 10px}
+
+  .home-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+  .home-hero{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+  .home-ring{width:132px;height:132px;flex:none}
+  .home-ring .bg{stroke:var(--line)} .home-ring .fg{transition:stroke-dashoffset .8s ease}
+  .home-ring.g .fg{stroke:var(--green)} .home-ring.a .fg{stroke:var(--yellow)}
+  .home-ring.r .fg{stroke:var(--red)} .home-ring.m .fg{stroke:var(--muted)}
+  .home-ring text{fill:var(--ink);font-weight:800}
+  .home-big{font-size:22px;font-weight:700;letter-spacing:-.3px;margin:0 0 4px}
+  .home-list{list-style:none;margin:0;padding:0}
+  .home-list li{display:flex;gap:10px;align-items:flex-start;padding:9px 2px;border-bottom:1px solid var(--line)}
+  .home-list li:last-child{border-bottom:0}
+  .home-list .ico{flex:none;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
+    background:var(--panel2);font-size:14px}
+  .home-list .t{font-size:13.5px} .home-list .s{font-size:12px;color:var(--muted)}
+  .home-list code{white-space:pre-wrap;word-break:break-all}
+  .home-hist-ctl{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .home-hist-ctl select{padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink)}
+  .home-chart svg{width:100%;height:auto;display:block}
+  .home-chart .band{fill:rgba(77,163,255,.16)} .home-chart .line{fill:none;stroke:var(--accent);stroke-width:2}
+  .home-chart .ax{stroke:var(--line)} .home-chart text{fill:var(--muted);font-size:11px}
+  body.simple .tab.expert{display:none}
+
+  .set-sec{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 12px;background:var(--panel)}
+  .set-sec legend{padding:0 6px;font-weight:700;font-size:13.5px}
+  .set-row{display:grid;grid-template-columns:minmax(220px,1fr) minmax(160px,260px);gap:10px;align-items:center;
+    padding:7px 0;border-bottom:1px dashed var(--line)}
+  .set-row:last-child{border-bottom:0}
+  .set-row .h{display:block;font-size:11.5px;color:var(--muted)}
+  .set-row .rs{font-size:10.5px;color:var(--amber);margin-left:6px}
+  .set-row input[type=number],.set-row input[type=text],.set-row select{width:100%;padding:6px 8px;border-radius:8px;
+    border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:inherit}
+  .set-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 14px}
+  .set-restart{border:1px solid rgba(255,159,46,.5);background:rgba(255,159,46,.08);border-radius:10px;padding:10px 12px;margin:0 0 12px}
+  .set-restart[hidden]{display:none}
+  .diag-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+  .diag-kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:13px}
+  .diag-kv dt{color:var(--muted)} .diag-kv dd{margin:0}
+  .diag-err{font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .diag-err .lv{font-weight:700;margin-right:6px} .diag-err .lv.ERROR,.diag-err .lv.CRITICAL{color:var(--red)}
+  .diag-err .lv.WARNING{color:var(--amber)}
+  .st-ok{color:var(--green);font-weight:700} .st-degraded{color:var(--amber);font-weight:700}
+  .st-error{color:var(--red);font-weight:700}
 </style>
 </head>
 <body>
 <div class="wrap">
 
 <nav class="tabs" role="tablist" aria-label="Dashboard views">
-  <button class="tab" id="tab-summary" role="tab" aria-controls="view-summary" aria-selected="true">Summary</button>
+  <button class="tab" id="tab-home" role="tab" aria-controls="view-home" aria-selected="true">Home</button>
+  <button class="tab" id="tab-summary" role="tab" aria-controls="view-summary" aria-selected="false">Summary</button>
   <button class="tab" id="tab-details" role="tab" aria-controls="view-details" aria-selected="false">Details</button>
   <button class="tab" id="tab-arch" role="tab" aria-controls="view-architecture" aria-selected="false">Live Architecture</button>
   <button class="tab" id="tab-auto" role="tab" aria-controls="view-auto" aria-selected="false">Auto-Improve</button>
   <button class="tab" id="tab-appctl" role="tab" aria-controls="view-appctl" aria-selected="false">App Control</button>
   <button class="tab" id="tab-evo" role="tab" aria-controls="view-evo" aria-selected="false">AI Self-Evolution</button>
+  <button class="tab" id="tab-settings" role="tab" aria-controls="view-settings" aria-selected="false">Settings</button>
 </nav>
 
 <header>
   <div>
-    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v4.0.0</span></h1>
+    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v4.1.0</span></h1>
     <div class="sub" id="baseSub">Live remediation tracking against this machine's own baseline</div>
     <div class="chips" id="chips"></div>
   </div>
@@ -1117,6 +1189,10 @@
         <input type="checkbox" id="hideDesc"> Hide descriptions</label>
       <label class="toggle" title="Switch between light and dark appearance">
         <input type="checkbox" id="darkMode"> Dark mode</label>
+      <span class="hdr-anchor"><button id="notifBtn" class="bell" aria-label="Notifications" title="Notifications">&#128276;<span class="cnt" id="notifCount" hidden>0</span></button>
+        <div id="notifPanel" class="notif-panel" hidden><div class="notif-head"><span>Notifications</span>
+          <button id="notifReadAll" class="fixbtn ghost" style="padding:2px 8px">Mark all read</button></div>
+          <div id="notifList"></div></div></span>
       <button id="commonFixBtn" class="fixbtn" title="Detect and fix recurring common issues">
         &#128295; Common Fix</button>
     </div>
@@ -1152,7 +1228,33 @@
   <span class="as-item"><span class="as-k">Pending review</span> <span class="as-v" id="asPending">0</span></span>
   <button type="button" class="as-open" id="asOpen">Open AI Self-Evolution</button>
 </div>
-<div id="view-summary" role="tabpanel" aria-labelledby="tab-summary"></div>
+<div id="view-home" role="tabpanel" aria-labelledby="tab-home">
+  <div class="summary-lead">The essentials: how this PC is doing, what to do next, and what SysPerf did for you
+    today. Turn on <b>Simple view</b> to hide the expert tabs.</div>
+  <div class="home-bar"><label class="toggle" title="Hide the expert tabs (Details, Live Architecture, Auto-Improve, App Control, AI Self-Evolution)">
+    <input type="checkbox" id="homeSimple"> Simple view</label></div>
+  <div class="card" style="margin-bottom:12px"><div class="home-hero">
+    <div id="homeScore" class="home-ring-wrap"></div>
+    <div style="flex:1;min-width:240px"><div id="homeStatus">Loading…</div></div>
+  </div></div>
+  <div class="home-grid">
+    <div class="card"><h3>Do these next</h3><ul class="home-list" id="homeTodo"><li>Loading…</li></ul></div>
+    <div class="card"><h3>What SysPerf did today</h3><ul class="home-list" id="homeToday"><li>Loading…</li></ul></div>
+    <div class="card"><h3>Service health</h3><div id="homeHealth">Loading…</div></div>
+    <div class="card"><h3>Latest notifications</h3><div id="homeNotes">Loading…</div></div>
+  </div>
+  <div class="card" style="margin-top:12px"><h3>Long-term history <span class="hint">hourly averages, min–max band</span></h3>
+    <div class="home-hist-ctl">
+      <select id="homeHistKey" aria-label="Metric"></select>
+      <select id="homeHistRange" aria-label="Range">
+        <option value="24">24 hours</option><option value="168" selected>7 days</option>
+        <option value="720">30 days</option><option value="2160">90 days</option>
+        <option value="8760">1 year</option></select>
+    </div>
+    <div class="home-chart" id="homeHistChart">Loading…</div>
+  </div>
+</div>
+<div id="view-summary" role="tabpanel" aria-labelledby="tab-summary" style="display:none"></div>
 
 <div id="view-details" role="tabpanel" aria-labelledby="tab-details">
 
@@ -1225,13 +1327,15 @@
 </div><!-- /view-details -->
 
 <div id="view-architecture" role="tabpanel" aria-labelledby="tab-arch">
-  <div class="summary-lead">How this dashboard works, end to end — the sampling
-    PowerShell collector reads the Windows host every 20 s; the Python collector
-    persists history and feeds the scoring &amp; adaptive engines; the Flask API serves
-    the snapshot through nginx to this page; and the Auto-Improve loop closes the loop
-    back to the host — scanning every 5 min, running a root-cause analysis and applying
-    reversible safe remediations, then measuring what actually changed. Animated arrows
-    show live data flow; the badge is green while the collector is healthy.</div>
+  <div class="summary-lead">How SysPerf works, end to end, in three layers. <b>Sense &amp; serve:</b>
+    a warm PowerShell session runs the read-only probe every sampling interval, the collector
+    scores it and the waitress-served Flask API (127.0.0.1 only) hands the snapshot to this page.
+    <b>Learn &amp; remember:</b> samples go to SQLite (raw for days, hourly for a year), the adaptive
+    scorer and trend/root-cause engines learn from them, and the health monitor raises notifications.
+    <b>Act &amp; evolve:</b> the Auto-Improve loop applies only policy-approved reversible fixes, the
+    code-evolution engine proposes AI patches that are sandboxed, benchmarked and audited, and the
+    supervisor restarts the service or rolls a bad patch back. Every box shows live data; animated
+    arrows show flow.</div>
   <div class="arch-legend">
     <span><i class="lg lg-g"></i>healthy / on target</span>
     <span><i class="lg lg-a"></i>action available</span>
@@ -1580,9 +1684,12 @@
       <div class="cbody"><div class="note keep" style="margin:0">Every 15 s the dashboard
         checks each listed app. An app is quit only when <b>none</b> of its processes has a
         visible window — a minimized window still counts as open — for the chosen time,
-        and never within a minute of it starting. Only apps on your list are touched;
-        Windows, security software, browsers, WSL and this dashboard can never be added.
-        Reopen an app from the Start menu as usual — it starts fresh.</div></div>
+        and never within a minute of it starting. <b>You decide per app:</b> until you choose
+        <b>Allow</b>, SysPerf only asks (with a notification); <b>Never</b> keeps it running for good.
+        An app that is <b>busy</b> — a call, a download, a sync — is left alone that round. Every
+        quit can be undone with <b>Reopen</b>, which starts the exact program that was closed.
+        Only apps on your list are touched; Windows, security software, browsers, WSL and this
+        dashboard can never be added.</div></div>
     </details>
   </div>
 
@@ -1747,7 +1854,36 @@
   <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5M12 7v5l3 2"/></svg>Evolution history</h3><div id="sevHistory"></div></div>
   <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M14 3h7v7M21 3l-9 9"/></svg>Improvement details</h3><div id="sevDetail"><div class="evo-empty">Select a candidate in the history to inspect its diff, tests and benchmark.</div></div></div>
   <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18M6 16v-5M11 16V8M16 16v-3M21 16V5"/></svg>Optimisation effectiveness <span class="hint">measured before / after</span></h3><div id="sevEffect"></div></div>
+  <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>Deployment <span class="hint">apply · verify · roll back</span></h3><div id="sevDeploy"></div></div>
   <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Audit trail <span class="hint">tamper-evident hash chain</span></h3><div id="sevAudit"></div></div>
+</div>
+<div id="view-settings" role="tabpanel" aria-labelledby="tab-settings" style="display:none">
+  <div class="summary-lead">Every setting in one place, validated before anything is saved. Settings marked
+    <span style="color:var(--amber)">restart</span> take effect after SysPerf restarts.</div>
+  <div class="set-restart" id="setRestart" hidden>
+    <span id="setRestartTxt"></span>
+    <button id="setRestartBtn" class="fixbtn" style="margin-left:8px">Restart SysPerf now</button>
+  </div>
+  <div class="set-bar">
+    <button id="setSave" class="fixbtn">Save changes</button>
+    <button id="setResetAll" class="fixbtn ghost">Reset all to defaults</button>
+    <a id="setExport" class="fixbtn ghost" href="api/settings/export" download="sysperf-settings.json">Export</a>
+    <label class="fixbtn ghost" style="cursor:pointer">Import<input id="setImportFile" type="file"
+      accept="application/json,.json" hidden></label>
+    <button id="setTestNotify" class="fixbtn ghost">Send a test notification</button>
+    <span id="setMsg" class="fix-result" role="status"></span>
+  </div>
+  <div id="setForm">Loading…</div>
+  <h2 style="font-size:16px;margin:18px 0 8px">Diagnostics <span class="hint">the service's own health</span></h2>
+  <div class="diag-grid">
+    <div class="card"><h3>Status</h3><div id="diagStatus">Loading…</div></div>
+    <div class="card"><h3>Workers</h3><div id="diagWorkers">Loading…</div></div>
+    <div class="card"><h3>Footprint &amp; storage</h3><div id="diagFoot">Loading…</div></div>
+    <div class="card"><h3>Supervisor &amp; deployments</h3><div id="diagSup">Loading…</div></div>
+  </div>
+  <div class="card" style="margin-top:12px"><h3>Recent warnings and errors
+    <button id="diagClear" class="fixbtn ghost" style="float:right;padding:3px 10px">Clear</button></h3>
+    <div id="diagErrors">Loading…</div></div>
 </div>
 <script>
 "use strict";
@@ -2843,81 +2979,121 @@ function renderArchitecture(d) {
     }
   }
 
-  // ---------- component definitions (sysperf mapped to the Aegis style) ----------
+  // ---------- live extras (diagnostics, evolution, autonomy, inbox) ----------
+  const X = window.__arch41 || {};
+  const dg = X.diag || {}, hh = dg.health || {}, cs = dg.collector || {}, hs = dg.history || {};
+  const sh = cs.shell || {}, cv = X.evo || {}, au = X.autonomy || {}, nt = X.notes || {};
   const R = (REFRESH_MS / 1000) + " s";
   const siScore = A.self_improvement_score != null ? A.self_improvement_score + "%" : "learning";
   const issues = (cnt.partial || 0) + (cnt.regress || 0);
+  const hState = hh.status === "error" ? "red" : hh.status === "degraded" ? "amber" : "green";
+  const llm = cv.llm || {}, iso = (cv.isolation || {}).backend || "—";
 
+  // Row 1 — sense & serve
   group("host", 44, 100, 280, "blue", "pc", "Windows 11 host", [
-    { ico: "gears", name: "Sampler", sub: "collect_win.ps1" },
-    { ico: "server", name: "PowerShell 7", sub: "live WSL bridge" },
-    { ico: "gauge", name: "Host status", sub: ok ? "healthy" : "error" }],
-    ok ? "green" : "red");
-
-  group("history", 44, 372, 280, "teal", "db", "History store", [
-    { ico: "db", name: "Window", sub: "~4 h rolling" },
-    { ico: "db", name: "On disk", sub: "append + trim" }], "green");
-
+    { ico: "server", name: "PowerShell 7", sub: cs.shell ? (sh.alive ? "warm session · " + fmt(sh.total_runs) + " runs" : "session restarting") : "one process per sample" },
+    { ico: "gears", name: "Sampler", sub: "collect_win.ps1 · read-only" },
+    { ico: "gauge", name: "Host status", sub: ok ? "healthy" : "error" }], ok ? "green" : "red");
   group("collector", 356, 100, 280, "cyan", "gears", "Collector", [
-    { ico: "gauge", name: "Cadence", sub: (M.sample_seconds || 20) + " s sweep" },
-    { ico: "db", name: "Samples retained", sub: fmt(M.samples) + " kept" },
-    { ico: "bolt", name: "Last sweep", sub: fmt(M.last_duration_s, 2) + " s" }],
+    { ico: "gauge", name: "Cadence", sub: (M.sample_seconds || 60) + " s sweep" },
+    { ico: "bolt", name: "Last sweep", sub: fmt(M.last_duration_s, 2) + " s" },
+    { ico: "wrench", name: "Failures / fallbacks", sub: fmt(cs.failures || 0) + " / " + fmt(cs.shell_fallbacks || 0) }],
     ok ? "green" : "red");
-
-  group("scorer", 356, 372, 280, "violet", "gauge", "Self-improving scorer", [
-    { ico: "gauge", name: "Self-improvement", sub: siScore + " vs personal best" },
-    { ico: "score", name: "Metrics scored", sub: (A.metrics_scored ?? 0) + " / " + (A.metrics_tracked ?? 0) },
-    { ico: "bolt", name: "Adaptive targets", sub: "ratchet to best day" }],
-    (A.self_improvement_score == null) ? "amber" : "green");
-
   group("scoring", 668, 100, 280, "blue", "score", "Scoring & snapshot", [
     { ico: "score", name: "Criteria scored", sub: (sc.scored ?? 0) + " / " + (sc.total_criteria ?? 0) },
     { ico: "score", name: "Met", sub: fmt(cnt.met) + " on target" },
     { ico: "gauge", name: "Partial / Regressed", sub: fmt(cnt.partial) + " / " + fmt(cnt.regress) }],
     cnt.regress ? "red" : cnt.partial ? "amber" : "green");
-
-  group("tests", 668, 372, 280, "green", "beaker", "Test runner", [
-    { ico: "beaker", name: "Unit + integration", sub: "pytest suite" },
-    { ico: "score", name: "Coverage", sub: "100% gate" },
-    { ico: "gears", name: "Runner", sub: "stdlib settrace" }], "green");
-
-  group("api", 980, 100, 280, "sky", "server", "Flask API", [
-    { ico: "server", name: "Metrics API", sub: "/metrics · /health" },
-    { ico: "wrench", name: "Fixes API", sub: "/fixes · /fix · CSRF" },
-    { ico: "globe", name: "Served via", sub: "nginx :8888" }], "green");
-
-  group("fixes", 980, 372, 280, "amber", "wrench", "Common-fix engine", [
-    { ico: "gauge", name: "Issues detected", sub: fmt(issues) + " open" },
-    { ico: "wrench", name: "Execution", sub: "safe · caution · manual" },
-    { ico: "bolt", name: "Auto-healing", sub: "reversible only" }],
-    issues ? "amber" : "green");
-
+  group("api", 980, 100, 280, "sky", "server", "Flask API · waitress", [
+    { ico: "globe", name: "Bound to", sub: location.host || "127.0.0.1" },
+    { ico: "wrench", name: "Mutations", sub: "CSRF token · audited" },
+    { ico: "server", name: "Hardening", sub: "nosniff · no-store · CSP" }], "green");
   group("browser", 1292, 100, 284, "cyan", "browser", "Browser dashboard", [
-    { ico: "browser", name: "Command centre UI", sub: "this page" },
-    { ico: "score", name: "Live views", sub: "Summary · Details · Arch" },
+    { ico: "browser", name: "Views", sub: "Home · Settings · 6 expert tabs" },
+    { ico: "bolt", name: "Notifications", sub: fmt(nt.unread || 0) + " unread" },
     { ico: "gears", name: "Auto-refresh", sub: R + " poll" }], "green");
+
+  // Row 2 — learn & remember
+  group("history", 44, 372, 280, "teal", "db", "History · SQLite", [
+    { ico: "db", name: "Raw samples", sub: fmt(hs.raw_samples || 0) + " · " + fmt(hs.raw_days || 14) + " days" },
+    { ico: "db", name: "Hourly rollups", sub: fmt(hs.hours || 0) + " h · kept 400 days" },
+    { ico: "gauge", name: "On disk", sub: fmt((hs.bytes || 0) / 1048576, 1) + " MB · WAL" }], "green");
+  group("scorer", 356, 372, 280, "violet", "gauge", "Adaptive scorer", [
+    { ico: "gauge", name: "Self-improvement", sub: siScore + " vs personal best" },
+    { ico: "score", name: "Metrics scored", sub: (A.metrics_scored ?? 0) + " / " + (A.metrics_tracked ?? 0) },
+    { ico: "bolt", name: "Targets", sub: "ratchet to the best day" }],
+    (A.self_improvement_score == null) ? "amber" : "green");
+  group("rca", 668, 372, 280, "violet", "score", "Trends & root cause", [
+    { ico: "gauge", name: "Trends", sub: "OLS slopes · daily rollups" },
+    { ico: "score", name: "Root cause", sub: "two horizons · 6 causes" },
+    { ico: "gauge", name: "Open issues", sub: fmt(issues) }], issues ? "amber" : "green");
+  group("health", 980, 372, 280, "green", "beaker", "Health monitor", [
+    { ico: "gauge", name: "Service", sub: (hh.status || "unknown").toUpperCase() },
+    { ico: "bolt", name: "Errors (1 h)", sub: fmt(hh.errors_1h || 0) + " · warnings " + fmt(hh.warnings_1h || 0) },
+    { ico: "gears", name: "Workers", sub: fmt((hh.threads || []).filter(t => t.alive).length) + " / " + fmt((hh.threads || []).length) + " alive" }],
+    hState);
+  group("notify", 1292, 372, 284, "amber", "bolt", "Notifications", [
+    { ico: "bolt", name: "Inbox", sub: fmt(nt.unread || 0) + " unread" },
+    { ico: "pc", name: "Windows toasts", sub: (nt.settings || {}).toasts === false ? "off" : "on · deduplicated" },
+    { ico: "gauge", name: "Kinds", sub: "score · fix · consent · review · health" }], "green");
+
+  // Row 3 — act & evolve
+  group("supervisor", 44, 644, 280, "green", "server", "Supervisor", [
+    { ico: "server", name: "Supervised", sub: dg.supervised ? "yes · restarts on crash/hang" : "no" },
+    { ico: "gauge", name: "Stall guard", sub: "no sample 15 min → restart" },
+    { ico: "wrench", name: "Patch guard", sub: "unhealthy after apply → rollback" }], dg.supervised ? "green" : "amber");
+  group("auto", 356, 644, 280, "amber", "wrench", "Auto-Improve loop", [
+    { ico: "gears", name: "Cycle", sub: "scan → RCA → fix → verify → learn" },
+    { ico: "wrench", name: "Fix engine", sub: "safe · caution · manual" },
+    { ico: "bolt", name: "Tray auto-quit", sub: "consent · busy guard · reopen" }], issues ? "amber" : "green");
+  group("policy", 668, 644, 280, "amber", "score", "Action policy", [
+    { ico: "gauge", name: "Autonomy", sub: au.level || "observe" },
+    { ico: "wrench", name: "Unattended actions", sub: fmt((au.enabled || []).length) + " enabled · low-risk only" },
+    { ico: "score", name: "Forbidden", sub: "Defender · firewall · BitLocker…" }], "green");
+  group("evo", 980, 644, 280, "violet", "gears", "Code self-evolution", [
+    { ico: "gears", name: "State", sub: cv.state || "idle" },
+    { ico: "bolt", name: "AI model", sub: llm.available ? (llm.provider || "") + (llm.model ? " · " + llm.model : "") : "offline" },
+    { ico: "beaker", name: "Sandbox", sub: iso + " · no network" }], cv.state === "failed" ? "red" : "green");
+  group("audit", 1292, 644, 284, "green", "beaker", "Audit & quality gates", [
+    { ico: "score", name: "Audit chain", sub: (cv.audit || {}).ok === false ? "BROKEN" : "intact · hash-chained" },
+    { ico: "beaker", name: "Test suite", sub: "100% line coverage gate" },
+    { ico: "gauge", name: "Gates", sub: "8 · incl. real browser" }], (cv.audit || {}).ok === false ? "red" : "green");
 
   // ---------- connectors ----------
   link("host", "collector", "samples", {});
+  link("collector", "scoring", "feed", {});
+  link("scoring", "api", "snapshot", {});
+  link("api", "browser", "fetch", {});
   link("collector", "history", "persist", {});
   link("collector", "scorer", "learn", {});
-  link("collector", "scoring", "feed", {});
-  link("history", "scoring", "", { faint: true });
-  link("scorer", "scoring", "targets", {});
-  link("scoring", "api", "snapshot", {});
-  link("api", "browser", "fetch /metrics", {});
-  link("tests", "scoring", "validates", { color: GREEN, mk: "g" });
-  link("api", "fixes", "detect", {});
-  link("browser", "fixes", "Common Fix", {});
-  link("fixes", "host", "pwsh remediation loop", { side: "bottom", color: AMBER, mk: "a" });
+  link("scorer", "scoring", "targets", { faint: true });
+  link("history", "rca", "", { faint: true });
+  link("health", "notify", "alerts", {});
+  link("rca", "auto", "causes", {});
+  link("auto", "policy", "gate", {});
+  link("evo", "audit", "every step", { color: GREEN, mk: "g" });
+  link("evo", "supervisor", "apply · rollback", { side: "bottom", yb: 884, color: AMBER, mk: "a" });
+  // Remediation loop back to the host, routed under row 3 and up the left margin
+  // so it crosses no component card.
+  (function remediationLoop() {
+    const a = geo.policy, b = geo.host, yb = 914, xl = 22, r = 12;
+    const d = `M${a.cx},${a.y + a.h} L${a.cx},${yb - r} Q${a.cx},${yb} ${a.cx - r},${yb} L${xl + r},${yb}`
+      + ` Q${xl},${yb} ${xl},${yb - r} L${xl},${b.cy + r} Q${xl},${b.cy} ${xl + r},${b.cy} L${b.x},${b.cy}`;
+    parts.push(`<path d="${d}" fill="none" stroke="${AMBER}" stroke-width="2.6" stroke-dasharray="2 7" stroke-linecap="round" class="arch-flow" marker-end="url(#adot-a)" opacity=".9"/>`);
+    parts.push(`<circle r="3" fill="${AMBER}"><animateMotion dur="5s" repeatCount="indefinite" path="${d}"/></circle>`);
+    const label = "reversible remediation", wpx = label.length * 6.6 + 14, lx = (a.cx + xl) / 2;
+    parts.push(`<rect x="${lx - wpx / 2}" y="${yb - 10}" width="${wpx}" height="19" rx="9.5" fill="${chipFill}" stroke="${subStroke}"/>
+      <text x="${lx}" y="${yb + 3}" text-anchor="middle" style="font:600 10.5px 'Segoe UI',sans-serif;fill:${AMBER}">${label}</text>`);
+  })();
 
   // ---------- legend + title + assemble ----------
   const legend = `<g style="font:600 11px 'Segoe UI',sans-serif">
     <circle cx="1150" cy="34" r="5" fill="${GREEN}"/><text x="1162" y="38" style="fill:${muted}">Healthy</text>
     <circle cx="1236" cy="34" r="5" fill="${AMBER}"/><text x="1248" y="38" style="fill:${muted}">Degraded</text>
     <circle cx="1332" cy="34" r="5" fill="${RED}"/><text x="1344" y="38" style="fill:${muted}">Offline</text></g>`;
+  const band = (y, txt) => `<text x="26" y="${y}" style="font:700 11px 'Segoe UI',sans-serif;letter-spacing:1.5px;fill:${muted}">${txt}</text>`;
 
-  host.innerHTML = `<svg viewBox="0 0 1600 660" role="img"
+  host.innerHTML = `<svg viewBox="0 0 1600 930" role="img"
       aria-label="Live system architecture of the performance dashboard"
       preserveAspectRatio="xMidYMid meet">
     <defs>
@@ -2928,7 +3104,8 @@ function renderArchitecture(d) {
       <marker id="adot-a" markerWidth="8" markerHeight="8" refX="4" refY="4"><circle cx="4" cy="4" r="3" fill="${AMBER}"/></marker>
     </defs>
     <text x="26" y="40" style="font:800 22px 'Segoe UI',sans-serif;fill:${ink};letter-spacing:.2px">Live system architecture</text>
-    <text x="26" y="61" style="font:13px 'Segoe UI',sans-serif;fill:${muted}">Live request flow through the performance stack · node colour = health</text>
+    <text x="26" y="61" style="font:13px 'Segoe UI',sans-serif;fill:${muted}">SysPerf ${esc(X.version || "")} · sense → learn → act, under a supervisor · node colour = live health</text>
+    ${band(92, "SENSE &amp; SERVE")}${band(364, "LEARN &amp; REMEMBER")}${band(636, "ACT &amp; EVOLVE")}
     ${legend}
     <g><circle cx="1440" cy="34" r="6" fill="${ok ? GREEN : RED}"><animate attributeName="opacity" values="1;.3;1" dur="1.6s" repeatCount="indefinite"/></circle>
       <text x="1454" y="38" style="font:700 12px 'Segoe UI',sans-serif;fill:${ok ? GREEN : RED}">${ok ? "LIVE" : "ERROR"}</text></g>
@@ -2936,14 +3113,33 @@ function renderArchitecture(d) {
   </svg>`;
 }
 
+/* Extra facts for the architecture view, refreshed while it is open. */
+(function initArchExtras() {
+  async function load() {
+    try {
+      const [diag, evo, autonomy, notes] = await Promise.all(
+        ["api/diagnostics", "api/codevolve", "api/autonomy", "api/notifications"].map(
+          u => fetch(u, {cache: "no-store"}).then(r => r.json()).catch(() => ({}))));
+      window.__arch41 = {diag, evo, autonomy, notes, version: diag.version};
+      if (window.__lastSnap) renderArchitecture(window.__lastSnap);
+    } catch (e) { /* keep the last picture */ }
+  }
+  window.perfdashArchExtras = {load};
+  const view = $("view-architecture");
+  load();
+  setInterval(() => { if (view && view.style.display !== "none") load(); }, 30000);
+})();
+
 /* ---- view tabs: Summary (default) / Details / Live Architecture ---- */
 (function initTabs() {
-  const views = { summary: $("view-summary"), details: $("view-details"),
+  const views = { home: $("view-home"), summary: $("view-summary"), details: $("view-details"),
                   architecture: $("view-architecture"), auto: $("view-auto"),
-                  appctl: $("view-appctl"), evo: $("view-evo") };
-  const tabs  = { summary: $("tab-summary"),  details: $("tab-details"),
+                  appctl: $("view-appctl"), evo: $("view-evo"), settings: $("view-settings") };
+  const tabs  = { home: $("tab-home"), summary: $("tab-summary"),  details: $("tab-details"),
                   architecture: $("tab-arch"), auto: $("tab-auto"),
-                  appctl: $("tab-appctl"), evo: $("tab-evo") };
+                  appctl: $("tab-appctl"), evo: $("tab-evo"), settings: $("tab-settings") };
+  // Simple view (Home) hides these; Home, Summary and Settings always stay.
+  ["details", "architecture", "auto", "appctl", "evo"].forEach(k => tabs[k].classList.add("expert"));
   if (!views.summary || !views.details || !views.architecture || !views.auto
       || !views.appctl) return;
 
@@ -2953,10 +3149,10 @@ function renderArchitecture(d) {
   // Details sections are addressable as #details/<section>, e.g.
   //   #details/scorecard  #details/trends  #details/wsl
   // Legacy anchors (#sect-scorecard) and bare names (#scorecard) still work.
-  const TAB_SLUG = { summary: "summary", details: "details",
+  const TAB_SLUG = { home: "home", summary: "summary", details: "details",
                      architecture: "architecture", auto: "auto-improve",
-                     appctl: "app-control", evo: "self-evolution" };
-  const SLUG_TAB = { summary: "summary", details: "details",
+                     appctl: "app-control", evo: "self-evolution", settings: "settings" };
+  const SLUG_TAB = { home: "home", settings: "settings", summary: "summary", details: "details",
                      architecture: "architecture", arch: "architecture",
                      "auto-improve": "auto", auto_improve: "auto", auto: "auto",
                      "app-control": "appctl", appctl: "appctl",
@@ -2970,7 +3166,9 @@ function renderArchitecture(d) {
 
   function setView(v, opts) {
     opts = opts || {};
-    if (!views[v]) v = "summary";
+    if (!views[v]) v = "home";
+    // In Simple view an expert tab is not reachable from the bar; a deep link
+    // still opens it, which is the point of a link.
     Object.keys(views).forEach(k => {
       views[k].style.display = (k === v) ? "" : "none";
       tabs[k].classList.toggle("active", k === v);
@@ -2981,6 +3179,9 @@ function renderArchitecture(d) {
     if (v === "auto" && window.perfdashAuto) window.perfdashAuto.refresh();
     if (v === "appctl" && window.perfdashAppctl) window.perfdashAppctl.refresh();
     if (v === "evo" && window.perfdashEvo) window.perfdashEvo.refresh();
+    if (v === "home" && window.perfdashHome) window.perfdashHome.refresh();
+    if (v === "settings" && window.perfdashSettings) window.perfdashSettings.refresh();
+    if (v === "architecture" && window.perfdashArchExtras) window.perfdashArchExtras.load();
     if (opts.updateHash !== false) {
       let hash = "#" + TAB_SLUG[v];
       if (v === "details" && opts.section) hash += "/" + opts.section;
@@ -3008,9 +3209,11 @@ function renderArchitecture(d) {
   function applyHash() {
     const p = parseHash();
     if (p) setView(p.view, { section: p.section });
-    else setView(localStorage.getItem("perfdash_view") || "summary");
+    else setView(localStorage.getItem("perfdash_view") || "home");
   }
 
+  tabs.home.addEventListener("click", () => setView("home"));
+  tabs.settings.addEventListener("click", () => setView("settings"));
   tabs.summary.addEventListener("click", () => setView("summary"));
   tabs.details.addEventListener("click", () => setView("details"));
   tabs.architecture.addEventListener("click", () => setView("architecture"));
@@ -3528,7 +3731,7 @@ tick();
         ? r.current : r.scored_typical;
       return `<tr>
         <td>${esc(label)}</td>
-        <td class="num"><b class="${valCol[r.status] || ""}">${fmt(cur, 1)}s</b></td>
+        <td class="num"><b class="${esc(valCol[r.status] || "")}">${fmt(cur, 1)}s</b></td>
         <td class="num">${fmt(r.target, 0)}s</td>
         <td>${tag(stateCol[r.status] || "tb", stateTxt[r.status] || r.status || "—")}</td>
         <td class="note keep">${esc(fix)}</td></tr>`;
@@ -4969,14 +5172,25 @@ tick();
       const stateTag = a => !a.running ? `<span class="tag tb">not running</span>`
         : a.state === "open" ? `<span class="tag tg">window open</span>`
         : a.state === "starting" ? `<span class="tag tb">starting</span>`
+        : a.state === "awaiting consent" ? `<span class="tag ta">needs your OK</span>`
+        : a.state === "busy" ? `<span class="tag tb">busy (${fmt(a.cpu_pct, 1)}% CPU) — left alone</span>`
+        : a.state === "kept (never quit)" ? `<span class="tag tg">never quit</span>`
         : `<span class="tag ta">in tray ${fmt(a.hidden_for_s || 0)}s</span>`;
+      const consent = s.consent || {};
+      const consentOf = name => consent[String(name).toLowerCase()] || "ask";
+      const consentBtns = name => {
+        const c = consentOf(name);
+        const b = (d, label) => `<button class="fixbtn ${c === d ? "" : "ghost"}" data-tq-consent="${esc(name)}" data-decision="${d}"
+          title="${d === "allow" ? "SysPerf may quit it after the wait" : d === "never" ? "Never quit this app" : "Ask me first"}">${label}</button>`;
+        return b("allow", "Allow") + b("never", "Never") + b("ask", "Ask");
+      };
       const quitIn = a => (a.state === "in tray" && s.enabled && !off)
         ? `quits in ${Math.max(0, s.grace_s - (a.hidden_for_s || 0))}s` : "";
       $("tqApps").innerHTML = live.length ? live.map(a => `<div class="ac-app">
           <div><div class="an">${esc(a.name)} ${stateTag(a)}</div>
             <div class="am">${a.running ? `${fmt(a.procs)} process${a.procs === 1 ? "" : "es"}` : "—"}${quitIn(a) ? " · " + quitIn(a) : ""}</div></div>
           <div class="acur">${a.running ? fmt(a.mem_mb) : "—"}<i>MB RAM</i></div><div></div>
-          <div class="ac-acts"><button class="fixbtn ghost" data-tq-remove="${esc(a.name)}">Remove</button></div>
+          <div class="ac-acts">${consentBtns(a.name)}<button class="fixbtn ghost" data-tq-remove="${esc(a.name)}">Remove</button></div>
         </div>`).join("") : `<div class="note keep">No apps listed — add one below.</div>`;
       const sg = s.suggestions || [];
       $("tqSuggest").innerHTML = sg.length ? `<div class="note keep" style="margin:0 0 6px">Other
@@ -4986,7 +5200,9 @@ tick();
       $("tqRecentPill").textContent = rec.length;
       $("tqRecent").innerHTML = rec.length ? rec.map(e => `<div class="note keep" style="margin:3px 0">
           <b>${esc(e.name)}</b> quit ${new Date(e.at * 1000).toLocaleString()} · freed ~<b>${fmt(e.freed_mb)} MB</b>
-          (${fmt(e.procs)} processes, ${fmt(e.hidden_s)}s in tray)</div>`).join("")
+          (${fmt(e.procs)} processes, ${fmt(e.hidden_s)}s in tray)
+          ${e.reopened_at ? `· <span class="tag tg">reopened</span>`
+            : e.exe ? `<button class="fixbtn ghost" style="padding:2px 9px" data-tq-reopen="${esc(e.name)}">Reopen</button>` : ""}</div>`).join("")
         : `<div class="note keep" style="margin:0">Nothing quit yet.</div>`;
       const tg = $("tqToggle");
       tg.textContent = s.enabled ? "Turn off" : "Turn on";
@@ -5020,8 +5236,12 @@ tick();
     $("tqAdd").addEventListener("keydown", e => { if (e.key === "Enter") addTyped(); });
     $("tqCard").addEventListener("click", e => {
       const a = e.target.closest("[data-tq-add]"), rm = e.target.closest("[data-tq-remove]");
+      const cs = e.target.closest("[data-tq-consent]"), ro = e.target.closest("[data-tq-reopen]");
       if (a) trayquitSet({add: a.dataset.tqAdd}, `Adding ${esc(a.dataset.tqAdd)}…`);
       if (rm) trayquitSet({remove: rm.dataset.tqRemove}, `Removing ${esc(rm.dataset.tqRemove)}…`);
+      if (cs) trayquitSet({consent: {name: cs.dataset.tqConsent, decision: cs.dataset.decision}},
+        `Saving your choice for ${esc(cs.dataset.tqConsent)}…`);
+      if (ro) trayquitSet({reopen: ro.dataset.tqReopen}, `Reopening ${esc(ro.dataset.tqReopen)}…`);
     });
     setInterval(() => { if (view.style.display !== "none") refreshTrayquit(); }, 15000);
   }
@@ -5045,7 +5265,7 @@ tick();
 (function initEvolution() {
   const view = $("view-evo");
   if (!view) return;
-  let token = null, selected = null, lastStatus = null, reviewNote = {};
+  let token = null, selected = null, lastStatus = null, reviewNote = {}, deployNote = "";
   const fmtT = (t) => t ? new Date(t * 1000).toLocaleString() : "—";
   const yes = (v) => v === 1 ? "pass" : v === 0 ? "fail" : "—";
   const STATE_TEXT = { idle: "Monitoring", analyzing: "Analyzing", planning: "Planning",
@@ -5245,12 +5465,23 @@ tick();
       <td>${(v.gain * 100).toFixed(1)}%</td><td>±${(v.noise * 100).toFixed(1)}%</td><td>${v.n}</td></tr>`).join("") : "";
     const diff = (c.diff || "").split("\n").map(l => `<span class="${l.startsWith("+") && !l.startsWith("+++") ? "add" : l.startsWith("-") && !l.startsWith("---") ? "del" : ""}">${esc(l)}</span>`).join("\n");
     const pending = c.decision === "retained" && c.review_state === "pending";
+    const deploying = !!(lastStatus && lastStatus.deploy && lastStatus.deploy.pending);
+    const deployable = c.decision === "retained" && (c.review_state === "pending" || c.review_state === "approved") && !deploying;
     $("sevDetail").innerHTML = `<p><b>${esc(c.title || c.id)}</b> — ${esc(c.rationale || "")}</p>
       <p class="evo-note">Decision: <b>${esc(c.decision || "—")}</b> · ${esc(c.reason || "")}${c.branch ? " · branch <code>" + esc(c.branch) + "</code> @ " + esc((c.commit_sha || "").slice(0, 10)) : ""}${c.protected ? " · engine module: stricter threshold, approval required" : ""}</p>
       ${det && det.tests ? `<p class="evo-note">Tests: candidate ${esc(det.tests.summary)} · baseline ${esc(det.baseline_tests.summary)}</p>` : ""}
       ${rows ? tbl(["Benchmark","Baseline median","Candidate median","Gain","Noise","Runs"], rows) : empty("No benchmark recorded for this candidate.")}
       ${c.diff ? `<pre class="evo-diff">${diff}</pre>` : ""}
-      <div class="evo-row">${pending ? `<button id="sevApprove">Approve</button><button id="sevReject">Reject</button>` : ""}<span id="sevReviewMsg" class="evo-note" role="status">${esc(reviewNote[c.id] || "")}</span></div>`;
+      <div class="evo-row">${deployable ? `<button id="sevApply" title="Approve, fast-forward main to this branch, restart and verify">Apply &amp; restart</button>` : ""}${pending ? `<button id="sevApprove">Approve</button><button id="sevReject">Reject</button>` : ""}<span id="sevReviewMsg" class="evo-note" role="status">${esc(reviewNote[c.id] || "")}</span></div>`;
+    if (deployable) $("sevApply").onclick = async () => {
+      if (!confirm("Apply this patch to SysPerf now? The previous version is kept and restored automatically if the patched service is not healthy.")) return;
+      try {
+        const d = await post("api/codevolve/apply", {id: c.id});
+        reviewNote[c.id] = d.restarting ? "Applied — SysPerf is restarting; the patch is confirmed once the service is healthy."
+          : "Applied to the repository — restart SysPerf to load it.";
+        $("sevReviewMsg").textContent = reviewNote[c.id]; refresh();
+      } catch (e) { $("sevReviewMsg").textContent = "Error: " + e.message; }
+    };
     if (pending) {
       const act = (decision) => async () => { try { const d = await post("api/codevolve/review", {id: c.id, decision});
         reviewNote[c.id] = decision === "approve" ? "Approved. Deploy with: " + d.merge_command : "Rejected; branch deleted.";
@@ -5258,6 +5489,28 @@ tick();
         catch (e) { $("sevReviewMsg").textContent = "Error: " + e.message; } };
       $("sevApprove").onclick = act("approve"); $("sevReject").onclick = act("reject");
     }
+  }
+
+  function renderDeploy(s) {
+    const dep = s.deploy || {}, hist = dep.history || [];
+    const live = dep.pending || hist.find(e => e.event === "applied" || e.event === "confirmed");
+    const rolledBack = live && hist.some(e => e.event === "rolled_back" && e.id === live.id && e.at >= (live.at || live.applied_at || 0));
+    const canRollback = live && !rolledBack;
+    const rows = hist.map(e => `<tr><td>${esc(fmtT(e.at))}</td><td>${esc(e.event)}</td><td>${esc(e.id || "")}</td>
+      <td>${esc(e.by || "")}</td><td>${esc(e.reason || e.title || "")}</td></tr>`).join("");
+    $("sevDeploy").innerHTML = (dep.pending
+        ? `<p class="evo-note warn">Verifying <b>${esc(dep.pending.title || dep.pending.id)}</b> — applied ${esc(fmtT(dep.pending.applied_at))}; it is confirmed automatically once the restarted service is healthy, and rolled back automatically if it is not.</p>`
+        : `<p class="evo-note">No patch is waiting for verification.</p>`)
+      + `<div class="evo-row">${canRollback ? `<button id="sevRollback">Roll back ${esc(live.id)}</button>` : ""}<span id="sevDeployMsg" class="evo-note" role="status">${esc(deployNote)}</span></div>`
+      + (rows ? tbl(["When", "Event", "Candidate", "By", "Detail"], rows) : empty("Nothing has been applied yet."));
+    if (canRollback) $("sevRollback").onclick = async () => {
+      if (!confirm("Return SysPerf to the version before this patch?")) return;
+      try { const d = await post("api/codevolve/rollback", {id: live.id});
+        deployNote = d.restarting ? "Rolled back — restarting." : "Rolled back — restart SysPerf to load it."; }
+      catch (e) { deployNote = "Error: " + e.message; }
+      $("sevDeployMsg").textContent = deployNote;
+      refresh();
+    };
   }
 
   function renderEffect(a) {
@@ -5274,7 +5527,7 @@ tick();
       lastStatus = s;
       renderStatus(s);
       if (!$("sevControls").contains(document.activeElement)) renderControls(s, a);
-      renderHistory(h); renderEffect(a);
+      renderHistory(h); renderEffect(a); renderDeploy(s);
       if (selected) renderDetail();
     } catch (e) { $("sevStatus").innerHTML = empty("Self-evolution status unavailable: " + esc(e.message)); }
   }
@@ -5314,6 +5567,289 @@ tick();
   }
   refresh();
   setInterval(refresh, 30000);
+})();
+
+/* ------------------- 4.1: shared helpers for the new views ------------------- */
+const api41 = (() => {
+  let token = null;
+  async function getToken(force) {
+    if (token && !force) return token;
+    const r = await fetch("api/fixes", {cache: "no-store"});
+    if (r.ok) token = (await r.json()).token;
+    return token;
+  }
+  async function post(path, body) {
+    const send = async (tok) => fetch(path, {method: "POST",
+      headers: {"Content-Type": "application/json"}, body: JSON.stringify({...body, token: tok})});
+    let r = await send(await getToken());
+    if (r.status === 403) r = await send(await getToken(true));
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
+    return d;
+  }
+  const get = (path) => fetch(path, {cache: "no-store"}).then(r => r.json());
+  const ago = (s) => s == null ? "—" : s < 90 ? Math.round(s) + " s ago"
+    : s < 5400 ? Math.round(s / 60) + " min ago" : Math.round(s / 3600) + " h ago";
+  const when = (t) => t ? new Date(t * 1000).toLocaleString() : "—";
+  return {post, get, ago, when};
+})();
+
+/* ------------------------------- notification bell ------------------------------- */
+(function initBell() {
+  const btn = $("notifBtn");
+  if (!btn) return;
+  const panel = $("notifPanel");
+  const KIND = {score: "📉", action: "🔧", consent: "🙋", review: "🧬", health: "🩺"};
+  function render(d) {
+    const c = $("notifCount");
+    c.textContent = d.unread > 99 ? "99+" : String(d.unread || 0);
+    c.hidden = !d.unread;
+    const items = d.items || [];
+    $("notifList").innerHTML = items.length ? items.map(n => `<button class="notif-item${n.read ? "" : " unread"}"
+        data-notif="${Number(n.id)}" data-link="${esc(n.link || "#home")}">
+        <b>${KIND[n.kind] || "•"} ${esc(n.title)}</b><span>${esc(n.body)}</span>
+        <i>${esc(api41.when(n.at))}${n.toast ? " · shown on desktop" : ""}</i></button>`).join("")
+      : `<div class="note keep" style="margin:6px">No notifications yet.</div>`;
+  }
+  async function refresh() {
+    try { render(await api41.get("api/notifications")); } catch (e) { /* keep last */ }
+  }
+  btn.addEventListener("click", (e) => { e.stopPropagation(); panel.hidden = !panel.hidden; if (!panel.hidden) refresh(); });
+  document.addEventListener("click", (e) => { if (!panel.hidden && !panel.contains(e.target) && e.target !== btn) panel.hidden = true; });
+  $("notifReadAll").addEventListener("click", async () => {
+    try { render(await api41.post("api/notifications", {read: "all"})); } catch (e) { /* ignore */ }
+  });
+  $("notifList").addEventListener("click", async (e) => {
+    const it = e.target.closest(".notif-item");
+    if (!it) return;
+    panel.hidden = true;
+    try { await api41.post("api/notifications", {read: [Number(it.dataset.notif)]}); } catch (err) { /* ignore */ }
+    location.hash = it.dataset.link;
+    refresh();
+  });
+  window.perfdashBell = {refresh};
+  refresh();
+  setInterval(refresh, 30000);
+})();
+
+/* ------------------------------------- Home ------------------------------------- */
+(function initHome() {
+  const view = $("view-home");
+  if (!view) return;
+  const ICON = {fix: "🔧", trayquit: "🧹", evolution: "🧬"};
+  let keysLoaded = false;
+
+  function ring(score, cls) {
+    const r = 52, c = 2 * Math.PI * r, p = score == null ? 0 : Math.max(0, Math.min(100, score));
+    return `<svg class="home-ring ${cls}" viewBox="0 0 132 132" role="img" aria-label="System score">
+      <circle class="bg" cx="66" cy="66" r="${r}" fill="none" stroke-width="12"/>
+      <circle class="fg" cx="66" cy="66" r="${r}" fill="none" stroke-width="12" stroke-linecap="round"
+        transform="rotate(-90 66 66)" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - p / 100)).toFixed(1)}"/>
+      <text x="66" y="74" text-anchor="middle" font-size="28">${score == null ? "…" : Math.round(score) + "%"}</text></svg>`;
+  }
+  function li(icon, title, sub) {
+    return `<li><span class="ico" aria-hidden="true">${icon}</span><div><div class="t">${title}</div>${sub ? `<div class="s">${sub}</div>` : ""}</div></li>`;
+  }
+  function render(d) {
+    const sc = d.score, th = d.threshold || 80;
+    const cls = sc == null ? "m" : sc >= th ? "g" : sc >= th - 15 ? "a" : "r";
+    $("homeScore").innerHTML = ring(sc, cls);
+    const cnt = d.counts || {};
+    const verdict = sc == null ? "Measuring this PC…" : sc >= th ? "Your PC is in good shape" : "Your PC needs attention";
+    $("homeStatus").innerHTML = `<p class="home-big">${esc(verdict)}</p>
+      <div class="chips"><span>On target <b>${fmt(cnt.met || 0)}</b></span><span>Partial <b>${fmt(cnt.partial || 0)}</b></span>
+      <span>Regressed <b>${fmt(cnt.regress || 0)}</b></span><span>Last measured <b>${esc(api41.ago(d.last_sample_age_s))}</b></span>
+      <span>Act below <b>${fmt(th)}%</b></span></div>`;
+    const todo = [];
+    (d.consent || []).forEach(n => todo.push(li("🙋", `Decide whether SysPerf may quit <b>${esc(n)}</b>`,
+      `It is waiting in the tray. <a href="#app-control">Open App Control</a> and choose Allow or Never.`)));
+    const evo = d.evolution || {};
+    if (evo.pending) todo.push(li("🧬", `Verifying the applied AI patch <b>${esc(evo.pending.title || evo.pending.id)}</b>`,
+      `It will be confirmed automatically once the restarted service is healthy.`));
+    if (evo.awaiting_review) todo.push(li("🧬", `${fmt(evo.awaiting_review)} AI patch(es) waiting for review`,
+      `<a href="#self-evolution">Review in AI Self-Evolution</a>`));
+    (d.todo || []).forEach(t => todo.push(li(t.kind === "fix" ? "🔧" : "🧭", esc(t.title || t.key),
+      t.command ? `<code>${esc(t.command)}</code>` : `<a href="#auto-improve">See the action queue</a>`)));
+    $("homeTodo").innerHTML = todo.length ? todo.join("") : li("✅", "Nothing needs you right now", "SysPerf will notify you when something does.");
+    const today = d.today || [];
+    $("homeToday").innerHTML = today.length ? today.map(e => li(ICON[e.kind] || "•", esc(e.text),
+      esc(new Date(e.at * 1000).toLocaleTimeString()))).join("")
+      : li("🕊️", "Nothing yet today", "Fixes, tray quits and evolution cycles will appear here.");
+    const h = d.health || {};
+    $("homeHealth").innerHTML = `<p>Service: <span class="st-${esc(h.status || "ok")}">${esc((h.status || "unknown").toUpperCase())}</span>
+      · errors (1 h) <b>${fmt(h.errors_1h || 0)}</b> · warnings <b>${fmt(h.warnings_1h || 0)}</b></p>
+      ${(h.problems || []).length ? `<ul class="home-list">${h.problems.map(p => li("⚠️", esc(p), "")).join("")}</ul>` : ""}
+      <a href="#settings">Open diagnostics</a>`;
+    const n = d.notifications || {};
+    const items = n.items || [];
+    $("homeNotes").innerHTML = items.length ? `<ul class="home-list">${items.map(x => li(x.read ? "•" : "🔔",
+      esc(x.title), esc(x.body))).join("")}</ul>` : `<div class="note keep">No notifications yet.</div>`;
+    if (!keysLoaded && (d.history_keys || []).length) {
+      keysLoaded = true;
+      const sel = $("homeHistKey");
+      sel.innerHTML = d.history_keys.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join("");
+      if (d.history_keys.includes("cpu_pct")) sel.value = "cpu_pct";
+      chart();
+    }
+  }
+  async function chart() {
+    const host = $("homeHistChart");
+    const key = $("homeHistKey").value, hours = $("homeHistRange").value;
+    if (!key) { host.innerHTML = `<div class="note keep">No history yet.</div>`; return; }
+    try {
+      const d = await api41.get(`api/history?key=${encodeURIComponent(key)}&hours=${encodeURIComponent(hours)}`);
+      const pts = d.points || [];
+      if (pts.length < 2) { host.innerHTML = `<div class="note keep">Not enough history for this range yet.</div>`; return; }
+      const W = 900, H = 220, P = 34;
+      const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+      const lo = Math.min(...pts.map(p => p.min)), hi = Math.max(...pts.map(p => p.max));
+      const x = t => P + (W - 2 * P) * (t - t0) / Math.max(1, t1 - t0);
+      const y = v => H - P - (H - 2 * P) * (v - lo) / Math.max(1e-9, hi - lo);
+      const band = pts.map(p => `${x(p.t).toFixed(1)},${y(p.max).toFixed(1)}`).join(" ") + " "
+        + pts.slice().reverse().map(p => `${x(p.t).toFixed(1)},${y(p.min).toFixed(1)}`).join(" ");
+      const line = pts.map(p => `${x(p.t).toFixed(1)},${y(p.avg).toFixed(1)}`).join(" ");
+      host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="History of ${esc(key)}">
+        <line class="ax" x1="${P}" y1="${H - P}" x2="${W - P}" y2="${H - P}"/>
+        <polygon class="band" points="${band}"/><polyline class="line" points="${line}"/>
+        <text x="${P}" y="${P - 10}">${fmt(hi, 1)}</text><text x="${P}" y="${H - 8}">${fmt(lo, 1)}</text>
+        <text x="${W - P}" y="${H - 8}" text-anchor="end">${esc(new Date(t1 * 1000).toLocaleString())}</text></svg>`;
+    } catch (e) { host.innerHTML = `<div class="note keep">History unavailable: ${esc(e.message)}</div>`; }
+  }
+  async function refresh() {
+    try { render(await api41.get("api/home")); }
+    catch (e) { $("homeStatus").innerHTML = `<span class="err">Home unavailable: ${esc(e.message)}</span>`; }
+  }
+  function applySimple(on) {
+    document.body.classList.toggle("simple", on);
+    try { localStorage.setItem("perfdash_simple", on ? "1" : "0"); } catch (e) { /* private mode */ }
+  }
+  let stored = null;
+  try { stored = localStorage.getItem("perfdash_simple"); } catch (e) { stored = null; }
+  $("homeSimple").checked = stored === "1";
+  applySimple($("homeSimple").checked);
+  $("homeSimple").addEventListener("change", () => applySimple($("homeSimple").checked));
+  $("homeHistKey").addEventListener("change", chart);
+  $("homeHistRange").addEventListener("change", chart);
+  window.perfdashHome = {refresh};
+  if (view.style.display !== "none") refresh();
+  setInterval(() => { if (view.style.display !== "none") refresh(); }, 30000);
+})();
+
+/* --------------------------------- Settings ---------------------------------- */
+(function initSettings() {
+  const view = $("view-settings");
+  if (!view) return;
+  let current = null, supervised = false;
+
+  function field(sec, f, v) {
+    const id = "set-" + sec + "-" + f.key;
+    let input;
+    if (f.type === "bool") input = `<input type="checkbox" id="${esc(id)}" data-sec="${esc(sec)}" data-key="${esc(f.key)}"${v ? " checked" : ""}>`;
+    else if (f.type === "choice") input = `<select id="${esc(id)}" data-sec="${esc(sec)}" data-key="${esc(f.key)}">${f.choices.map(c =>
+      `<option value="${esc(c)}"${c === v ? " selected" : ""}>${esc(c)}</option>`).join("")}</select>`;
+    else if (f.type === "list") input = `<input type="text" id="${esc(id)}" data-sec="${esc(sec)}" data-key="${esc(f.key)}" data-list="1" value="${esc((v || []).join(", "))}">`;
+    else input = `<input type="number" id="${esc(id)}" data-sec="${esc(sec)}" data-key="${esc(f.key)}" data-num="${esc(f.type)}"
+      ${f.min != null ? `min="${Number(f.min)}"` : ""} ${f.max != null ? `max="${Number(f.max)}"` : ""}
+      step="${f.type === "float" ? "0.5" : "1"}" value="${esc(v)}">`;
+    return `<div class="set-row"><label for="${esc(id)}">${esc(f.label)}${f.restart ? `<span class="rs">restart</span>` : ""}
+      ${f.help ? `<span class="h">${esc(f.help)}</span>` : ""}</label><div>${input}</div></div>`;
+  }
+  function renderForm(d) {
+    current = d;
+    const order = d.order || Object.keys(d.sections);
+    $("setForm").innerHTML = order.filter(n => d.sections[n]).map(name => {
+      const s = d.sections[name];
+      const rows = s.fields.map(f => field(name, f, s.values[f.key])).join("");   // field() escapes
+      return `<fieldset class="set-sec"><legend>${esc(s.label)}</legend>${rows}</fieldset>`;
+    }).join("");
+    renderRestart(d.restart_required || []);
+  }
+  function renderRestart(list) {
+    $("setRestart").hidden = !list.length;
+    $("setRestartTxt").textContent = list.length ? `Restart needed for: ${list.join(", ")}.` : "";
+    $("setRestartBtn").hidden = !supervised;
+  }
+  function collect() {
+    const out = {};
+    view.querySelectorAll("[data-sec]").forEach(el => {
+      const sec = el.dataset.sec, key = el.dataset.key;
+      let v;
+      if (el.type === "checkbox") v = el.checked;
+      else if (el.dataset.list) v = el.value.split(",").map(s => s.trim()).filter(Boolean);
+      else if (el.dataset.num) v = el.dataset.num === "int" ? parseInt(el.value, 10) : parseFloat(el.value);
+      else v = el.value;
+      (out[sec] = out[sec] || {})[key] = v;
+    });
+    return out;
+  }
+  const say = (html) => { $("setMsg").innerHTML = html; };
+  async function act(fn, ok) {
+    say("Working…");
+    try { const d = await fn(); if (d && d.sections) renderForm(d); say(`<span class="ok">${esc(ok)}</span>`); }
+    catch (e) { say(`<span class="err">${esc(e.message)}</span>`); }
+  }
+  $("setSave").addEventListener("click", () => act(() => api41.post("api/settings", {values: collect()}), "Saved."));
+  $("setResetAll").addEventListener("click", () => {
+    if (confirm("Reset every setting to its default?")) act(() => api41.post("api/settings/reset", {}), "All settings reset to defaults.");
+  });
+  $("setImportFile").addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    file.text().then(txt => {
+      let doc;
+      try { doc = JSON.parse(txt); } catch (err) { say(`<span class="err">That file is not valid JSON.</span>`); return; }
+      act(() => api41.post("api/settings/import", {doc}), "Imported.");
+    });
+    e.target.value = "";
+  });
+  $("setTestNotify").addEventListener("click", () => act(() => api41.post("api/notifications", {test: true})
+    .then(r => { if (window.perfdashBell) window.perfdashBell.refresh(); return r; }), "Test notification sent."));
+  $("setRestartBtn").addEventListener("click", () => act(() => api41.post("api/restart", {}),
+    "Restarting — this page reconnects in a few seconds."));
+  $("diagClear").addEventListener("click", async () => {
+    try { await api41.post("api/diagnostics/clear", {}); diagnostics(); } catch (e) { say(`<span class="err">${esc(e.message)}</span>`); }
+  });
+
+  const kv = (rows) => `<dl class="diag-kv">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}</dl>`;
+  async function diagnostics() {
+    try {
+      const d = await api41.get("api/diagnostics");
+      supervised = !!d.supervised;
+      const h = d.health || {};
+      $("diagStatus").innerHTML = `<p><span class="st-${esc(h.status || "ok")}">${esc((h.status || "").toUpperCase())}</span>
+        · version ${esc(d.version)}</p>${(h.problems || []).length
+          ? `<ul class="home-list">${h.problems.map(p => `<li>⚠️ ${esc(p)}</li>`).join("")}</ul>` : `<p class="note keep">No problems detected.</p>`}`;
+      $("diagWorkers").innerHTML = kv((h.threads || []).map(t => [t.name, t.alive ? `<span class="st-ok">running</span>` : `<span class="st-error">stopped</span>`])
+        .concat((h.probes || []).map(p => [p.label, `${p.stale ? `<span class="st-error">stale</span>` : `<span class="st-ok">fresh</span>`} · ${esc(api41.ago(p.age_s))}`])));
+      const f = d.footprint || {}, c = d.collector || {}, st = d.history || {}, sh = c.shell || {};
+      $("diagFoot").innerHTML = kv([
+        ["CPU used", `${fmt(f.cpu_s, 1)} s · avg ${fmt(f.avg_cpu_pct, 2)}% of the machine`],
+        ["Memory", f.rss_mb == null ? "—" : `${fmt(f.rss_mb, 1)} MB`], ["Threads", fmt(f.threads)],
+        ["Samples", `${fmt(c.samples_taken)} taken · ${fmt(c.failures)} failed · last ${fmt(c.last_duration_s, 2)} s`],
+        ["PowerShell", c.shell ? `${sh.alive ? "warm session" : "not running"} · ${fmt(sh.total_runs)} runs · ${fmt(c.shell_fallbacks)} fallbacks` : "one process per sample"],
+        ["History", `${esc(c.store || "")} · ${fmt(st.raw_samples)} raw samples · ${fmt(st.hours)} hourly points · ${fmt((st.bytes || 0) / 1048576, 1)} MB`]]);
+      const dep = d.deploy || {};
+      $("diagSup").innerHTML = kv([["Supervised", d.supervised ? `<span class="st-ok">yes</span> — restarts on crash, hang or stall` : `<span class="st-degraded">no</span>`],
+        ["Pending patch", dep.pending ? esc(dep.pending.title || dep.pending.id) : "none"]])
+        + ((d.supervisor_log || []).length ? `<ul class="home-list">${d.supervisor_log.slice(0, 6).map(e =>
+          `<li><div><div class="t">${esc(e.event)}${e.reason ? " — " + esc(e.reason) : ""}</div><div class="s">${esc(api41.when(e.at))}</div></div></li>`).join("")}</ul>` : "")
+        + ((dep.history || []).length ? `<ul class="home-list">${dep.history.slice(0, 5).map(e =>
+          `<li><div><div class="t">${esc(e.event)} ${esc(e.id || "")}${e.reason ? " — " + esc(e.reason) : ""}</div><div class="s">${esc(api41.when(e.at))}</div></div></li>`).join("")}</ul>` : "");
+      const errs = d.errors || [];
+      $("diagErrors").innerHTML = errs.length ? errs.map(e => `<div class="diag-err"><span class="lv ${esc(e.level)}">${esc(e.level)}</span>
+        ${esc(e.message)} <span class="hint">×${fmt(e.count)} · ${esc(e.logger)} · ${esc(api41.when(e.last))}</span></div>`).join("")
+        : `<div class="note keep">No warnings or errors recorded since start.</div>`;
+      if (current) renderRestart(current.restart_required || []);
+    } catch (e) { $("diagStatus").innerHTML = `<span class="err">Diagnostics unavailable: ${esc(e.message)}</span>`; }
+  }
+  async function refresh() {
+    try { if (!view.contains(document.activeElement)) renderForm(await api41.get("api/settings")); }
+    catch (e) { $("setForm").innerHTML = `<span class="err">Settings unavailable: ${esc(e.message)}</span>`; }
+    diagnostics();
+  }
+  window.perfdashSettings = {refresh};
+  if (view.style.display !== "none") refresh();
+  setInterval(() => { if (view.style.display !== "none") diagnostics(); }, 30000);
 })();
 </script>
 </body>

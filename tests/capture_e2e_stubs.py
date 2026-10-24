@@ -32,6 +32,9 @@ ENDPOINTS = {
     "api/trends": "", "api/learning": "?limit=3", "api/actions": "",
     "api/evolution": "", "api/selftest": "", "api/appctl": "",
     "api/onedrive": "", "api/procwatch": "", "api/health": "", "api/fixes": "",
+    # 4.1
+    "api/home": "", "api/settings": "", "api/diagnostics": "", "api/notifications": "",
+    "api/history": "?key=cpu_pct&hours=168", "api/trayquit": "",
 }
 # Long lists make the fixture unreadable without making it more faithful.
 CAPS = {"learnings": 3, "recent": 3, "log": 3, "items": 4, "rows": 6,

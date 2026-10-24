@@ -33,6 +33,9 @@ CORE_MODULES = (
     "refresh_components",
     # 4.0.0: runtime LLM, learning store, action policy, source self-evolution.
     "llm", "evodb", "optactions", "codevolve",
+    # 4.1.0: warm PowerShell, SQLite history, diagnostics, notifications,
+    # unified settings, the restarting supervisor.
+    "pwsh_session", "historydb", "health", "notify", "settings_hub", "supervisor",
 )
 
 

@@ -388,3 +388,115 @@ def test_a_platform_without_powershell_reports_why_immediately(monkeypatch):
 def test_a_platform_with_powershell_starts_with_no_error(monkeypatch):
     monkeypatch.setattr(collector, "CAN_COLLECT", True)
     assert collector.Collector(FakeScorer()).error is None
+
+
+# ------------------------------------------- 4.1: store, shell, probe parse -----
+class FakeStore:
+    def __init__(self, rows=(), fail_read=False, fail_write=False):
+        self.rows, self.fail_read, self.fail_write = list(rows), fail_read, fail_write
+        self.appended = []
+
+    def recent(self, n):
+        if self.fail_read:
+            raise RuntimeError("db locked")
+        return self.rows[-n:]
+
+    def append(self, s):
+        if self.fail_write:
+            raise RuntimeError("disk full")
+        self.appended.append(s)
+
+
+class FakeShell:
+    def __init__(self, out=None, exc=None):
+        self.out, self.exc, self.calls = out, exc, []
+
+    def run(self, script, args, timeout):
+        self.calls.append((script, args, timeout))
+        if self.exc:
+            raise self.exc
+        return self.out
+
+    def stats(self):
+        return {"alive": True, "total_runs": len(self.calls)}
+
+
+def _plain(monkeypatch):
+    monkeypatch.setattr(collector.subprocess, "run", _wslpath_run)
+    monkeypatch.setattr(collector, "HISTORY_FILE", FakePath(exists=False))
+
+
+def test_parse_probe_takes_the_last_object_line():
+    assert collector._parse_probe('{"a": 1}\r\n') == {"a": 1}
+    assert collector._parse_probe('WARNING: slow\n{"a": 2}') == {"a": 2}
+    with pytest.raises(ValueError):
+        collector._parse_probe("WARNING only")
+    for bad in ("[]", "{}"):
+        with pytest.raises(ValueError, match="metrics object"):
+            collector._parse_probe(bad)
+
+
+def test_store_seeds_history_and_receives_samples(monkeypatch):
+    _plain(monkeypatch)
+    store = FakeStore(rows=[{"_t": 1.0, "vmmem_mb": 5}, {"_t": 2.0, "vmmem_mb": 6}])
+    sc = FakeScorer()
+    c = collector.Collector(sc, store=store)
+    assert len(c.history) == 2 and c.latest["vmmem_mb"] == 6 and c.seeded_latest
+    assert sc.seeded and store.appended == []
+    monkeypatch.setattr(collector.subprocess, "run", _ps_run_factory('{"vmmem_mb": 7}'))
+    c.sample()
+    assert store.appended[-1]["vmmem_mb"] == 7 and c.last_ok_at == c.latest["_t"]
+    assert c.stats()["store"] == "sqlite" and c.stats()["shell"] is None
+
+
+def test_store_failures_never_stop_the_collector(monkeypatch, caplog):
+    _plain(monkeypatch)
+    c = collector.Collector(FakeScorer(), store=FakeStore(fail_read=True, fail_write=True))
+    assert len(c.history) == 0 and "could not load history" in caplog.text
+    monkeypatch.setattr(collector.subprocess, "run", _ps_run_factory('{"vmmem_mb": 7}'))
+    c.sample()
+    assert c.latest["vmmem_mb"] == 7 and "persist failed" in caplog.text
+
+
+def test_warm_shell_is_used_and_falls_back_to_a_fresh_process(monkeypatch, caplog):
+    from sysperf.pwsh_session import SessionError
+    _plain(monkeypatch)
+    sh = FakeShell(out='{"vmmem_mb": 11}')
+    c = collector.Collector(FakeScorer(), shell=sh)
+    c.sample_count = collector.FULL_EVERY
+    c.sample()
+    assert c.latest["vmmem_mb"] == 11 and sh.calls[0][1] == ("-Full",)
+    sh.exc = SessionError("no result within 120 s")
+    monkeypatch.setattr(collector.subprocess, "run", _ps_run_factory('{"vmmem_mb": 12}'))
+    c.sample()
+    assert c.latest["vmmem_mb"] == 12 and c.shell_fallbacks == 1
+    assert "using a one-shot process" in caplog.text
+    st = c.stats()
+    assert st["shell"]["total_runs"] == 2 and st["shell_fallbacks"] == 1
+
+
+def test_failed_sample_is_counted(col, monkeypatch):
+    c, _ = col
+    monkeypatch.setattr(collector.subprocess, "run", _ps_run_factory("[]"))
+    c.sample()
+    assert c.sample_failures == 1 and "metrics object" in c.error
+
+
+def test_baseline_capture_after_a_sample_invalidates_the_cache(col, monkeypatch):
+    c, _ = col
+    monkeypatch.setattr(collector.subprocess, "run", _ps_run_factory('{"vmmem_mb": 1}'))
+    monkeypatch.setattr(collector.machine_profile, "maybe_capture", lambda hist: True)
+    c._snap_cache = {"stale": True}
+    c.sample()
+    assert c._snap_cache is None
+
+
+def test_target_overrides_come_from_the_store(col):
+    c, _ = col
+    assert c._target_overrides() is None
+
+    class TS:
+        def overrides(self):
+            return {"handles": 90000}
+    c.target_store = TS()
+    assert c._target_overrides() == {"handles": 90000}

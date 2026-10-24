@@ -428,3 +428,53 @@ def test_a_failing_on_cycle_hook_does_not_break_the_cycle(tmp_path):
 def test_no_hook_leaves_the_record_untouched(tmp_path):
     imp = _improver(tmp_path, _snapshot([_row("handles")]))
     assert "evolution" not in imp.cycle(force=True)
+
+
+# ------------------------------------- 4.0 policy gate, history hook, targets --
+def test_action_policy_gate_blocks_and_hook_records(tmp_path):
+    rows = [_row("net_remote", scored=90, target=30, progress=5.0)]
+    imp = _improver(tmp_path, _snapshot(rows))
+    imp.action_gate = lambda fid: "autonomy level is 'observe'"
+    rec = imp.cycle()
+    assert rec["executed"] == []
+    assert rec["planned"][0]["skip_reason"] == "policy: autonomy level is 'observe'"
+    seen = []
+    imp.action_gate = None
+    imp.action_hook = lambda ids, results, snap: seen.append((ids, results))
+    imp.cycle(force=True)
+    assert seen and seen[0][0] == ["flush_dns"]
+
+
+def test_failing_action_hook_does_not_break_the_cycle(tmp_path):
+    rows = [_row("net_remote", scored=90, target=30, progress=5.0)]
+    imp = _improver(tmp_path, _snapshot(rows))
+
+    def boom(*a):
+        raise RuntimeError("history db locked")
+    imp.action_hook = boom
+    assert [r["id"] for r in imp.cycle()["executed"]] == ["flush_dns"]
+
+
+def test_target_store_adjudication_drops_decided_proposals(tmp_path):
+    class Targets:
+        def __init__(self):
+            self.reviewed = None
+
+        def review(self, store, keys):
+            self.reviewed = keys
+
+        def adjudicated_keys(self):
+            return {"handles"}
+    t = Targets()
+    rows = [_row("handles", scored=200000, target=95000, progress=1.0),
+            _row("net_remote", scored=90, target=30, progress=5.0)]
+    imp = _improver(tmp_path, _snapshot(rows), target_store=t)
+    imp.state["proposals"] = [{"key": "handles", "kind": "retune"},
+                              {"key": "other", "kind": "retune"}]
+    imp._escalations = lambda report, decisions: [
+        {"key": "handles", "kind": "escalate", "title": "h"},
+        {"key": "cpu_pct", "kind": "escalate", "title": "c"}]
+    imp.cycle()
+    assert t.reviewed == ["handles", "net_remote"]
+    keys = [p.get("key") for p in imp.state["proposals"]]
+    assert "handles" not in keys and "cpu_pct" in keys

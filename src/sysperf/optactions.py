@@ -222,7 +222,9 @@ class ActionPolicy:
             before = latest.get(metric) if metric else None
             self.db.record_action(
                 action_id=aid or "?", mode=self.level, authorized=1, reason="unattended",
-                ok=1 if res.get("ok") else 0, metric=metric,
+                # FixEngine.apply reports {"status": "ok"}; accept a bare "ok" too.
+                ok=1 if (res.get("status") == "ok" or res.get("ok") is True) else 0,
+                metric=metric,
                 before=before if isinstance(before, (int, float)) else None,
                 output=str(res.get("output") or res.get("error") or "")[:2000])
 

@@ -50,7 +50,10 @@ CAPTURE_MIN_SAMPLES = 5
 STATE_FILES = ("history.jsonl", "adaptive_state.json", "trends_daily.json",
                "autoimprove_state.json", "autoimprove_log.jsonl",
                "auto_targets.json", "actions_state.json", "evolve_state.json",
-               "procwatch_state.json", "baseline.json")
+               "procwatch_state.json", "baseline.json",
+               # 4.1: SQLite history (with its WAL files), the migrated JSONL, inbox
+               "history.db", "history.db-wal", "history.db-shm",
+               "history.jsonl.migrated", "notifications.json")
 
 # Fractions of this machine's capacity. Mirrors sysperf.config.example.json.
 TARGET_DEFAULTS = {
@@ -128,8 +131,28 @@ def save(profile: dict, path: Path | None = None) -> None:
         log.warning("could not save %s: %s", path.name, exc)
 
 
+def _db_owner(path: Path) -> str | None:
+    """The ``_host`` of the newest sample in a 4.1 SQLite history, read-only."""
+    if not path.is_file():
+        return None
+    import sqlite3
+    try:
+        con = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
+        try:
+            row = con.execute("SELECT data FROM samples ORDER BY t DESC LIMIT 1").fetchone()
+        finally:
+            con.close()
+        host = json.loads(row[0]).get("_host") if row else None
+    except (sqlite3.Error, ValueError, AttributeError):
+        return None
+    return str(host).upper() if host else None
+
+
 def _history_owner(data_dir: Path) -> str | None:
     """The machine that wrote the newest stamped history sample, if any."""
+    owner = _db_owner(data_dir / "history.db")
+    if owner:
+        return owner
     path = data_dir / "history.jsonl"
     try:
         with path.open("rb") as fh:
