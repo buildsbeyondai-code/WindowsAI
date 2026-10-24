@@ -444,3 +444,17 @@ def test_background_loops_run_and_survive_errors(monkeypatch, loop, patch, caplo
         with pytest.raises(_Stop):
             app._housekeeping_loop(0)
         assert "housekeeping failed" in caplog.text
+
+
+def test_log_stream_handler_is_added_once_despite_the_error_buffer():
+    import logging
+    root = logging.getLogger()
+    saved = list(root.handlers)
+    try:
+        root.handlers[:] = [app.error_buffer]
+        h = app._log_to_stream()
+        assert type(h) is logging.StreamHandler and h in root.handlers
+        assert app._log_to_stream() is h and root.level == logging.INFO
+        assert sum(type(x) is logging.StreamHandler for x in root.handlers) == 1
+    finally:
+        root.handlers[:] = saved
