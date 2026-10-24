@@ -1654,31 +1654,67 @@
 
 <div id="view-evo" role="tabpanel" aria-labelledby="tab-evo" style="display:none">
   <style>
-    #view-evo .evo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
-    #view-evo .evo-k{font-size:12px;opacity:.75}
-    #view-evo .evo-v{font-size:20px;font-weight:700}
+    /* Same visual language as the Summary tab: hero ring + stat tiles, glass cards,
+       theme variables only, so light and dark mode both work. */
+    #view-evo .evo-lead{font-size:13px;color:var(--muted);margin:2px 0 14px;line-height:1.5}
+    #view-evo .evo-pill{display:inline-flex;align-items:center;gap:7px;padding:4px 12px;border-radius:999px;
+      font-weight:700;font-size:12.5px;background:rgba(77,163,255,.14);color:var(--accent);border:1px solid rgba(77,163,255,.35)}
+    #view-evo .evo-pill.ok{background:rgba(77,208,138,.14);color:var(--green);border-color:rgba(77,208,138,.4)}
+    #view-evo .evo-pill.warn{background:rgba(255,159,46,.14);color:var(--amber);border-color:rgba(255,159,46,.4)}
+    #view-evo .evo-pill .d{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
+    #view-evo .sum-cards{margin-bottom:16px}
+    #view-evo .sum-row.glass3d .rsc{font-size:15px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+    #view-evo .sum-row.glass3d.r::after{background:linear-gradient(180deg,var(--red),var(--amber));box-shadow:0 0 16px -2px var(--red)}
+    #view-evo .sum-row.glass3d.g::after{background:linear-gradient(180deg,var(--green),var(--cyan));box-shadow:0 0 16px -2px var(--green)}
+    #view-evo .evo-card{margin-bottom:16px;border-radius:16px;padding:18px 20px}
+    #view-evo .evo-card h3{display:flex;align-items:center;justify-content:flex-start;gap:10px;margin:0 0 12px;font-size:16px;font-weight:700;letter-spacing:-.2px}
+    #view-evo .evo-card h3 svg{width:20px;height:20px;color:var(--accent);flex-shrink:0}
+    #view-evo .evo-card h3 .hint{font-size:12px;font-weight:400;color:var(--muted)}
+    #view-evo .evo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:4px 0 6px}
+    #view-evo .evo-grid>div{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+    #view-evo .evo-k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+    #view-evo .evo-v{font:700 17px/1.25 "Cascadia Code",Consolas,monospace;margin-top:5px;word-break:break-word}
+    #view-evo .evo-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 14px;margin:6px 0 12px}
+    #view-evo .evo-f{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600}
+    #view-evo .evo-f.chk{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:13px;padding-top:18px}
+    #view-evo .evo-f.wide{grid-column:span 2}
+    #view-evo input,#view-evo select{font:13px 'Segoe UI',sans-serif;padding:8px 10px;border-radius:9px;
+      border:1px solid var(--line);background:var(--panel2);color:var(--ink);min-width:0}
+    #view-evo input:focus,#view-evo select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(77,163,255,.22)}
+    #view-evo input[type=checkbox]{width:16px;height:16px;padding:0;accent-color:var(--accent)}
+    #view-evo .evo-btns{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:4px}
+    #view-evo button{font:600 13px 'Segoe UI',sans-serif;padding:8px 16px;border-radius:10px}
+    #view-evo button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+    #view-evo .evo-sub{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin:14px 0 8px}
+    #view-evo .evo-note{font-size:13px;color:var(--muted);margin:8px 0;line-height:1.5}
+    #view-evo .evo-note.warn{color:var(--amber)}
+    #view-evo .evo-empty{display:flex;gap:12px;align-items:center;padding:16px;border:1px dashed var(--line);border-radius:12px;
+      color:var(--muted);font-size:13px}
+    #view-evo .evo-empty svg{width:22px;height:22px;flex-shrink:0;color:var(--accent)}
+    #view-evo .evo-tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
     #view-evo table{width:100%;border-collapse:collapse;font-size:13px}
-    #view-evo th,#view-evo td{text-align:left;padding:6px 8px;border-bottom:1px solid rgba(128,128,128,.25);vertical-align:top}
-    #view-evo pre.evo-diff{max-height:420px;overflow:auto;font-size:12px;padding:10px;background:rgba(128,128,128,.12);border-radius:6px}
-    #view-evo .evo-diff .add{color:#2e9d4f}#view-evo .evo-diff .del{color:#d9534f}
+    #view-evo th{text-align:left;padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+      color:var(--muted);background:var(--panel2);border-bottom:1px solid var(--line);white-space:nowrap}
+    #view-evo td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+    #view-evo tr:last-child td{border-bottom:none}
+    #view-evo tbody tr:hover td{background:rgba(77,163,255,.05)}
+    #view-evo details summary{cursor:pointer;font-weight:600;font-size:13px;margin:10px 0 8px;color:var(--ink)}
+    #view-evo pre.evo-diff{max-height:420px;overflow:auto;font-size:12px;padding:12px;background:var(--panel2);
+      border:1px solid var(--line);border-radius:10px}
+    #view-evo .evo-diff .add{color:var(--green)}#view-evo .evo-diff .del{color:var(--red)}
     #view-evo .evo-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0}
-    #view-evo label{font-size:13px}#view-evo input,#view-evo select{font-size:13px;padding:4px 6px}
-    #view-evo .evo-state{display:inline-block;padding:3px 10px;border-radius:12px;font-weight:700;background:rgba(80,140,255,.18)}
-    #view-evo .evo-note{font-size:13px;opacity:.85;margin:6px 0}
-    @media (max-width:620px){#view-evo .evo-grid{grid-template-columns:repeat(2,1fr)}}
+    #view-evo #sevMsg{min-height:18px}
+    @media(max-width:620px){#view-evo .evo-f.wide{grid-column:auto}#view-evo .evo-grid{grid-template-columns:repeat(2,1fr)}}
   </style>
-  <div class="card" style="margin-bottom:14px">
-    <h2 style="margin-top:0">AI Self-Evolution</h2>
-    <p class="hint">Source-code improvements are generated by the configured LLM, applied only in an isolated
-      worktree, tested and benchmarked in a sandbox, and kept as review branches. Nothing is deployed without your approval.
-      All figures below come from recorded measurements; nothing is shown that was not measured.</p>
-    <div id="sevStatus" aria-live="polite">Loading…</div>
-  </div>
-  <div class="card" style="margin-bottom:14px"><h3 style="margin-top:0">Autonomy and controls</h3><div id="sevControls"></div></div>
-  <div class="card" style="margin-bottom:14px"><h3 style="margin-top:0">Evolution history</h3><div id="sevHistory"></div></div>
-  <div class="card" style="margin-bottom:14px"><h3 style="margin-top:0">Improvement details</h3><div id="sevDetail"><p class="evo-note">Select a candidate in the history to inspect its diff, tests and benchmark.</p></div></div>
-  <div class="card" style="margin-bottom:14px"><h3 style="margin-top:0">Optimisation effectiveness (measured before / after)</h3><div id="sevEffect"></div></div>
-  <div class="card"><h3 style="margin-top:0">Audit trail</h3><div id="sevAudit"></div></div>
+  <div class="evo-lead">The agent proposes source-code improvements with an AI model, tests and benchmarks them in a
+    sandbox, and keeps winners as review branches — <b>nothing is deployed without your approval</b>. Every figure below
+    is a recorded measurement.</div>
+  <div id="sevStatus" aria-live="polite"><div class="evo-empty">Loading…</div></div>
+  <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Autonomy and controls</h3><div id="sevControls"></div></div>
+  <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5M12 7v5l3 2"/></svg>Evolution history</h3><div id="sevHistory"></div></div>
+  <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M14 3h7v7M21 3l-9 9"/></svg>Improvement details</h3><div id="sevDetail"><div class="evo-empty">Select a candidate in the history to inspect its diff, tests and benchmark.</div></div></div>
+  <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18M6 16v-5M11 16V8M16 16v-3M21 16V5"/></svg>Optimisation effectiveness <span class="hint">measured before / after</span></h3><div id="sevEffect"></div></div>
+  <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Audit trail <span class="hint">tamper-evident hash chain</span></h3><div id="sevAudit"></div></div>
 </div>
 <script>
 "use strict";
@@ -4925,33 +4961,81 @@ tick();
     return d;
   }
   function stat(k, v) { return `<div><div class="evo-k">${esc(k)}</div><div class="evo-v">${esc(v)}</div></div>`; }
+  const tbl = (head, body) => `<div class="evo-tbl"><table><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
+  const empty = (txt) => `<div class="evo-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h0"/></svg><span>${txt}</span></div>`;
+  const ICO = {
+    level: '<path d="M12 3l8 4v5c0 4.4-3.3 8-8 9-4.7-1-8-4.6-8-9V7z"/><path d="M12 8v4l2.5 1.5"/>',
+    enabled: '<rect x="2.5" y="7" width="19" height="10" rx="5"/><circle cx="16.5" cy="12" r="3"/>',
+    repo: '<circle cx="6" cy="6" r="2.2"/><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="9" r="2.2"/><path d="M6 8.2v7.6M18 11.2c0 3-3 3.6-6 3.8-2 .1-4 .7-5.2 1.6"/>',
+    ai: '<rect x="5" y="7" width="14" height="12" rx="3"/><path d="M12 3v4M9 12h0M15 12h0M9.5 16h5M2.5 12h2.5M19 12h2.5"/>',
+    sandbox: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M8 14l2 2 4-4"/>',
+    audit: '<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>' };
 
   function renderStatus(s) {
-    const c = s.candidates || {}, l = s.llm || {}, u = l.usage_today || {}, h = l.last_24h || {};
+    const c = s.candidates || {}, l = s.llm || {}, u = l.usage_today || {}, h = l.last_24h || {}, st = s.settings || {};
     const last = s.last_attempt;
-    const cost = h.cost_usd == null ? (h.calls ? "unknown (no price set)" : "$0") : "$" + h.cost_usd.toFixed(4);
+    const cost = h.cost_usd == null ? (h.calls ? "unknown" : "$0") : "$" + h.cost_usd.toFixed(4);
+    // Readiness: every precondition the engine checks before a cycle may start
+    // (codevolve.gate), plus the sandbox it needs to execute generated code.
+    const req = [
+      ["level", "Autonomy level", s.autonomy_level === "self_evolve",
+        s.autonomy_level === "self_evolve" ? "self_evolve — source evolution allowed"
+          : `currently '${s.autonomy_level}' — set it to self_evolve below`],
+      ["enabled", "Evolution switched on", !!st.enabled,
+        st.enabled ? "cycles may be scheduled" : "tick “Evolution enabled” below and Save"],
+      ["repo", "Approved repository", !!st.repo,
+        st.repo ? st.repo : "a git checkout the agent may branch from — the installed app folder is one (…\\SysPerf\\app)"],
+      ["ai", "AI provider", !!l.available,
+        l.available ? (l.provider + (l.model ? " · " + l.model : "")) : "choose Anthropic (store an API key) or install kiro-cli"],
+      ["sandbox", "Isolation sandbox", (s.isolation || {}).backend !== "none",
+        (s.isolation || {}).backend !== "none" ? s.isolation.backend : "needs Docker (evolution.docker_image) — generated code never runs unsandboxed"],
+      ["audit", "Audit chain", !!(s.audit || {}).ok,
+        (s.audit || {}).ok ? `intact · ${s.audit.checked} entries verified` : `BROKEN at ${(s.audit || {}).broken_at}`]];
+    const ready = req.filter(r => r[2]).length, pct = Math.round(100 * ready / req.length);
+    const oc = pct === 100 ? "var(--green)" : pct >= 50 ? "var(--yellow)" : "var(--red)";
+    const RR = 62, CIRC = 2 * Math.PI * RR, on = CIRC * pct / 100;
+    const ring = `<svg viewBox="0 0 150 150" role="img" aria-label="Readiness ${ready} of ${req.length}">
+      <circle cx="75" cy="75" r="${RR}" fill="none" class="an-track" stroke-width="13"/>
+      <circle cx="75" cy="75" r="${RR}" fill="none" stroke="${oc}" stroke-width="13" stroke-linecap="round"
+        stroke-dasharray="${on} ${CIRC - on}" transform="rotate(-90 75 75)" style="transition:stroke-dasharray .8s ease"/></svg>`;
+    const running = !s.gate || ["analyzing","planning","generating","testing","benchmarking"].includes(s.state);
+    const pill = `<span class="evo-pill ${s.gate ? "warn" : "ok"}"><span class="d"></span>${esc(STATE_TEXT[s.state] || s.state)}</span>`;
+    const cards = req.map(([k, name, ok, hint]) => `<div class="sum-row glass3d ${ok ? "g" : "r"}">
+      <span class="rico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg></span>
+      <span class="rl"><span class="rname">${esc(name)}</span><span class="rhint">${esc(hint)}</span></span>
+      <span class="rsc">${ok ? "Ready" : "Needed"}</span></div>`).join("");
     $("sevStatus").innerHTML = `
-      <div class="evo-row"><span class="evo-state" id="sevState">${esc(STATE_TEXT[s.state] || s.state)}</span>
-        <span class="evo-note">${s.gate ? "Not running: " + esc(s.gate) : "Ready — next attempt on schedule"}</span></div>
-      <div class="evo-grid">
-        ${stat("Autonomy level", s.autonomy_level)}
-        ${stat("Last attempt", last ? fmtT(last.started) : "never")}
-        ${stat("Next scheduled", s.next_due ? fmtT(s.next_due) : "not scheduled")}
-        ${stat("Candidates", c.total || 0)}
-        ${stat("Retained / rejected", (c.retained || 0) + " / " + (c.rejected || 0))}
-        ${stat("Pending review", c.pending_review || 0)}
-        ${stat("Isolation", s.isolation.backend)}
-        ${stat("Model", (l.provider || "none") + (l.model ? " · " + l.model : ""))}
-        ${stat("LLM calls (24 h)", (h.calls || 0) + " (" + (h.ok || 0) + " ok)")}
-        ${stat("Tokens today", (u.tokens || 0) + " / " + (u.daily_token_budget || 0))}
-        ${stat("Est. cost (24 h)", cost)}
-        ${stat("Audit chain", s.audit.ok ? "intact (" + s.audit.checked + ")" : "BROKEN at " + s.audit.broken_at)}
+      <div class="sum-hero">
+        <div class="sum-ring">${ring}
+          <div class="mid"><div class="num" style="color:${oc}">${ready}/${req.length}</div>
+            <div class="of">requirements</div>
+            <div class="grade" style="color:${oc}">${pct === 100 ? "Ready" : "Setup needed"}</div></div></div>
+        <div class="sum-right">
+          <div class="sum-head"><h3>AI Self-Evolution ${pill}</h3>
+            <p>${s.gate ? "Not running: " + esc(s.gate) : (running ? "Running — next attempt " + (s.next_due ? fmtT(s.next_due) : "on schedule") : "")}</p></div>
+          <div class="sum-stats">
+            <div class="sum-stat ${c.total ? "met" : "meas"}"><div class="n">${c.total || 0}</div><div class="l">Candidates</div></div>
+            <div class="sum-stat met"><div class="n">${c.retained || 0}</div><div class="l">Retained</div></div>
+            <div class="sum-stat ${c.pending_review ? "part" : "meas"}"><div class="n">${c.pending_review || 0}</div><div class="l">Pending review</div></div>
+            <div class="sum-stat ${c.rejected ? "reg" : "meas"}"><div class="n">${c.rejected || 0}</div><div class="l">Rejected</div></div>
+          </div>
+        </div>
       </div>
-      ${last && last.explanation ? `<p class="evo-note"><b>Last result:</b> ${esc(last.explanation)}</p>` : ""}
-      ${s.isolation.why_none ? `<p class="evo-note">⚠ ${esc(s.isolation.why_none)}</p>` : ""}
-      ${l.last_error ? `<p class="evo-note">⚠ Last AI API error (${esc(l.last_error.kind)}): ${esc(l.last_error.message)}</p>` : ""}
-      ${(h.recent_errors || []).length ? `<details><summary>Recent AI API errors</summary><ul>${h.recent_errors.map(e =>
-        `<li>${esc(fmtT(e.ts))} · ${esc(e.error_kind)} · ${esc(e.error || "")}</li>`).join("")}</ul></details>` : ""}`;
+      <div class="sum-cards">${cards}</div>
+      <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 20h18M6 16v-5M11 16V8M16 16v-3M21 16V5"/></svg>Engine telemetry</h3>
+        <div class="evo-grid">
+          ${stat("Last attempt", last ? fmtT(last.started) : "never")}
+          ${stat("Next scheduled", s.next_due ? fmtT(s.next_due) : "not scheduled")}
+          ${stat("LLM calls (24 h)", (h.calls || 0) + " (" + (h.ok || 0) + " ok)")}
+          ${stat("Tokens today", (u.tokens || 0).toLocaleString() + " / " + (u.daily_token_budget || 0).toLocaleString())}
+          ${stat("Est. cost (24 h)", cost)}
+          ${stat("Max per day", st.max_per_day ?? "—")}
+        </div>
+        ${last && last.explanation ? `<p class="evo-note"><b>Last result:</b> ${esc(last.explanation)}</p>` : ""}
+        ${l.last_error ? `<p class="evo-note warn">⚠ Last AI API error (${esc(l.last_error.kind)}): ${esc(l.last_error.message)}</p>` : ""}
+        ${(h.recent_errors || []).length ? `<details><summary>Recent AI API errors</summary><ul>${h.recent_errors.map(e =>
+          `<li>${esc(fmtT(e.ts))} · ${esc(e.error_kind)} · ${esc(e.error || "")}</li>`).join("")}</ul></details>` : ""}
+      </div>`;
   }
 
   function renderControls(s, a) {
@@ -4961,25 +5045,37 @@ tick();
       <td>${x.reversible ? "yes" : "no"}</td><td>${esc(x.permissions)}</td><td>${esc(x.rollback)}</td>
       <td>${x.auto_eligible ? `<input type="checkbox" class="evo-act" data-id="${esc(x.id)}" aria-label="Allow ${esc(x.id)} unattended"${x.enabled ? " checked" : ""}>` : "confirmation only"}</td></tr>`).join("");
     $("sevControls").innerHTML = `
-      <div class="evo-row"><label>Autonomy level <select id="sevLevel">${levels}</select></label>
-        <span class="evo-note">off = nothing autonomous · observe = recommend only · safe_auto = enabled low-risk actions · self_evolve = also source evolution</span></div>
-      <div class="evo-row">
-        <label><input type="checkbox" id="sevEnabled"${st.enabled ? " checked" : ""}> Evolution enabled</label>
-        <label>Repository <input id="sevRepo" size="34" value="${esc(st.repo || "")}" placeholder="path to a git checkout"></label>
-        <label>Every (h) <input id="sevInterval" type="number" min="0.1" step="0.5" style="width:70px" value="${(st.interval_s / 3600).toFixed(1)}"></label>
-        <label>Max/day <input id="sevMax" type="number" min="0" max="48" style="width:60px" value="${st.max_per_day}"></label>
-        <button id="sevSave">Save</button> <button id="sevRun">Run evolution cycle now</button></div>
-      <div class="evo-row">
-        <label>AI provider <select id="sevProvider">${["none", "anthropic", "kiro_cli"].map(p =>
+      <div class="evo-sub">Autonomy</div>
+      <div class="evo-form">
+        <label class="evo-f">Autonomy level <select id="sevLevel">${levels}</select></label>
+        <div class="evo-note wide" style="grid-column:span 3;margin:auto 0">off = nothing autonomous · observe = recommend only ·
+          safe_auto = enabled low-risk actions · <b>self_evolve</b> = also source evolution</div>
+      </div>
+      <div class="evo-sub">Evolution engine</div>
+      <div class="evo-form">
+        <label class="evo-f chk"><input type="checkbox" id="sevEnabled"${st.enabled ? " checked" : ""}> Evolution enabled</label>
+        <label class="evo-f wide">Repository (git checkout) <input id="sevRepo" value="${esc(st.repo || "")}" placeholder="C:\\path\\to\\sysperf"></label>
+        <label class="evo-f">Every (hours) <input id="sevInterval" type="number" min="0.1" step="0.5" value="${(st.interval_s / 3600).toFixed(1)}"></label>
+        <label class="evo-f">Max cycles / day <input id="sevMax" type="number" min="0" max="48" value="${st.max_per_day}"></label>
+      </div>
+      <div class="evo-sub">AI provider</div>
+      <div class="evo-form">
+        <label class="evo-f">Provider <select id="sevProvider">${["none", "anthropic", "kiro_cli"].map(p =>
           `<option${p === s.llm.provider ? " selected" : ""}>${p}</option>`).join("")}</select></label>
-        <label>Model <input id="sevModel" size="26" value="${esc(s.llm.model || "")}" list="sevModels" placeholder="choose from provider list"></label>
-        <datalist id="sevModels"></datalist><button id="sevListModels">List models</button>
-        <label>Daily token budget <input id="sevBudget" type="number" min="0" style="width:100px" value="${(s.llm.usage_today || {}).daily_token_budget || 200000}"></label>
-        <label>API key <input id="sevKey" type="password" size="22" autocomplete="off" placeholder="stored 0600, never shown"></label>
-        <button id="sevSaveKey">Store key</button></div>
+        <label class="evo-f">Model <input id="sevModel" value="${esc(s.llm.model || "")}" list="sevModels" placeholder="choose from provider list"></label>
+        <label class="evo-f">Daily token budget <input id="sevBudget" type="number" min="0" value="${(s.llm.usage_today || {}).daily_token_budget || 200000}"></label>
+        <label class="evo-f">API key <input id="sevKey" type="password" autocomplete="off" placeholder="stored 0600, never shown"></label>
+        <datalist id="sevModels"></datalist>
+      </div>
+      <div class="evo-btns">
+        <button id="sevSave">Save settings</button>
+        <button id="sevRun">Run evolution cycle now</button>
+        <button id="sevListModels" class="ghost">List models</button>
+        <button id="sevSaveKey" class="ghost">Store API key</button>
+      </div>
       <div id="sevMsg" class="evo-note" role="status"></div>
       <details><summary>Allowlisted optimisation actions</summary>
-        <table><thead><tr><th>Action</th><th>Description</th><th>Risk</th><th>Reversible</th><th>Permission</th><th>Rollback</th><th>Unattended</th></tr></thead><tbody>${acts}</tbody></table></details>`;
+        ${tbl(["Action","Description","Risk","Reversible","Permission","Rollback","Unattended"], acts)}</details>`;
     const msg = (t) => { $("sevMsg").textContent = t; };
     const guard = (fn) => async () => { try { msg(await fn() || "Saved."); refresh(); } catch (e) { msg("Error: " + e.message); } };
     $("sevLevel").onchange = guard(async () => { await post("api/autonomy", {level: $("sevLevel").value}); });
@@ -5017,13 +5113,12 @@ tick();
         <td>${esc(files)}</td><td>${esc(yes(c.tests_ok))}</td><td>${esc(yes(c.security_ok))}</td>
         <td>${esc(c.decision ? c.decision + (c.review_state && c.review_state !== "none" ? " · " + c.review_state : "") : (STATE_TEXT[cy.state] || cy.state))}</td>
         <td>${esc((c.reason || cy.explanation || "").slice(0, 220))}</td></tr>`; }).join("");
-    $("sevHistory").innerHTML = rows ? `<table><thead><tr><th>When</th><th>Trigger</th><th>Problem</th><th>Model</th>
-      <th>Proposal</th><th>Files</th><th>Tests</th><th>Security</th><th>Decision</th><th>Reason</th></tr></thead><tbody>${rows}</tbody></table>`
-      : `<p class="evo-note">No evolution attempts yet. Set the autonomy level to self_evolve, configure a repository and an AI provider, then run a cycle.</p>`;
+    $("sevHistory").innerHTML = rows ? tbl(["When","Trigger","Problem","Model","Proposal","Files","Tests","Security","Decision","Reason"], rows)
+      : empty("No evolution attempts yet. Complete the readiness checklist above, then run a cycle.");
     view.querySelectorAll(".evo-pick").forEach(a => { a.onclick = (e) => { e.preventDefault(); selected = a.dataset.id; renderDetail(); }; });
-    $("sevAudit").innerHTML = (h.audit || []).length ? `<table><thead><tr><th>#</th><th>When</th><th>Actor</th><th>Event</th><th>Detail</th></tr></thead><tbody>${
-      h.audit.map(x => `<tr><td>${x.seq}</td><td>${esc(fmtT(x.ts))}</td><td>${esc(x.actor)}</td><td>${esc(x.event)}</td><td>${esc(x.payload.slice(0, 160))}</td></tr>`).join("")}</tbody></table>`
-      : `<p class="evo-note">No audit entries yet.</p>`;
+    $("sevAudit").innerHTML = (h.audit || []).length ? tbl(["#","When","Actor","Event","Detail"],
+      h.audit.map(x => `<tr><td>${x.seq}</td><td>${esc(fmtT(x.ts))}</td><td>${esc(x.actor)}</td><td>${esc(x.event)}</td><td>${esc(x.payload.slice(0, 160))}</td></tr>`).join(""))
+      : empty("No audit entries yet.");
   }
 
   async function renderDetail() {
@@ -5041,7 +5136,7 @@ tick();
     $("sevDetail").innerHTML = `<p><b>${esc(c.title || c.id)}</b> — ${esc(c.rationale || "")}</p>
       <p class="evo-note">Decision: <b>${esc(c.decision || "—")}</b> · ${esc(c.reason || "")}${c.branch ? " · branch <code>" + esc(c.branch) + "</code> @ " + esc((c.commit_sha || "").slice(0, 10)) : ""}${c.protected ? " · engine module: stricter threshold, approval required" : ""}</p>
       ${det && det.tests ? `<p class="evo-note">Tests: candidate ${esc(det.tests.summary)} · baseline ${esc(det.baseline_tests.summary)}</p>` : ""}
-      ${rows ? `<table><thead><tr><th>Benchmark</th><th>Baseline median</th><th>Candidate median</th><th>Gain</th><th>Noise</th><th>Runs</th></tr></thead><tbody>${rows}</tbody></table>` : `<p class="evo-note">No benchmark recorded for this candidate.</p>`}
+      ${rows ? tbl(["Benchmark","Baseline median","Candidate median","Gain","Noise","Runs"], rows) : empty("No benchmark recorded for this candidate.")}
       ${c.diff ? `<pre class="evo-diff">${diff}</pre>` : ""}
       <div class="evo-row">${pending ? `<button id="sevApprove">Approve</button><button id="sevReject">Reject</button>` : ""}<span id="sevReviewMsg" class="evo-note" role="status">${esc(reviewNote[c.id] || "")}</span></div>`;
     if (pending) {
@@ -5056,8 +5151,8 @@ tick();
   function renderEffect(a) {
     const rows = (a.effectiveness || []).map(e => `<tr><td>${esc(e.id)}</td><td>${e.runs}</td><td>${e.judged}</td>
       <td>${e.improved}</td><td>${e.no_change}</td><td>${e.worse}</td><td>${e.median_change_pct == null ? "not yet measured" : e.median_change_pct + "%"}</td></tr>`).join("");
-    $("sevEffect").innerHTML = rows ? `<table><thead><tr><th>Action</th><th>Runs</th><th>Judged</th><th>Improved</th><th>No change</th><th>Worse</th><th>Median change</th></tr></thead><tbody>${rows}</tbody></table>`
-      : `<p class="evo-note">No unattended actions have run under the 4.0 policy yet, so there is no before/after measurement to show.</p>`;
+    $("sevEffect").innerHTML = rows ? tbl(["Action","Runs","Judged","Improved","No change","Worse","Median change"], rows)
+      : empty("No unattended actions have run under the 4.0 policy yet, so there is no before/after measurement to show.");
   }
 
   async function refresh() {
@@ -5069,7 +5164,7 @@ tick();
       if (!$("sevControls").contains(document.activeElement)) renderControls(s, a);
       renderHistory(h); renderEffect(a);
       if (selected) renderDetail();
-    } catch (e) { $("sevStatus").textContent = "Self-evolution status unavailable: " + e.message; }
+    } catch (e) { $("sevStatus").innerHTML = empty("Self-evolution status unavailable: " + esc(e.message)); }
   }
   window.perfdashEvo = { refresh, last: () => lastStatus };
   if (view.style.display !== "none") refresh();      // deep link (#self-evolution)
