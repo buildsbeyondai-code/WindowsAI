@@ -194,6 +194,21 @@ class Provider:
         return []
 
 
+# Auto model selection (model "auto" or blank): the newest model of the first
+# family present in GET /v1/models, which lists newest first. Re-resolved daily
+# and immediately when the chosen id is retired (HTTP 404).
+AUTO_MODEL_PREFERENCE = ("opus", "sonnet")
+AUTO_MODEL_TTL_S = 24 * 3600
+
+
+def pick_auto_model(ids: list) -> Optional[str]:
+    for family in AUTO_MODEL_PREFERENCE:
+        for mid in ids:                       # API order: newest first
+            if family in mid.lower():
+                return mid
+    return ids[0] if ids else None
+
+
 class AnthropicProvider(Provider):
     """Anthropic Messages API with timeout, retries, backoff and 429 handling."""
     name = "anthropic"
@@ -203,7 +218,9 @@ class AnthropicProvider(Provider):
                  max_retries: int = 4, backoff_base_s: float = 1.0,
                  prices: Optional[dict] = None, opener=None, sleep=time.sleep):
         self.api_key = api_key
-        self.model = model
+        self.auto = (model or "auto").strip().lower() == "auto"
+        self.model = None if self.auto else model
+        self._auto_at = 0.0
         self.base_url = base_url.rstrip("/")
         self.timeout_s = timeout_s
         self.max_retries = max_retries
@@ -267,14 +284,38 @@ class AnthropicProvider(Provider):
         except (TypeError, ValueError, AttributeError):
             return None
 
+    @property
+    def configured(self) -> bool:
+        return bool(self.api_key)
+
+    def _resolve_model(self, force: bool = False) -> None:
+        if not self.auto:
+            return
+        if force or not self.model or time.time() - self._auto_at > AUTO_MODEL_TTL_S:
+            chosen = pick_auto_model(self.list_models())
+            if not chosen:
+                raise LLMError("not_configured", "auto model selection: the provider "
+                               "listed no models for this key")
+            if chosen != self.model:
+                log.info("anthropic: auto-selected model %s", chosen)
+            self.model, self._auto_at = chosen, time.time()
+
     def complete(self, system: str, prompt: str, max_tokens: int) -> Completion:
+        self._resolve_model()
         if not self.model:
             raise LLMError("not_configured", "no model configured (choose one from the "
-                           "provider's model list)")
+                           "provider's model list, or 'auto')")
         started = time.time()
-        body, attempts = self._request("POST", "/v1/messages", {
-            "model": self.model, "max_tokens": int(max_tokens), "system": system,
-            "messages": [{"role": "user", "content": prompt}]})
+        req = {"model": self.model, "max_tokens": int(max_tokens), "system": system,
+               "messages": [{"role": "user", "content": prompt}]}
+        try:
+            body, attempts = self._request("POST", "/v1/messages", req)
+        except LLMError as exc:
+            if not (self.auto and exc.kind == "not_found"):
+                raise
+            self._resolve_model(force=True)          # chosen model was retired
+            req["model"] = self.model
+            body, attempts = self._request("POST", "/v1/messages", req)
         try:
             text = "".join(b.get("text", "") for b in body.get("content", [])
                            if b.get("type") == "text")
@@ -326,6 +367,96 @@ class KiroCliProvider(Provider):
                           provider=self.name, latency_s=time.time() - started)
 
 
+class ClaudeCodeProvider(Provider):
+    """Headless Claude Code (``claude -p``) using the signed-in account.
+
+    All tools are disabled (``--tools ""``) so the model can only return text —
+    it cannot read or write files or run commands; the evolution engine applies
+    any patch itself, in an isolated worktree. No session is persisted. Model
+    ``auto`` (or blank) passes no ``--model``, so Claude Code uses the account's
+    default model; any alias it accepts ('opus', 'sonnet', ...) or a full model
+    id may be set instead.
+    """
+    name = "claude_code"
+    WINGET_LINK = os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\WinGet\Links\claude.exe")
+
+    # The signed-in copy may live in WSL (~/.local/bin/claude) rather than on
+    # Windows. --tools "" sits inside the script so the empty argument cannot be
+    # lost crossing the wsl.exe boundary.
+    WSL_PREFIX = ["wsl.exe", "-e", "bash", "-lc",
+                  'exec "$HOME/.local/bin/claude" -p --tools "" "$@"', "claude"]
+
+    def __init__(self, model: Optional[str] = None, executable: Optional[str] = None,
+                 timeout_s: float = 600.0, run=run_hidden, via: str = "auto"):
+        m = (model or "auto").strip()
+        self.model = None if m.lower() == "auto" else m
+        self._run = run
+        self.via_wsl = via == "wsl" or (via == "auto" and os.name == "nt"
+                                         and executable is None and self._wsl_has_claude())
+        self.executable = "wsl.exe" if self.via_wsl else (executable or self._find())
+        self.timeout_s = timeout_s
+
+    def _wsl_has_claude(self) -> bool:
+        try:
+            r = self._run(["wsl.exe", "-e", "sh", "-c", 'test -x "$HOME/.local/bin/claude"'],
+                          capture_output=True, timeout=30)
+            return r.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            return False
+
+    @classmethod
+    def _find(cls) -> str:
+        import shutil
+        found = shutil.which("claude")
+        if found:
+            return found
+        return cls.WINGET_LINK if os.path.exists(cls.WINGET_LINK) else "claude"
+
+    @property
+    def configured(self) -> bool:
+        import shutil
+        return os.path.exists(self.executable) or bool(shutil.which(self.executable))
+
+    def list_models(self) -> list:
+        # Claude Code resolves these aliases to the latest model of each family.
+        return ["auto", "opus", "sonnet", "fable", "haiku"]
+
+    def complete(self, system: str, prompt: str, max_tokens: int) -> Completion:
+        base = (list(self.WSL_PREFIX) if self.via_wsl
+                else [self.executable, "-p", "--tools", ""])
+        argv = base + ["--output-format", "json", "--no-session-persistence",
+                       "--system-prompt", system]
+        if self.model:
+            argv += ["--model", self.model]
+        started = time.time()
+        try:
+            res = self._run(argv, input=prompt, capture_output=True, text=True,
+                            encoding="utf-8", errors="replace", timeout=self.timeout_s)
+        except FileNotFoundError:
+            raise LLMError("not_configured", f"Claude Code not found ({self.executable})")
+        except subprocess.TimeoutExpired:
+            raise LLMError("timeout", f"claude -p timed out after {self.timeout_s}s",
+                           retryable=True)
+        try:
+            body = json.loads((res.stdout or "").strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            raise LLMError("provider_error", f"claude -p rc={res.returncode}: "
+                           f"{(res.stderr or res.stdout or '')[-300:]}", retryable=True)
+        if body.get("is_error") or res.returncode != 0:
+            msg = str(body.get("result") or res.stderr or "")[-300:]
+            kind = "auth" if re.search(r"log ?in|auth|credential", msg, re.I) else "provider_error"
+            raise LLMError(kind, f"claude -p: {msg}", retryable=kind != "auth")
+        usage = body.get("usage") or {}
+        used = list((body.get("modelUsage") or {}).keys())
+        return Completion(text=str(body.get("result") or ""),
+                          model=(used[0] if used else self.model or "claude-code-default"),
+                          provider=self.name,
+                          input_tokens=usage.get("input_tokens"),
+                          output_tokens=usage.get("output_tokens"),
+                          cost_usd=body.get("total_cost_usd"),
+                          latency_s=time.time() - started)
+
+
 def decode_kiro_stream(raw: str) -> str:
     """Undo kiro-cli's non-TTY rendering.
 
@@ -361,7 +492,10 @@ class LLMClient:
 
     @property
     def available(self) -> bool:
-        return type(self.provider) is not Provider
+        # A selected provider without credentials is not usable: reporting it as
+        # available made every cycle fail with no_credentials.
+        return (type(self.provider) is not Provider
+                and getattr(self.provider, "configured", True))
 
     def complete(self, system: str, prompt: str, max_tokens: int = 4000) -> Completion:
         over = self.meter.check()
@@ -484,11 +618,15 @@ def build_provider(settings: dict, key_file: Optional[Path]) -> Provider:
     kind = (s.get("provider") or "none").lower()
     if kind == "anthropic":
         key, _src = load_api_key(key_file)
-        return AnthropicProvider(key, s.get("model") or None,
+        return AnthropicProvider(key, s.get("model") or "auto",
                                  base_url=s.get("base_url") or DEFAULT_BASE_URL,
                                  timeout_s=float(s.get("timeout_s", 60)),
                                  max_retries=int(s.get("max_retries", 4)),
                                  prices=s.get("prices") or {})
+    if kind == "claude_code":
+        return ClaudeCodeProvider(model=s.get("model") or "auto",
+                                  timeout_s=float(s.get("timeout_s", 600)),
+                                  via=str(s.get("claude_via") or "auto"))
     if kind == "kiro_cli":
         return KiroCliProvider(model=s.get("model") or None,
                                timeout_s=float(s.get("timeout_s", 300)))

@@ -815,8 +815,8 @@ def _save_llm_settings(changes: dict) -> None:
         if k not in LLM_EDITABLE or not isinstance(v, LLM_EDITABLE[k]) or isinstance(v, bool):
             raise ValueError(f"invalid llm setting '{k}'")
         clean[k] = v
-    if clean.get("provider") not in (None, "none", "anthropic", "kiro_cli"):
-        raise ValueError("provider must be none, anthropic or kiro_cli")
+    if clean.get("provider") not in (None, "none", "anthropic", "claude_code", "kiro_cli"):
+        raise ValueError("provider must be none, anthropic, claude_code or kiro_cli")
     if "base_url" in clean and not clean["base_url"].startswith("https://"):
         raise ValueError("base_url must be https")
     if clean.get("model") and not re.fullmatch(r"[A-Za-z0-9._:@/-]{1,100}", clean["model"]):
