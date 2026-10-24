@@ -232,7 +232,7 @@ if (Test-Path $cfgPath) {
     # Loopback bind with no token: the API is read-only telemetry about this
     # machine and should not be reachable from the network. Setting a non-
     # loopback host in this file makes SysPerf generate and require a token.
-    $cfg = [ordered]@{ host = '127.0.0.1'; port = $Port; sample_seconds = 20;
+    $cfg = [ordered]@{ host = '127.0.0.1'; port = $Port; sample_seconds = 60;
                    fixes = @{ enabled = $true };
                    autoimprove = @{ mode = 'auto'; threshold = 80;
                                     interval_seconds = 300 } }
@@ -259,7 +259,9 @@ _log = open(os.path.join(r'$InstallDir', 'sysperf-runtime.log'), 'a', encoding='
 sys.stdout = sys.stderr = _log
 sys.path.insert(0, r'$AppDir\src')
 from sysperf.__main__ import main
-sys.exit(main())
+# --supervise: the sign-in task runs a small supervisor that restarts the dashboard on
+# crash, hang or stall and rolls back an AI patch that leaves it unhealthy.
+sys.exit(main(sys.argv[1:] + ['--supervise']))
 "@ | Set-Content -Path $shim -Encoding UTF8
 
 $launcher = Join-Path $InstallDir 'sysperf.cmd'
@@ -361,7 +363,7 @@ if (-not $NoStart) {
             $health = $r.Content | ConvertFrom-Json
             $metrics = Invoke-WebRequest -Uri "${url}api/metrics" -UseBasicParsing -TimeoutSec 10
             $payload = $metrics.Content | ConvertFrom-Json
-            if ($r.StatusCode -eq 200 -and $health.version -eq '4.0.0' -and $metrics.StatusCode -eq 200 -and $payload.latest -and $payload.latest._t -and -not $payload.meta.error) { $ok = $true; break }
+            if ($r.StatusCode -eq 200 -and $health.version -eq '4.1.0' -and $metrics.StatusCode -eq 200 -and $payload.latest -and $payload.latest._t -and -not $payload.meta.error) { $ok = $true; break }
         } catch {}
     }
     if ($ok) {

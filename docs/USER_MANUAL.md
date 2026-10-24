@@ -1,6 +1,6 @@
 # SysPerf User Manual
 
-**System Performance Agent — version 4.0.0**
+**System Performance Agent — version 4.1.0**
 
 A read-only performance dashboard and advisor for Windows 11.
 
@@ -625,9 +625,9 @@ anything omitted keeps its default. Restart SysPerf after editing.
 | `port` | `5056` | Listening port. |
 | `auth_token` | *(empty)* | Shared secret. Generated automatically if you set a non-loopback host. |
 | `open_browser` | `false` | Open the dashboard on start. |
-| `sample_seconds` | `20` | Fast-tier cadence. Minimum 5. |
+| `sample_seconds` | `60` | Fast-tier cadence, clamped to 30–600. |
 | `full_every` | `15` | Run the slow tier every Nth sample. Raise it if samples feel expensive. |
-| `max_samples` | `720` | Samples kept in memory (720 × 20 s = 4 hours). |
+| `max_samples` | `240` | Samples kept in memory (240 × 60 s = 4 hours). |
 | `history_max_bytes` | `12000000` | History file is trimmed above this size. |
 
 ### 8.3 Scoring
@@ -1307,8 +1307,8 @@ the same code run natively on Windows or inside WSL 2.
 ### A.2 Sampling tiers
 
 Two tiers keep the cost low. The **fast tier** runs every `sample_seconds`
-(default 20 s) and gathers memory, CPU, process and Wi-Fi link data. The **slow
-tier** (`-Full`) runs every `full_every`-th sample (default every 15th ≈ 5 min)
+(default 60 s) and gathers memory, CPU, process and Wi-Fi link data. The **slow
+tier** (`-Full`) runs every `full_every`-th sample (every 5th ≈ 5 min)
 and adds services, startup entries, network, hardware, drivers, component
 versions and the Wi-Fi neighbour scan.
 

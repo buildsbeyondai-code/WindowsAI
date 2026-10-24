@@ -27,6 +27,12 @@ What this module guarantees, and what enforces it:
   available, executable validation is BLOCKED and candidates stop after static
   analysis — they are never executed un-isolated.
 * **Everything is audited** in the hash-chained log in ``evodb``.
+* **Deploy is one click and reversible (4.1).** ``apply`` fast-forwards main to
+  a retained candidate only from a clean tree, tags the previous HEAD as a
+  backup and leaves a ``pending_apply.json`` marker. The restarted service
+  confirms it once it is healthy; if it never becomes healthy the supervisor
+  rolls back to the backup (``git reset --keep``, which refuses rather than
+  discard uncommitted work).
 """
 from __future__ import annotations
 
@@ -39,15 +45,13 @@ import re
 import shutil
 import statistics
 import subprocess
-from .background_process import run_hidden
 import sys
-import tempfile
 import threading
 import time
 import uuid
 from pathlib import Path, PurePosixPath
-from typing import Optional
 
+from .background_process import run_hidden
 from .llm import LLMClient, LLMError
 
 log = logging.getLogger("sysperf.codevolve")
@@ -125,6 +129,84 @@ for name, fn in sorted(spec.BENCHMARKS.items()):
 print("BENCH_JSON=" + json.dumps(out))
 '''
 
+# Profiler executed inside the sandbox: where the benchmarked code spends its own
+# time, so the planner is pointed at real hotspots instead of guessing.
+PROFILE_RUNNER = r'''
+import cProfile, importlib, json, os, pstats, sys
+sys.path.insert(0, ".")
+spec = importlib.import_module("evo_bench")
+prof = cProfile.Profile()
+for name, fn in sorted(spec.BENCHMARKS.items()):
+    fn()
+    prof.enable(); fn(); prof.disable()
+stats = pstats.Stats(prof).stats
+root = os.path.abspath(".")
+total = sum(v[2] for v in stats.values()) or 1e-9
+rows = []
+for (fname, line, func), (cc, nc, tt, ct, callers) in stats.items():
+    path = os.path.abspath(fname)
+    if not path.startswith(root + os.sep):
+        continue
+    rows.append({"file": os.path.relpath(path, root).replace(os.sep, "/"), "line": line,
+                 "function": func, "own_s": tt, "share": tt / total})
+rows.sort(key=lambda r: -r["own_s"])
+print("PROFILE_JSON=" + json.dumps(rows[:25]))
+'''
+
+
+# ------------------------------------------------------------ deploy state --
+# Shared with supervisor.py, which must be able to roll back a patch that stops
+# the service from starting — so these are plain functions over plain files.
+MARKER = "pending_apply.json"
+APPLY_LOG = "apply_log.jsonl"
+
+
+def read_marker(state_dir: Path) -> dict | None:
+    try:
+        m = json.loads((Path(state_dir) / MARKER).read_text())
+    except (OSError, ValueError):
+        return None
+    return m if isinstance(m, dict) and m.get("backup_sha") else None
+
+
+def write_marker(state_dir: Path, marker: dict) -> None:
+    p = Path(state_dir) / MARKER
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(json.dumps(marker, indent=1))
+    tmp.replace(p)
+
+
+def clear_marker(state_dir: Path) -> None:
+    (Path(state_dir) / MARKER).unlink(missing_ok=True)
+
+
+def append_apply_log(state_dir: Path, entry: dict) -> None:
+    with (Path(state_dir) / APPLY_LOG).open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(entry) + "\n")
+
+
+def read_apply_log(state_dir: Path, limit: int = 50) -> list:
+    try:
+        lines = (Path(state_dir) / APPLY_LOG).read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    out = []
+    for ln in lines[-limit:]:
+        try:
+            out.append(json.loads(ln))
+        except ValueError:
+            continue
+    return out
+
+
+def git_rollback(repo: Path, backup_sha: str, applied_sha: str) -> None:
+    """Move main back to ``backup_sha`` if it still points at ``applied_sha``."""
+    head = _git(repo, "rev-parse", "HEAD").strip()
+    if head != applied_sha:
+        raise RuntimeError(f"HEAD is {head[:10]}, not the applied patch {applied_sha[:10]}; "
+                           "refusing to move it")
+    _git(repo, "reset", "--keep", backup_sha)
+
 
 # ------------------------------------------------------------------ sandbox --
 class Sandbox:
@@ -140,10 +222,10 @@ class Sandbox:
     """
     WSL_SANDBOX_VENV = os.environ.get("PERFDASH_WSL_SANDBOX_VENV", ".sysperf-sandbox-venv")
 
-    def __init__(self, backend: str = "auto", docker_image: Optional[str] = None,
+    def __init__(self, backend: str = "auto", docker_image: str | None = None,
                  timeout_s: float = 300.0, mem_mb: int = 2048):
         self.docker_image = docker_image
-        self.wsl_python: Optional[str] = None    # Linux path, set by _detect()
+        self.wsl_python: str | None = None    # Linux path, set by _detect()
         self.timeout_s = timeout_s
         self.mem_mb = mem_mb
         self.backend = self._detect() if backend == "auto" else backend
@@ -247,7 +329,7 @@ class Sandbox:
                     "--entrypoint", "", self.docker_image] + cmd
         raise RuntimeError(self.why_none)
 
-    def run(self, workdir: Path, cmd: list, timeout_s: Optional[float] = None) -> dict:
+    def run(self, workdir: Path, cmd: list, timeout_s: float | None = None) -> dict:
         if self.backend == "none":
             return {"rc": None, "stdout": "", "stderr": self.why_none, "blocked": True}
 
@@ -348,9 +430,12 @@ def summarize(samples: list) -> dict:
 class CodeEvolution:
     """Orchestrates cycles. Thread-safe; one cycle at a time."""
 
-    def __init__(self, db, llm: Optional[LLMClient], settings_file: Path, workroot: Path,
-                 sandbox: Optional[Sandbox] = None, clock=time.time):
+    def __init__(self, db, llm: LLMClient | None, settings_file: Path, workroot: Path,
+                 sandbox: Sandbox | None = None, clock=time.time,
+                 state_dir: Path | None = None):
         self.db = db
+        self.state_dir = Path(state_dir) if state_dir else Path(workroot).parent
+        self.on_retained = None          # called with the candidate dict when one is kept
         self.llm = llm
         self.settings_file = Path(settings_file)
         self.workroot = Path(workroot)
@@ -358,7 +443,7 @@ class CodeEvolution:
         self._lock = threading.Lock()
         self._state = "idle"
         self._wake = threading.Event()
-        self._pending_event: Optional[str] = None
+        self._pending_event: str | None = None
         self.settings = self._load_settings()
         self.sandbox = sandbox or Sandbox(self.settings["sandbox"],
                                           self.settings.get("docker_image"))
@@ -425,11 +510,11 @@ class CodeEvolution:
         return self.settings
 
     # ---------------------------------------------------------- scheduling
-    def _last_attempt(self) -> Optional[dict]:
+    def _last_attempt(self) -> dict | None:
         c = self.db.cycles(limit=1)
         return c[0] if c else None
 
-    def next_due(self) -> Optional[float]:
+    def next_due(self) -> float | None:
         if not self.settings["enabled"]:
             return None
         last = self._last_attempt()
@@ -440,7 +525,7 @@ class CodeEvolution:
             wait = min(wait, self.settings["cooldown_s"])
         return last["started"] + wait
 
-    def gate(self, trigger: str, level: str) -> Optional[str]:
+    def gate(self, trigger: str, level: str) -> str | None:
         """Why a cycle may not start now (None = go)."""
         if level != "self_evolve":
             return f"autonomy level is '{level}' (Software Self-Evolution is off)"
@@ -473,7 +558,7 @@ class CodeEvolution:
         self._pending_event = event
         self._wake.set()
 
-    def loop(self, level_fn, tick_s: float = 60.0, stop: Optional[threading.Event] = None):
+    def loop(self, level_fn, tick_s: float = 60.0, stop: threading.Event | None = None):
         """Independent scheduler thread. Never raises."""
         while not (stop and stop.is_set()):
             self._wake.wait(tick_s)
@@ -492,7 +577,7 @@ class CodeEvolution:
         self._state = state
         self.db.update_cycle(cid, state=state, **extra)
 
-    def run_cycle(self, trigger: str, level: str, detail: Optional[str] = None) -> dict:
+    def run_cycle(self, trigger: str, level: str, detail: str | None = None) -> dict:
         reason = self.gate(trigger, level) if trigger != "manual" else (
             self.gate("manual", level))
         if reason:
@@ -542,9 +627,10 @@ class CodeEvolution:
                 return self._finish(cid, "skipped", "baseline test suite is not green "
                                     f"({base_tests['summary']}); refusing to evolve on a red base")
             base_bench = self._bench(base_wt)
+            profile = self._profile(base_wt, files) if base_bench else []
 
         self._set(cid, "analyzing")
-        evidence = analyzer.hotspots(base_bench) + analyzer.static_findings(files)
+        evidence = analyzer.hotspots(base_bench) + profile + analyzer.static_findings(files)
         score = sum(e["weight"] for e in evidence)
         if score < self.settings["min_evidence"]:
             return self._finish(cid, "skipped", f"insufficient evidence (score {score} < "
@@ -643,6 +729,11 @@ class CodeEvolution:
             self.db.audit("evolution", "candidate.retained",
                           {"id": cand_id, "branch": branch, "sha": cand["commit_sha"],
                            "engine": engine})
+            if self.on_retained is not None:
+                try:
+                    self.on_retained(cand)
+                except Exception:
+                    log.exception("on_retained hook failed")
             return self._finish(cid, "awaiting_approval",
                                 f"retained on {branch}: {verdict['reason']}; awaiting review")
         finally:
@@ -773,7 +864,7 @@ class CodeEvolution:
             out.append(agg)
         return out[0], out[1]
 
-    def _bench(self, wt: Path, reps: Optional[int] = None, raw: bool = False) -> dict:
+    def _bench(self, wt: Path, reps: int | None = None, raw: bool = False) -> dict:
         if not (wt / "evo_bench.py").is_file():
             return {}
         script = wt.parent / f".{wt.name}.bench.py"
@@ -791,6 +882,31 @@ class CodeEvolution:
             return {"_error": (r.get("stderr") or "no benchmark output")[-300:]}
         data = json.loads(m.group(1))
         return data if raw else {k: summarize(v) for k, v in data.items()}
+
+    def _profile(self, wt: Path, files: list) -> list:
+        """cProfile the benchmarks in the sandbox; eligible-file hotspots only."""
+        runner = wt / "_sysperf_profile_runner.py"
+        runner.write_text(PROFILE_RUNNER)
+        try:
+            r = self.sandbox.run(wt, [sys.executable, "_sysperf_profile_runner.py"],
+                                 timeout_s=600)
+        finally:
+            runner.unlink(missing_ok=True)
+        m = re.search(r"^PROFILE_JSON=(.*)$", r.get("stdout", ""), re.M)
+        if not m:
+            return []
+        out = []
+        for row in json.loads(m.group(1)):
+            if row.get("file") not in files:
+                continue
+            out.append({"kind": "profile_hotspot", "file": row["file"],
+                        "line": row["line"], "function": row["function"],
+                        "own_ms": round(row["own_s"] * 1000, 2),
+                        "share_pct": round(row["share"] * 100, 1),
+                        "weight": 2 if len(out) < 3 else 1})
+            if len(out) == 8:
+                break
+        return out
 
     def compare(self, base: dict, cand: dict, engine: bool) -> dict:
         """Accept only a win that clears both the threshold and measurement noise."""
@@ -872,7 +988,7 @@ class CodeEvolution:
         self.db.audit("evolution", "candidate.rejected", {"id": cand["id"], "reason": reason[:500]})
         return self._finish(cid, "completed", "candidate rejected — " + reason[:600])
 
-    def _finish(self, cid: str, state: str, explanation: str, error: Optional[str] = None) -> dict:
+    def _finish(self, cid: str, state: str, explanation: str, error: str | None = None) -> dict:
         self._set(cid, state, finished=self.clock(), explanation=explanation[:2000],
                   error=error)
         return {"state": state, "explanation": explanation}
@@ -900,6 +1016,81 @@ class CodeEvolution:
         merge = (f"git -C '{repo}' merge --ff-only {c['branch']}" if state == "approved" else None)
         return {"id": cand_id, "review_state": state, "merge_command": merge}
 
+    # --------------------------------------------------------------- deploy
+    def pending_apply(self) -> dict | None:
+        return read_marker(self.state_dir)
+
+    def apply(self, cand_id: str, actor: str = "user") -> dict:
+        """Fast-forward main to a retained candidate (applying implies approval).
+
+        Refuses unless the tree is clean and main is still exactly the commit
+        the candidate was built and measured on — anything else means the
+        measurement no longer describes what would be deployed.
+        """
+        c = self.db.candidate(cand_id)
+        if not c or c["decision"] != "retained":
+            raise ValueError("only retained candidates can be applied")
+        if c["review_state"] not in ("pending", "approved"):
+            raise ValueError(f"candidate is {c['review_state']}")
+        if self.pending_apply():
+            raise ValueError("another applied patch is still being verified")
+        repo = Path(self.settings["repo"])
+        if _git(repo, "status", "--porcelain", "--untracked-files=no").strip():
+            raise ValueError("the repository has uncommitted changes; commit or discard "
+                             "them before applying a patch")
+        head = _git(repo, "rev-parse", "HEAD").strip()
+        parent = _git(repo, "rev-parse", c["commit_sha"] + "^").strip()
+        if head != parent:
+            raise ValueError("main has moved on since this candidate was measured; "
+                             "it has to be re-evaluated by a new cycle")
+        now = self.clock()
+        if c["review_state"] == "pending":
+            self.db.update_candidate(cand_id, review_state="approved", reviewed_by=actor,
+                                     reviewed_at=now)
+            self.db.audit(actor, "candidate.approved", {"id": cand_id, "via": "apply"})
+        _git(repo, "tag", "-f", f"sysperf-backup/{cand_id}", head)
+        _git(repo, "merge", "-q", "--ff-only", c["branch"])
+        marker = {"id": cand_id, "title": c.get("title"), "backup_sha": head,
+                  "applied_sha": c["commit_sha"], "repo": str(repo), "applied_at": now,
+                  "by": actor}
+        write_marker(self.state_dir, marker)
+        append_apply_log(self.state_dir, {"at": now, "event": "applied", **marker})
+        self.db.update_cycle(c["cycle_id"], state="completed")
+        self._state = "completed"
+        self.db.audit(actor, "candidate.applied", {"id": cand_id, "sha": c["commit_sha"],
+                                                   "backup": head})
+        return {"applied": True, **marker}
+
+    def rollback(self, cand_id: str | None = None, actor: str = "user",
+                 reason: str = "requested") -> dict:
+        """Return main to the commit it was on before ``cand_id`` was applied."""
+        m = self.pending_apply()
+        if m is None or (cand_id and m["id"] != cand_id):
+            m = next((e for e in reversed(read_apply_log(self.state_dir))
+                      if e.get("event") == "applied" and (not cand_id or e.get("id") == cand_id)),
+                     None)
+        if m is None:
+            raise ValueError("nothing has been applied that could be rolled back")
+        git_rollback(Path(m["repo"]), m["backup_sha"], m["applied_sha"])
+        clear_marker(self.state_dir)
+        now = self.clock()
+        append_apply_log(self.state_dir, {"at": now, "event": "rolled_back", "id": m["id"],
+                                          "by": actor, "reason": reason,
+                                          "backup_sha": m["backup_sha"]})
+        self.db.audit(actor, "candidate.rolled_back", {"id": m["id"], "reason": reason})
+        return {"rolled_back": True, "id": m["id"], "head": m["backup_sha"]}
+
+    def confirm_apply(self, healthy: bool) -> dict | None:
+        """Called once the restarted service has produced a good sample."""
+        m = self.pending_apply()
+        if m is None or not healthy:
+            return None
+        clear_marker(self.state_dir)
+        append_apply_log(self.state_dir, {"at": self.clock(), "event": "confirmed",
+                                          "id": m["id"]})
+        self.db.audit("system", "candidate.deployed", {"id": m["id"], "sha": m["applied_sha"]})
+        return m
+
     # --------------------------------------------------------------- status
     def status(self, level: str) -> dict:
         last = self._last_attempt()
@@ -923,4 +1114,6 @@ class CodeEvolution:
                     "last_24h": self.db.llm_summary(since),
                     "last_error": self.llm.last_error if self.llm else None},
             "audit": self.db.verify_audit(), "recovered_interrupted": self.recovered,
+            "deploy": {"pending": self.pending_apply(),
+                       "history": list(reversed(read_apply_log(self.state_dir, 10)))},
         }

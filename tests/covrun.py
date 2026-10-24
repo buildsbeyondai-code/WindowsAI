@@ -12,6 +12,7 @@ Exit code 0 iff every target module reaches 100% line coverage.
 """
 import os
 import sys
+import threading
 from pathlib import Path
 from collections import defaultdict
 from trace import _find_executable_linenos
@@ -32,6 +33,9 @@ TARGETS = [
     "platform_paths.py", "cli.py",
     "target_review.py", "refresh_components.py",          # 3.1 / 3.2
     "llm.py", "evodb.py", "optactions.py", "codevolve.py",  # 4.0
+    "trayquit.py", "machine_profile.py", "livestats.py", "background_process.py",
+    "pwsh_session.py", "historydb.py", "health.py", "notify.py",  # 4.1
+    "settings_hub.py", "supervisor.py",
 ]
 # Two layouts: the development repo keeps the modules at the root, an exported
 # distribution keeps them in src/sysperf/. Resolving here means one runner covers
@@ -97,6 +101,10 @@ def pragma_lines(path):
 
 
 def main():
+    # threading.settrace too: sys.settrace covers only the calling thread, so code
+    # that tests run on worker threads (reader pumps, background senders) would
+    # otherwise be reported as never executed.
+    threading.settrace(_global_tracer)
     sys.settrace(_global_tracer)
     try:
         # -p no:assertion / no:cacheprovider keep the run trace-friendly and
@@ -113,6 +121,7 @@ def main():
                           *ignores, HERE])
     finally:
         sys.settrace(None)
+        threading.settrace(None)
 
     print("\n" + "=" * 58)
     print("COVERAGE (stdlib settrace; # pragma: no cover honoured)")

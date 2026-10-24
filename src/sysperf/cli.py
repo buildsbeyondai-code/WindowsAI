@@ -14,6 +14,7 @@ promised.
     sysperf --where             print the resolved platform, paths and settings
     sysperf --once              take one sample, print it, exit
     sysperf --report            print a text summary of the current score
+    sysperf --supervise         run the dashboard under a restarting supervisor
     sysperf --version
 
 Options are applied by setting the corresponding environment variables *before*
@@ -61,6 +62,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="print a text summary of the current score, then exit")
     parser.add_argument("--version", action="store_true",
                         help="print the version and exit")
+    parser.add_argument("--supervise", action="store_true",
+                        help="run the dashboard as a child process and restart it on "
+                             "crash, hang or stall (what the sign-in task uses)")
     return parser
 
 
@@ -123,7 +127,24 @@ def _report(snapshot: dict) -> str:
     return "\n".join(lines)
 
 
-def main(argv=None, env=None, stdout=None, serve=None, opener=None) -> int:
+def _supervise(argv: list, env: dict, supervisor_cls=None) -> int:
+    """Run the server under :class:`supervisor.Supervisor` (no app import here:
+    the supervisor must stay small and must not start a second collector)."""
+    from pathlib import Path
+
+    from . import config as config_module
+    from . import supervisor
+    cls = supervisor_cls or supervisor.Supervisor
+    src = str(Path(__file__).resolve().parent.parent)
+    child_env = dict(env)
+    child_env["PYTHONPATH"] = os.pathsep.join(
+        [src] + [p for p in child_env.get("PYTHONPATH", "").split(os.pathsep) if p])
+    url = f"http://127.0.0.1:{config_module.PORT}/api/health"
+    return cls(supervisor.child_argv(argv), url, config_module.DATA_DIR, env=child_env).run()
+
+
+def main(argv=None, env=None, stdout=None, serve=None, opener=None,
+         supervisor_cls=None) -> int:
     """Entry point. Collaborators are injectable so every branch is testable."""
     env = os.environ if env is None else env
     out = sys.stdout if stdout is None else stdout
@@ -134,6 +155,8 @@ def main(argv=None, env=None, stdout=None, serve=None, opener=None) -> int:
         return 0
 
     _apply_env(args, env)
+    if args.supervise:
+        return _supervise(sys.argv[1:] if argv is None else list(argv), env, supervisor_cls)
     # Imported only now: config resolves paths and settings at import time, so it
     # has to see the environment the options just set.
     from . import app as app_module
@@ -154,10 +177,12 @@ def main(argv=None, env=None, stdout=None, serve=None, opener=None) -> int:
 
     url = f"http://{config_module.HOST}:{config_module.PORT}/"
     # "open_browser": true in sysperf.config.json (documented in the example
-    # config but never read until now) opens the Summary at every start, which
+    # config but never read until now) opens Home at every start, which
     # is what the sign-in task needs for the page to appear after a restart.
-    if args.open or config_module.SETTINGS.get("open_browser") is True:
-        (opener or _open_browser)(url + "#summary")
+    # A supervised restart sets SYSPERF_NO_BROWSER so only the first start opens a tab.
+    if not env.get("SYSPERF_NO_BROWSER") and (
+            args.open or config_module.SETTINGS.get("open_browser") is True):
+        (opener or _open_browser)(url + "#home")
     print(f"SysPerf on {url}  (data in {config_module.DATA_DIR})", file=out)
     (serve or app_module.main)()
     return 0

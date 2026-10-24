@@ -32,7 +32,6 @@ touching the real OS.
 from __future__ import annotations
 
 import os
-import subprocess
 from .background_process import run_hidden
 import time
 from dataclasses import dataclass

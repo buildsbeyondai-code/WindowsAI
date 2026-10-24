@@ -111,3 +111,29 @@ class _NullScorer:
         return None
     def summary(self, rows):
         return {}
+
+
+# ------------------------------------------------------- remaining branches --
+def test_missing_inputs_give_no_decision():
+    assert adjudicate(_trend(met_days=None)) is None
+    assert adjudicate({**_trend(met_days=0), "target": None}) is None
+    assert adjudicate({**_trend(met_days=0), "min": None}) is None       # no best value
+
+
+def test_review_drops_stale_updates_changed_and_keeps_unchanged(tmp_path):
+    store = AutoTargetStore(tmp_path / "auto_targets.json")
+    trends = _FakeTrends({"committed_app_mb": _trend(met_days=0, lo=9575.0),
+                          "net_remote": _trend(key="net_remote", met_days=5, target=40)})
+    store.review(trends, ["committed_app_mb", "net_remote"])
+    assert store.adjudicated_keys() == {"committed_app_mb", "net_remote"}
+    first = {d["key"]: d["decided_at"] for d in store.decisions()}
+    store.review(trends, ["committed_app_mb"])                 # unchanged: keeps decided_at
+    assert {d["key"]: d["decided_at"] for d in store.decisions()} == first
+    trends.by_key["committed_app_mb"] = _trend(met_days=0, lo=9200.0)
+    store.review(trends, ["committed_app_mb"])                 # honest target moved
+    assert store.overrides()["committed_app_mb"] == 9200
+    trends.by_key["net_remote"] = _trend(key="net_remote", settled=2)
+    store.review(trends, ["net_remote"])                       # no longer decidable
+    assert "net_remote" not in store.adjudicated_keys()
+    trends.by_key["cpu_pct"] = _trend(key="cpu_pct", settled=1)
+    assert store.review(trends, ["cpu_pct"]) == []             # nothing to drop either

@@ -123,3 +123,60 @@ def test_cycle_bookkeeping(tmp_path):
     assert d.recover() == 0
     with pytest.raises(sqlite3.IntegrityError):
         d.add_candidate({"id": "x", "cycle_id": "missing", "created": 1})
+
+
+def test_update_cycle_without_fields_and_filtered_action_runs(tmp_path):
+    d = evodb.EvoDB(tmp_path / "x.db")
+    d.start_cycle("c1", "manual")
+    d.update_cycle("c1")                                   # no-op, no SQL error
+    d.record_action(action_id="a", mode="m", authorized=1)
+    d.record_action(action_id="b", mode="m", authorized=1)
+    assert [r["action_id"] for r in d.action_runs(action_id="b")] == ["b"]
+
+
+def test_real_fix_engine_results_are_measured(tmp_path, db):
+    """FixEngine.apply reports {"status": "ok"}; such runs must be judged."""
+    now = [1000.0]
+    p = optactions.ActionPolicy(tmp_path / "a.json", db, clock=lambda: now[0])
+    p.record_executions(["trim_working_sets"],
+                        [{"id": "trim_working_sets", "status": "ok", "output": "done"}],
+                        {"latest": {"available_mb": 4000}})
+    p.record_executions(["flush_dns"], [{"id": "flush_dns", "status": "error",
+                                         "output": "denied"}], {"latest": {}})
+    db.conn.execute("UPDATE action_runs SET ts=?", (now[0],))
+    db.conn.commit()
+    now[0] += p.SETTLE_S + 1
+    judged = p.verify_pending({"latest": {"available_mb": 4800}})
+    assert [j["verdict"] for j in judged] == ["improved"]
+    assert {r["action_id"]: r["ok"] for r in db.action_runs()} == {
+        "trim_working_sets": 1, "flush_dns": 0}
+
+
+def test_verify_skips_unsettled_unmeasurable_and_judged_runs(tmp_path, db):
+    now = [1000.0]
+    p = optactions.ActionPolicy(tmp_path / "a.json", db, clock=lambda: now[0])
+    p.record_executions(["trim_working_sets"], [{"id": "trim_working_sets", "status": "ok"}],
+                        {"latest": {"available_mb": 4000}})
+    db.conn.execute("UPDATE action_runs SET ts=?", (now[0],))
+    db.conn.commit()
+    assert p.verify_pending({"latest": {"available_mb": 9000}}) == []      # not settled
+    now[0] += p.SETTLE_S + 1
+    assert p.verify_pending({"latest": {}}) == []                          # no after value
+    assert len(p.verify_pending({"latest": {"available_mb": 4010}})) == 1  # no_change
+    assert p.verify_pending({"latest": {"available_mb": 9000}}) == []      # already judged
+
+
+def test_no_database_means_no_history(tmp_path):
+    p = optactions.ActionPolicy(tmp_path / "a.json", None)
+    p.record_executions(["flush_dns"], [{"id": "flush_dns", "status": "ok"}], {})
+    assert p.verify_pending({}) == [] and p.effectiveness() == []
+
+
+def test_unregistered_action_and_describe(tmp_path, db):
+    p = optactions.ActionPolicy(tmp_path / "a.json", db)
+    p.set_level("safe_auto")
+    assert p.unattended_block("made_up") == "not in the 4.0 action registry"
+    d = p.describe()
+    assert d["level"] == "safe_auto" and set(d["levels"]) >= {"off", "observe"}
+    row = next(a for a in d["actions"] if a["id"] == "flush_dns")
+    assert {"auto_eligible", "enabled", "risk"} <= set(row)

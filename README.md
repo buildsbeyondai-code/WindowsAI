@@ -58,10 +58,15 @@ and computes targets from your actual RAM, disk size and measured process floor.
 A 64 GB workstation and an 8 GB laptop get different targets, because the same
 number cannot be right for both.
 
-**It never changes anything.** Every collector call is a query. The advisor
-produces text: what was measured, why it matters, the step to take, whether it
-needs administrator rights, and whether it is reversible. You decide and you act,
-so you always know what changed and why. Uninstalling leaves nothing to revert.
+**It changes nothing you have not allowed.** Every collector call is a query,
+and by default (`observe`) SysPerf only measures and recommends: what was
+measured, why it matters, the step to take, whether it needs administrator rights,
+and whether it is reversible. Anything it does on its own is opt-in, logged and
+reversible: low-risk fixes you enable one by one (`safe_auto`), quitting tray apps
+you have allowed (with a Reopen button), and — at `self_evolve` — AI patches to its
+own code that are tested, benchmarked, applied only by you, and rolled back
+automatically if the patched service is unhealthy. Security controls are never
+touched at any level. Uninstalling leaves nothing to revert.
 
 **It is honest about what it cannot measure.** A criterion that needs more data
 reports `measuring` and is excluded from the score rather than assumed good. A
@@ -85,8 +90,10 @@ there is a manual watchlist for it.
 | **Platform** | Active power plan, pending restart, real-time protection state, Windows Search health, uptime |
 | **WSL 2** | Working set against the configured cap, `.wslconfig` contents, automatic-reclaim state, and Linux-guest memory when running in WSL mode |
 
-Metrics are sampled on two tiers: cheap counters every 20 seconds, expensive
-inventories (services, drivers, hardware) every fifteenth sample. The very first
+Metrics are sampled on two tiers: cheap counters every 60 seconds by default
+(`sample_seconds`, 30–600), expensive inventories (services, drivers, hardware)
+every fifth sample. Since 4.1 one PowerShell session is kept warm and reused for
+every sample, which roughly halves the cost of each one. The very first
 sample is a fast one so the dashboard is usable within seconds; the full sweep
 follows and captures the baseline about a minute in.
 
@@ -143,7 +150,7 @@ built-in default. The installer writes the settings file for you:
 {
   "host": "127.0.0.1",
   "port": 5056,
-  "sample_seconds": 20,
+  "sample_seconds": 60,
   "fixes":       { "enabled": true },
   "autoimprove": { "mode": "auto", "threshold": 80, "interval_seconds": 300 }
 }
@@ -433,7 +440,10 @@ uses a configured LLM to propose a patch, applies it in an isolated git
 worktree, and runs tests and benchmarks in a sandbox with no network and a
 read-only filesystem. A patch is kept only if the measured win clears both the
 threshold and the noise. Kept patches are committed to a review branch; nothing
-is merged or deployed without your approval.
+is merged or deployed without your approval. Since 4.1, **Apply & restart**
+deploys an approved patch in one click — the previous version is tagged, the
+restarted service must report healthy, and the supervisor rolls the patch back
+automatically if it does not (**Roll back** is always one click away).
 
 The **autonomy levels** are:
 
@@ -447,6 +457,21 @@ SysPerf runs exactly as before.
 
 Setup, guarantees and limits are in [`docs/AI_EVOLUTION.md`](docs/AI_EVOLUTION.md).
 
+## What's new in 4.1
+
+| Area | What changed |
+|---|---|
+| **Lighter collector** | One PowerShell session is kept warm and reused (≈2.7 s per light sample instead of ≈5 s), with automatic fallback to a fresh process. |
+| **Home view** | Score, the three things to do next, what SysPerf did today, service health, notifications and a long-term chart. *Simple view* hides the expert tabs. |
+| **Notifications** | An in-app inbox (bell icon) plus Windows notifications for a score drop, an applied fix or tray quit, a consent request, an AI patch to review and a service problem — deduplicated, with quiet hours. |
+| **Diagnostics** | Settings › Diagnostics shows recent warnings and errors, every worker and when it last produced data, SysPerf's own CPU and memory, and supervisor and deployment history. The runtime log is rotated. |
+| **Safer tray auto-quit** | Per-app consent (*Ask* until you choose *Allow* or *Never*), a busy guard (calls, downloads and syncs are left alone) and *Reopen* to undo a quit. |
+| **One-click deploy** | *Apply & restart* for AI patches, verified after restart, rolled back automatically if unhealthy. |
+| **Self-healing** | The sign-in task runs a supervisor that restarts SysPerf on crash, hang, stalled sampling or sleep/resume. |
+| **Settings tab** | Every setting in one validated form, with export, import and reset. `sample_seconds` and `autoimprove.*` in the settings file are honoured (they were documented but ignored). |
+| **SQLite history** | Raw samples for 14 days and hourly summaries for over a year, instead of a few hours of JSONL. The old file is migrated once. |
+| **Better evolution evidence** | More benchmarks and cProfile hotspots measured in the sandbox, so the AI targets real hot code. |
+
 ## Configuration
 
 Everything tunable lives in one file. Find it with `sysperf --where`; on Windows
@@ -459,8 +484,10 @@ The keys worth knowing about:
 | Key | Default | Effect |
 |---|---|---|
 | `host` / `port` | `127.0.0.1` / `5056` | Bind address. A non-loopback host requires a token — see [Security](#security). |
-| `sample_seconds` | `20` | Fast-tier cadence. |
-| `full_every` | `15` | Slow-tier metrics every Nth sample. |
+| `sample_seconds` | `60` | Fast-tier cadence, clamped to 30–600 (honoured since 4.1; also on the Settings tab). |
+| `autoimprove.threshold` / `.interval_seconds` / `.mode` | `80` / `300` / `auto` | The agent loop (honoured since 4.1). |
+| `history.raw_days` | `14` | Raw samples kept in SQLite; hourly summaries are kept for over a year. |
+| `collector.persistent_shell` | `true` | Reuse one PowerShell process for every sample. |
 | `targets.*` | see example | Fractions of *your* capacity used to derive targets. Raise to loosen, lower to tighten. |
 | `browser_hosts` | common apps | Which applications' embedded-browser processes count as unclosable or in-use. **Worth editing** — an unlisted app is treated as discretionary and inflates what SysPerf expects you to reduce. |
 | `advisor.enabled` | `true` | Turn recommendations off entirely. |
@@ -542,6 +569,13 @@ src/sysperf/
 ├── autoimprove.py       the scan → RCA → fix → verify → learn loop
 ├── browser.py           browser-process ownership breakdown
 ├── hardware.py          device/disk/battery/driver panel + watchlist
+├── pwsh_session.py      4.1: one warm PowerShell process reused for every sample
+├── historydb.py         4.1: SQLite history (raw samples + hourly rollups)
+├── health.py            4.1: error buffer, worker liveness, own footprint, log rotation
+├── notify.py            4.1: notification inbox + Windows toasts
+├── settings_hub.py      4.1: one validated settings surface (export/import/reset)
+├── supervisor.py        4.1: restarts the server; rolls back an unhealthy patch
+├── codevolve.py         AI source evolution: sandbox, benchmarks, apply/rollback
 ├── scripts/
 │   └── collect_win.ps1  the only Windows-specific code — one JSON object on stdout
 └── static/
@@ -628,9 +662,10 @@ seconds. Raise `full_every` to run it less often.
 
 ## FAQ
 
-**Does it slow my machine down?** The fast sample is a few hundred milliseconds
-of PowerShell every 20 seconds. The full sweep costs a few seconds every fifteenth
-sample. The API caches its snapshot so repeated polling is nearly free.
+**Does it slow my machine down?** A fast sample takes about 2–3 seconds in a warm
+PowerShell session, once a minute by default; the full sweep costs a few seconds
+more every fifth sample. Settings › Diagnostics shows SysPerf's own CPU and memory
+use, so you can check. The API caches its snapshot so repeated polling is nearly free.
 
 **Does it send anything anywhere?** No. There is no outbound network code beyond
 the local HTTP server.

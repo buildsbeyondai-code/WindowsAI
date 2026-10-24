@@ -217,4 +217,35 @@ def test_open_browser_setting_opens_the_summary(monkeypatch):
     opened = []
     rc = cli.main([], env={}, stdout=io.StringIO(), serve=lambda: None,
                   opener=opened.append)
-    assert rc == 0 and opened and opened[0].endswith("/#summary")
+    assert rc == 0 and opened and opened[0].endswith("/#home")
+
+
+def test_supervise_runs_the_supervisor_without_importing_the_app(monkeypatch):
+    import sys as _sys
+    made = {}
+
+    class FakeSup:
+        def __init__(self, argv, url, state_dir, env=None):
+            made.update(argv=argv, url=url, state_dir=state_dir, env=env)
+
+        def run(self):
+            return 7
+
+    _sys.modules.pop("sysperf.app_never_imported", None)
+    rc = cli.main(["--supervise", "--port", "5099"], env={"PYTHONPATH": "/x"},
+                  stdout=io.StringIO(), supervisor_cls=FakeSup)
+    assert rc == 7
+    assert made["argv"][-3:] == ["sysperf", "--port", "5099"]
+    assert "--supervise" not in made["argv"]
+    assert made["url"].endswith(":5099/api/health") or made["url"].endswith("/api/health")
+    paths = made["env"]["PYTHONPATH"].split(cli.os.pathsep)
+    assert paths[0].endswith("src") and paths[1] == "/x"
+
+
+def test_supervised_restart_does_not_reopen_the_browser(monkeypatch):
+    from sysperf import config as config_module
+    monkeypatch.setitem(config_module.SETTINGS, "open_browser", True)
+    opened = []
+    cli.main([], env={"SYSPERF_NO_BROWSER": "1"}, stdout=io.StringIO(),
+             serve=lambda: None, opener=opened.append)
+    assert opened == []

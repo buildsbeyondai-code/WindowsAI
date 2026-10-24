@@ -151,7 +151,8 @@ def _open(browser, site, *, metrics=None, onedrive=None, hash_=""):
                       body=json.dumps(body))
 
     page.route("**/api/**", handler)
-    page.goto(site + hash_, wait_until="domcontentloaded")
+    # Home is the default view since 4.1; these tests were written for Summary.
+    page.goto(site + (hash_ or "#summary"), wait_until="domcontentloaded")
     return page
 
 

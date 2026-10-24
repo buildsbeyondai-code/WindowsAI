@@ -1,8 +1,14 @@
 """Shared pytest fixtures for the perf-dashboard suite."""
 import os
 import sys
+import tempfile
 
 import pytest
+
+# Never let a test run touch a real installation's data directory: importing
+# sysperf.app opens the history database, the audit log and other state there.
+# Set before any sysperf module is imported (config resolves it at import).
+os.environ.setdefault("SYSPERF_DATA_DIR", tempfile.mkdtemp(prefix="sysperf-test-"))
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:

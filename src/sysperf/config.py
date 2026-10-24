@@ -28,7 +28,7 @@ from .platform_paths import (detect_platform, resolve_data_dir,
 # Where the code lives. Read-only: nothing is ever written here.
 BASE = Path(__file__).resolve().parent
 # Shown in the dashboard header and /api/health; stamped by scripts/build_release.py.
-APP_VERSION = "4.0.0"
+APP_VERSION = "4.1.0"
 
 PLATFORM = detect_platform()
 # Where state lives. An existing installation keeps its directory so a version
@@ -79,6 +79,15 @@ def _setting(env_key: str, *json_path, default=None):
     return default if node is None else node
 
 
+def _bounded(env_key: str, json_path: tuple, default: float, lo: float, hi: float) -> float:
+    """A numeric setting clamped to [lo, hi]; junk falls back to the default."""
+    try:
+        value = float(_setting(env_key, *json_path, default=default))
+    except (TypeError, ValueError):
+        value = float(default)
+    return max(lo, min(hi, value))
+
+
 def _flag(env_key: str, *json_path, default: bool = True) -> bool:
     value = _setting(env_key, *json_path, default=default)
     if isinstance(value, bool):
@@ -96,6 +105,13 @@ CAN_COLLECT = PS_EXE is not None
 
 COLLECT_SCRIPT = BASE / "collect_win.ps1"
 HISTORY_FILE = DATA_DIR / "history.jsonl"
+# 4.1: SQLite history (raw samples for HISTORY_RAW_DAYS, hourly rollups for a
+# year+). The JSONL file above is migrated into it once and renamed .migrated.
+HISTORY_DB = DATA_DIR / "history.db"
+HISTORY_RAW_DAYS = int(_bounded("SYSPERF_HISTORY_RAW_DAYS", ("history", "raw_days"), 14, 1, 90))
+NOTIFY_STATE_FILE = DATA_DIR / "notifications.json"
+# Reuse one PowerShell process for every sample instead of spawning one each time.
+PERSISTENT_SHELL = _flag("SYSPERF_PERSISTENT_SHELL", "collector", "persistent_shell", default=True)
 # Per-user known-issue list. Lives with the data, not the code: the copy that
 # used to ship in the package described the developer's own laptop.
 WATCHLIST_FILE = DATA_DIR / "hw_watchlist.json"
@@ -204,9 +220,14 @@ SESSION_POLICY_MANUAL_GRACE_S = float(
 #       (default: 'safe' only — 'caution' fixes are user-visible, e.g. restarting
 #        Explorer, so they stay opt-in and are additionally deferred out of the
 #        measured peak-usage hours). 'manual'/session-killing fixes NEVER run.
-AUTO_INTERVAL_S = float(_os.environ.get("PERFDASH_AUTO_INTERVAL", 300))
-AUTO_THRESHOLD = float(_os.environ.get("PERFDASH_AUTO_THRESHOLD", 80))
-AUTO_MODE = _os.environ.get("PERFDASH_AUTO_MODE", "auto")
+# Since 4.1 the settings file is honoured here too (it always documented these
+# keys, but only the environment was read). Values are clamped to safe ranges.
+AUTO_INTERVAL_S = _bounded("PERFDASH_AUTO_INTERVAL", ("autoimprove", "interval_seconds"),
+                           300, 60, 3600)
+AUTO_THRESHOLD = _bounded("PERFDASH_AUTO_THRESHOLD", ("autoimprove", "threshold"), 80, 50, 100)
+AUTO_MODE = str(_setting("PERFDASH_AUTO_MODE", "autoimprove", "mode", default="auto"))
+if AUTO_MODE not in ("off", "observe", "auto"):
+    AUTO_MODE = "auto"
 _ALLOW_CAUTION = _os.environ.get("PERFDASH_AUTO_ALLOW_CAUTION", "0") in ("1", "true", "yes")
 AUTO_ALLOW_RISKS = ("safe", "caution") if _ALLOW_CAUTION else ("safe",)
 AUTO_MAX_ACTIONS = int(_os.environ.get("PERFDASH_AUTO_MAX_ACTIONS", 2))
@@ -286,7 +307,7 @@ PROCWATCH_MAX_AGE_S = float(_os.environ.get("PERFDASH_PROCWATCH_MAX_AGE", 360))
 # (plus the WSL VM's share), i.e. the dashboard was a top CPU consumer on the box
 # it was scoring. 60 s cuts that ~3x while the sample-count windows below are
 # rescaled to keep their original TIME spans, so scoring behaviour is unchanged.
-SAMPLE_SECONDS = float(_os.environ.get("PERFDASH_SAMPLE_SECONDS", 60))
+SAMPLE_SECONDS = _bounded("PERFDASH_SAMPLE_SECONDS", ("sample_seconds",), 60, 30, 600)
 SNAPSHOT_TTL = 3.0           # serve a cached snapshot for this long
 FULL_EVERY = 5               # slow metrics every Nth sample (5 * 60 s = 5 min)
 MAX_SAMPLES = 240            # 240 * 60 s = 4 hours of history in memory

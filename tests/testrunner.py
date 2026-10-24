@@ -189,6 +189,13 @@ def gate_lint() -> Gate:
             if bound not in used:
                 gate.fail(f"{name}:{line}: unused import '{bound}'")
 
+        # A redefinition only matters inside one scope: methods called
+        # complete() on two different classes are not duplicates.
+        for scope in ast.walk(tree):
+            body = getattr(scope, "body", [])
+            for child in (body if isinstance(body, list) else []):
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    child.parent_class = id(scope)
         seen: dict = {}
         for node in ast.walk(tree):
             if isinstance(node, ast.ExceptHandler) and node.type is None:

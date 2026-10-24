@@ -119,3 +119,62 @@ def test_the_data_directory_is_never_the_package_directory():
     """Once pip-installed the package directory is site-packages."""
     assert config.DATA_DIR.is_absolute()
     assert config.PLATFORM in ("windows", "wsl", "linux")
+
+
+# ------------------------------------------------------------------ 4.1 --
+def _reload_with(monkeypatch, **env):
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    importlib.reload(config)
+
+
+def test_settings_file_values_are_honoured_and_clamped(monkeypatch, tmp_path):
+    cfg = tmp_path / "sysperf.config.json"
+    cfg.write_text(json.dumps({"sample_seconds": 5, "autoimprove": {
+        "threshold": 999, "interval_seconds": 120, "mode": "observe"}}))
+    for k in ("PERFDASH_SAMPLE_SECONDS", "PERFDASH_AUTO_THRESHOLD",
+              "PERFDASH_AUTO_INTERVAL", "PERFDASH_AUTO_MODE"):
+        monkeypatch.delenv(k, raising=False)
+    try:
+        _reload_with(monkeypatch, SYSPERF_CONFIG=str(cfg))
+        assert config.SAMPLE_SECONDS == 30            # clamped up from 5
+        assert config.AUTO_THRESHOLD == 100           # clamped down from 999
+        assert config.AUTO_INTERVAL_S == 120 and config.AUTO_MODE == "observe"
+        _reload_with(monkeypatch, PERFDASH_SAMPLE_SECONDS="junk", PERFDASH_AUTO_MODE="bogus")
+        assert config.SAMPLE_SECONDS == 60 and config.AUTO_MODE == "auto"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
+
+
+def test_wifi_plan_from_environment_json(monkeypatch):
+    try:
+        _reload_with(monkeypatch, PERFDASH_WIFI_PLAN='{"Home": 300, "Bad": -1, "Txt": "x"}')
+        assert config.WIFI_NETWORK_PLAN_MBPS == {"Home": 300.0}
+        _reload_with(monkeypatch, PERFDASH_WIFI_PLAN="{not json")
+        assert config.WIFI_NETWORK_PLAN_MBPS == {}
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
+
+
+def test_config_imported_by_machine_profile_first_defers_startup(monkeypatch):
+    """When machine_profile is imported first it pulls config in mid-import; config
+    must then skip calling startup() (machine_profile runs it when it finishes)."""
+    import sys
+
+    import sysperf
+    saved = {n: sys.modules[n] for n in ("sysperf.config", "sysperf.machine_profile")}
+    saved_attrs = {n: getattr(sysperf, n) for n in ("config", "machine_profile")}
+    try:
+        for n in saved:
+            del sys.modules[n]
+        for n in saved_attrs:
+            delattr(sysperf, n)            # `from . import config` would reuse it
+        fresh = importlib.import_module("sysperf.machine_profile")
+        assert sys.modules["sysperf.config"]._profile_startup is None
+        assert callable(fresh.startup)
+    finally:
+        sys.modules.update(saved)
+        for n, mod in saved_attrs.items():
+            setattr(sysperf, n, mod)

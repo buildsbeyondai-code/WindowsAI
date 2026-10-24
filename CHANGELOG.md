@@ -4,6 +4,64 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.1.0 — 2026-10-25
+
+### Added
+- **Warm PowerShell session** (`pwsh_session.py`): the collector reuses one
+  PowerShell process for every sample (measured 2.7 s vs 5.0 s for a light
+  sample), recycles it after 500 runs, and falls back to a one-shot process for
+  that sample if the session fails.
+- **Home view**: score ring, the next three actions (including consent requests
+  and patches to review), what the agent did today, service health, the latest
+  notifications and a long-term chart; *Simple view* hides the expert tabs.
+- **Notifications** (`notify.py`): inbox (`/api/notifications`, bell icon) and
+  Windows toasts for score drops, applied fixes and tray quits, consent requests,
+  patches to review and service problems; deduplicated per key, quiet hours,
+  per-kind switches. Toast text is passed through the environment, never a
+  command line.
+- **Diagnostics** (`health.py`, `/api/diagnostics`): recent warnings/errors,
+  worker liveness and freshness probes, SysPerf's own CPU and memory, collector
+  and history statistics, supervisor and deployment history; runtime log rotation.
+- **Supervisor** (`supervisor.py`, `--supervise`): the sign-in task now runs the
+  server as a child and restarts it on crash (with back-off), unanswered health
+  checks, stalled sampling and sleep/resume; it rolls back a just-applied patch
+  that never becomes healthy.
+- **One-click deploy** for AI patches: *Apply & restart*, post-restart
+  confirmation, automatic and manual rollback (`/api/codevolve/apply`,
+  `/api/codevolve/rollback`, `/api/restart`).
+- **Settings tab** (`settings_hub.py`, `/api/settings`): one validated form for
+  general, autonomy, evolution, notification and tray settings, with export,
+  import and reset.
+- **SQLite history** (`historydb.py`): raw samples for 14 days, hourly rollups for
+  400 days, `/api/history` for long-range charts; `history.jsonl` is migrated once.
+- **Evolution evidence**: cProfile hotspots from the sandbox, more benchmarks
+  (`appctl.top_apps`), benchmarks named after the code they run.
+
+### Changed
+- **Tray auto-quit** asks before quitting an app (*Ask* / *Allow* / *Never*),
+  leaves busy apps alone and records the executable so a quit can be undone with
+  *Reopen*.
+- **Live Architecture** redrawn as three live layers (sense & serve, learn &
+  remember, act & evolve) including history, health, notifications, the action
+  policy, code evolution, the supervisor and the audit trail; the stale nginx
+  reference is gone.
+- Home is the default view; the CLI opens `#home`.
+
+### Fixed
+- `sample_seconds` and `autoimprove.threshold/interval_seconds/mode` in the
+  settings file are now honoured (clamped to safe ranges); they were documented
+  and written by the installer but ignored. The installer now writes 60 s.
+- Unattended action runs reported by the fix engine as `{"status": "ok"}` were
+  recorded as failures, so before/after effectiveness was never measured.
+- A data directory copied from another computer is recognised from the SQLite
+  history too, and the new state files are archived with the rest.
+- `refresh_components` no longer configures logging (and creates a log file in
+  the package directory) when merely imported.
+- The bwrap sandbox now binds the interpreter's prefix, so a venv under a hidden
+  directory can run; the baseline suite is green inside the jail.
+- Coverage now traces worker threads; every runtime module is at 100% line
+  coverage, and the browser suite reaches 100% of the interface.
+
 ## 4.0.0 — 2026-10-21
 
 ### Added

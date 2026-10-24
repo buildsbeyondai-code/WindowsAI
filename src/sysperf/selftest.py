@@ -24,7 +24,6 @@ Design constraints this file respects:
 from __future__ import annotations
 
 import json
-import subprocess
 from .background_process import run_hidden
 import sys
 import threading
