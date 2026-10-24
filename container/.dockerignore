@@ -1,0 +1,12 @@
+# The build context must contain the staged app/ and shims/ and nothing else.
+broker/
+systemd/
+tools/
+*.log
+*.md
+*.sh
+docker-compose.yml
+Dockerfile
+app/**/*.bak*
+app/**/__pycache__/
+app/**/*.pyc

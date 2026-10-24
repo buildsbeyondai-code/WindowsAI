@@ -1,0 +1,3777 @@
+{
+ "api/codevolve/history": {
+  "audit": [
+   {
+    "actor": "evolution",
+    "event": "cycle.end",
+    "payload": "{\"explanation\": \"retained on sysperf-evolve/c-20261021-114340-9e5c2e: unique_in_order 99.8% faster; awaiting review\", \"id\": \"20261021-114340-9e5c2e\", \"state\": \"awaiting_approval\"}",
+    "seq": 7,
+    "ts": 1792583023.7880533
+   },
+   {
+    "actor": "evolution",
+    "event": "candidate.retained",
+    "payload": "{\"branch\": \"sysperf-evolve/c-20261021-114340-9e5c2e\", \"engine\": false, \"id\": \"c-20261021-114340-9e5c2e\", \"sha\": \"bc7870e20f9f07e1cf15526cf45ecb70eec0ca9a\"}",
+    "seq": 6,
+    "ts": 1792583023.7739906
+   },
+   {
+    "actor": "evolution",
+    "event": "cycle.start",
+    "payload": "{\"id\": \"20261021-114340-9e5c2e\", \"trigger\": \"manual\"}",
+    "seq": 5,
+    "ts": 1792583020.189138
+   },
+   {
+    "actor": "user",
+    "event": "settings.evolution",
+    "payload": "{\"bench_reps\": 5, \"enabled\": true, \"repo\": \"C:/src/sysperf\"}",
+    "seq": 4,
+    "ts": 1792583020.180943
+   },
+   {
+    "actor": "user",
+    "event": "autonomy.action",
+    "payload": "{\"enabled\": true, \"id\": \"flush_dns\"}",
+    "seq": 3,
+    "ts": 1792583020.1719747
+   },
+   {
+    "actor": "user",
+    "event": "autonomy.level",
+    "payload": "{\"from\": \"observe\", \"to\": \"self_evolve\"}",
+    "seq": 2,
+    "ts": 1792583020.1641705
+   },
+   {
+    "actor": "system",
+    "event": "autonomy.init",
+    "payload": "{\"enabled\": [], \"level\": \"observe\"}",
+    "seq": 1,
+    "ts": 1792583020.071574
+   }
+  ],
+  "candidates": [
+   {
+    "bench": "{\"accept\": true, \"rows\": {\"top_consumers\": {\"baseline_median_s\": 0.0020036659998368123, \"candidate_median_s\": 0.0020608450004147016, \"gain\": -0.0285, \"noise\": 0.3828, \"n\": 5}, \"unique_in_order\": {\"baseline_median_s\": 0.3745182129996465, \"candidate_median_s\": 0.0008455619999949704, \"gain\": 0.9977, \"noise\": 0.0182, \"n\": 5}}, \"reason\": \"unique_in_order 99.8% faster\"}",
+    "branch": "sysperf-evolve/c-20261021-114340-9e5c2e",
+    "commit_sha": "bc7870e20f9f07e1cf15526cf45ecb70eec0ca9a",
+    "created": 1792583023.145026,
+    "cycle_id": "20261021-114340-9e5c2e",
+    "decision": "retained",
+    "files": "[\"dedupe.py\"]",
+    "id": "c-20261021-114340-9e5c2e",
+    "protected": 0,
+    "rationale": "O(n) instead of O(n^2)",
+    "reason": "unique_in_order 99.8% faster",
+    "review_state": "pending",
+    "reviewed_at": null,
+    "security_ok": 1,
+    "static_ok": 1,
+    "target": "",
+    "tests_ok": 1,
+    "title": "set membership"
+   }
+  ],
+  "cycles": [
+   {
+    "error": null,
+    "explanation": "retained on sysperf-evolve/c-20261021-114340-9e5c2e: unique_in_order 99.8% faster; awaiting review",
+    "finished": 1792583023.7771926,
+    "id": "20261021-114340-9e5c2e",
+    "model": "fixed-output",
+    "problem": "[{\"kind\": \"benchmark_hotspot\", \"benchmark\": \"unique_in_order\", \"median_s\": 0.3745182129996465, \"weight\": 2}, {\"kind\": \"benchmark_hotspot\", \"benchmark\": \"top_consumers\", \"median_s\": 0.0020036659998368123, \"weight\": 2}, {\"kind\": \"linear_membership_in_loop\", \"file\": \"dedupe.py\", \"line\": 13, \"weight\": 1, \"detail\": \"membership test against a name inside a loop \\u2014 O(n) per test if it is a list\"}]",
+    "provider": "fixed-output",
+    "started": 1792583020.1856308,
+    "state": "awaiting_approval",
+    "trigger": "manual"
+   }
+  ]
+ },
+ "api/codevolve/candidate": {
+  "bench": "{\"accept\": true, \"rows\": {\"top_consumers\": {\"baseline_median_s\": 0.0020036659998368123, \"candidate_median_s\": 0.0020608450004147016, \"gain\": -0.0285, \"noise\": 0.3828, \"n\": 5}, \"unique_in_order\": {\"baseline_median_s\": 0.3745182129996465, \"candidate_median_s\": 0.0008455619999949704, \"gain\": 0.9977, \"noise\": 0.0182, \"n\": 5}}, \"reason\": \"unique_in_order 99.8% faster\"}",
+  "branch": "sysperf-evolve/c-20261021-114340-9e5c2e",
+  "commit_sha": "bc7870e20f9f07e1cf15526cf45ecb70eec0ca9a",
+  "created": 1792583023.145026,
+  "cycle_id": "20261021-114340-9e5c2e",
+  "decision": "retained",
+  "details": "{\"tests\": {\"rc\": 0, \"passed\": 4, \"failed\": 0, \"errors\": 0, \"skipped\": 0, \"summary\": \"4 passed in 0.02s\", \"timeout\": false, \"collected\": 4}, \"baseline_tests\": {\"rc\": 0, \"passed\": 4, \"failed\": 0, \"errors\": 0, \"skipped\": 0, \"summary\": \"4 passed in 0.11s\", \"timeout\": false, \"collected\": 4}}",
+  "diff": "diff --git a/dedupe.py b/dedupe.py\nindex a1b749f..b920c91 100644\n--- a/dedupe.py\n+++ b/dedupe.py\n@@ -7,11 +7,11 @@ function is O(n^2). The self-evolution demo expects an LLM to find and fix it.\n \n def unique_in_order(names):\n     \"\"\"Return names with duplicates removed, first occurrence kept.\"\"\"\n-    seen = []\n+    seen = set()\n     out = []\n     for name in names:\n         if name not in seen:\n-            seen.append(name)\n+            seen.add(name)\n             out.append(name)\n     return out\n \n",
+  "files": "[\"dedupe.py\"]",
+  "id": "c-20261021-114340-9e5c2e",
+  "protected": 0,
+  "rationale": "O(n) instead of O(n^2)",
+  "reason": "unique_in_order 99.8% faster",
+  "review_state": "pending",
+  "reviewed_at": null,
+  "reviewed_by": null,
+  "security_ok": 1,
+  "static_ok": 1,
+  "target": "",
+  "tests_ok": 1,
+  "title": "set membership"
+ },
+ "api/codevolve": {
+  "audit": {
+   "checked": 7,
+   "head": "4ca37eef7b574c65b891457e9fe6fae2f4841e09894c95e37d1221f4e777836a",
+   "ok": true
+  },
+  "autonomy_level": "self_evolve",
+  "candidates": {
+   "approved": 0,
+   "pending_review": 1,
+   "rejected": 0,
+   "retained": 1,
+   "total": 1
+  },
+  "gate": "next scheduled attempt in 21596 s",
+  "isolation": {
+   "backend": "bwrap",
+   "why_none": null
+  },
+  "last_attempt": {
+   "error": null,
+   "explanation": "retained on sysperf-evolve/c-20261021-114340-9e5c2e: unique_in_order 99.8% faster; awaiting review",
+   "finished": 1792583023.7771926,
+   "id": "20261021-114340-9e5c2e",
+   "model": "fixed-output",
+   "problem": "[{\"kind\": \"benchmark_hotspot\", \"benchmark\": \"unique_in_order\", \"median_s\": 0.3745182129996465, \"weight\": 2}, {\"kind\": \"benchmark_hotspot\", \"benchmark\": \"top_consumers\", \"median_s\": 0.0020036659998368123, \"weight\": 2}, {\"kind\": \"linear_membership_in_loop\", \"file\": \"dedupe.py\", \"line\": 13, \"weight\": 1, \"detail\": \"membership test against a name inside a loop \\u2014 O(n) per test if it is a list\"}]",
+   "provider": "fixed-output",
+   "started": 1792583020.1856308,
+   "state": "awaiting_approval",
+   "trigger": "manual"
+  },
+  "llm": {
+   "available": true,
+   "last_24h": {
+    "calls": 1,
+    "calls_without_price": 1,
+    "cost_usd": null,
+    "ok": 1,
+    "recent_errors": [],
+    "tokens": 0
+   },
+   "last_error": null,
+   "model": "fixed-output",
+   "provider": "fixed-output",
+   "usage_today": {
+    "calls": 1,
+    "cost_usd": 0.0,
+    "daily_cost_budget_usd": 2.0,
+    "daily_token_budget": 200000,
+    "day": "2026-10-21",
+    "tokens": 0
+   }
+  },
+  "next_due": 1792604620.1856308,
+  "recovered_interrupted": 0,
+  "settings": {
+   "auto_retain": true,
+   "bench_reps": 5,
+   "cooldown_s": 1800,
+   "docker_image": null,
+   "eligible": [
+    "*.py"
+   ],
+   "enabled": true,
+   "engine_min_gain": 0.2,
+   "interval_s": 21600,
+   "max_per_day": 4,
+   "max_regression": 0.05,
+   "min_evidence": 1,
+   "min_gain": 0.1,
+   "noise_k": 3.0,
+   "repo": "C:/src/sysperf",
+   "sandbox": "auto",
+   "test_timeout_s": 600
+  },
+  "state": "awaiting_approval"
+ },
+ "api/autonomy": {
+  "actions": [
+   {
+    "auto_eligible": true,
+    "description": "Flush the DNS resolver cache",
+    "enabled": true,
+    "execution": "fixes.FixEngine.apply(['flush_dns'])",
+    "expected_benefit": "lower DNS latency",
+    "higher_is_better": false,
+    "id": "flush_dns",
+    "metric": "net_dns_ms",
+    "permissions": "user",
+    "preconditions": "DNS failures or stale entries",
+    "reversible": true,
+    "risk": "low",
+    "rollback": "none needed \u2014 the cache rebuilds itself",
+    "validation": "DNS latency on next samples"
+   },
+   {
+    "auto_eligible": true,
+    "description": "Trim working sets of idle background apps",
+    "enabled": false,
+    "execution": "fixes.FixEngine.apply(['trim_working_sets'])",
+    "expected_benefit": "more available RAM",
+    "higher_is_better": true,
+    "id": "trim_working_sets",
+    "metric": "available_mb",
+    "permissions": "user",
+    "preconditions": "committed memory above target",
+    "reversible": true,
+    "risk": "low",
+    "rollback": "none needed \u2014 pages fault back in on demand",
+    "validation": "available_mb over the next samples"
+   },
+   {
+    "auto_eligible": true,
+    "description": "Empty the memory standby list via the elevated broker",
+    "enabled": false,
+    "execution": "fixes.FixEngine.apply(['clear_standby'])",
+    "expected_benefit": "more free RAM",
+    "higher_is_better": true,
+    "id": "clear_standby",
+    "metric": "available_mb",
+    "permissions": "admin",
+    "preconditions": "low available memory, broker online",
+    "reversible": true,
+    "risk": "low",
+    "rollback": "none needed \u2014 the cache refills from disk",
+    "validation": "available_mb over the next samples"
+   },
+   {
+    "auto_eligible": false,
+    "description": "Lower the priority of a sustained background CPU hog",
+    "enabled": false,
+    "execution": "fixes.FixEngine.apply(['background_cpu_hog'])",
+    "expected_benefit": "lower CPU utilisation",
+    "higher_is_better": false,
+    "id": "background_cpu_hog",
+    "metric": "cpu_pct",
+    "permissions": "user",
+    "preconditions": "one process holding CPU for several intervals",
+    "reversible": true,
+    "risk": "medium",
+    "rollback": "restore Normal priority (or restart the process)",
+    "validation": "cpu_pct over the next samples"
+   },
+   {
+    "auto_eligible": false,
+    "description": "Delete files from the user TEMP folder",
+    "enabled": false,
+    "execution": "fixes.FixEngine.apply(['clear_temp'])",
+    "expected_benefit": "more free disk",
+    "higher_is_better": true,
+    "id": "clear_temp",
+    "metric": "c_free_gb",
+    "permissions": "user",
+    "preconditions": "low free disk space",
+    "reversible": false,
+    "risk": "medium",
+    "rollback": "irreversible \u2014 deleted files are not recoverable",
+    "validation": "c_free_gb"
+   },
+   {
+    "auto_eligible": false,
+    "description": "Empty the Recycle Bin",
+    "enabled": false,
+    "execution": "fixes.FixEngine.apply(['empty_recycle_bin'])",
+    "expected_benefit": "more free disk",
+    "higher_is_better": true,
+    "id": "empty_recycle_bin",
+    "metric": "c_free_gb",
+    "permissions": "user",
+    "preconditions": "low free disk space",
+    "reversible": false,
+    "risk": "high",
+    "rollback": "irreversible \u2014 permanently deletes the user's deleted files",
+    "validation": "c_free_gb"
+   },
+   {
+    "auto_eligible": false,
+    "description": "Restart the Windows shell (explorer.exe)",
+    "enabled": false,
+    "execution": "fixes.FixEngine.apply(['restart_explorer'])",
+    "expected_benefit": "fewer handles",
+    "higher_is_better": false,
+    "id": "restart_explorer",
+    "metric": "handles",
+    "permissions": "user",
+    "preconditions": "explorer leaking handles/memory",
+    "reversible": true,
+    "risk": "high",
+    "rollback": "explorer restarts itself; open windows close",
+    "validation": "handles"
+   },
+   {
+    "auto_eligible": false,
+    "description": "Shut down and restart WSL",
+    "enabled": false,
+    "execution": "fixes.FixEngine.apply(['restart_wsl'])",
+    "expected_benefit": "less VM memory",
+    "higher_is_better": false,
+    "id": "restart_wsl",
+    "metric": "wsl_vm_mb",
+    "permissions": "user",
+    "preconditions": "WSL VM memory bloat",
+    "reversible": true,
+    "risk": "high",
+    "rollback": "WSL restarts on next use; running Linux processes are lost",
+    "validation": "wsl_vm_mb"
+   },
+   {
+    "auto_eligible": false,
+    "description": "Disable heavy startup entries",
+    "enabled": false,
+    "execution": "fixes.FixEngine.apply(['trim_startup'])",
+    "expected_benefit": "faster boot",
+    "higher_is_better": false,
+    "id": "trim_startup",
+    "metric": "boot_time_s",
+    "permissions": "user",
+    "preconditions": "slow boot",
+    "reversible": true,
+    "risk": "high",
+    "rollback": "re-enable the entries in Task Manager > Startup",
+    "validation": "boot_time_s after reboot"
+   },
+   {
+    "auto_eligible": false,
+    "description": "Tune WSL boot configuration",
+    "enabled": false,
+    "execution": "fixes.FixEngine.apply(['optimize_wsl_boot'])",
+    "expected_benefit": "faster WSL start",
+    "higher_is_better": false,
+    "id": "optimize_wsl_boot",
+    "metric": "wsl_start_s",
+    "permissions": "user",
+    "preconditions": "slow WSL start",
+    "reversible": true,
+    "risk": "high",
+    "rollback": "restore the previous .wslconfig",
+    "validation": "wsl_start_s"
+   },
+   {
+    "auto_eligible": false,
+    "description": "Enable the SysMain (Superfetch) service",
+    "enabled": false,
+    "execution": "fixes.FixEngine.apply(['enable_sysmain'])",
+    "expected_benefit": "faster app launches",
+    "higher_is_better": false,
+    "id": "enable_sysmain",
+    "metric": "word_launch_s",
+    "permissions": "admin",
+    "preconditions": "slow app launches",
+    "reversible": true,
+    "risk": "medium",
+    "rollback": "Set-Service SysMain -StartupType Disabled",
+    "validation": "launch times"
+   },
+   {
+    "auto_eligible": false,
+    "description": "Disable slow-loading Office add-ins",
+    "enabled": false,
+    "execution": "fixes.FixEngine.apply(['trim_office_addins'])",
+    "expected_benefit": "faster Word start",
+    "higher_is_better": false,
+    "id": "trim_office_addins",
+    "metric": "word_launch_s",
+    "permissions": "user",
+    "preconditions": "slow Office start",
+    "reversible": true,
+    "risk": "high",
+    "rollback": "re-enable the add-ins in File > Options > Add-ins",
+    "validation": "word_launch_s"
+   }
+  ],
+  "effectiveness": [],
+  "enabled": [
+   "flush_dns"
+  ],
+  "level": "self_evolve",
+  "levels": [
+   "off",
+   "observe",
+   "safe_auto",
+   "self_evolve"
+  ],
+  "migrated_from": null,
+  "runs": []
+ },
+ "api/actions": {
+  "action_taken": 1,
+  "blocked_gap_share_pct": 11.5,
+  "by_kind": {
+   "blocked": 0,
+   "decision": 0,
+   "fix": 1,
+   "review": 0
+  },
+  "by_reason": {
+   "needs_elevation": 1
+  },
+  "closed": 1,
+  "count": 2,
+  "items": [
+   {
+    "cause": "long_term_regression",
+    "caveat": "",
+    "closed_at": "",
+    "closed_by": "",
+    "closed_reason": "",
+    "command": "",
+    "effort": "5 min, one-off download",
+    "evidence": "Active app commit contributes 12.4% of the gap (long_term_regression)",
+    "expected": "Standby (cached) pages are released back to the free list. The effect is immediate but temporary \u2014 Windows refills the cache as you work, which is normal.",
+    "gap_share_pct": 11.5,
+    "has_recipe": true,
+    "id": "clear_standby",
+    "key": "fix:clear_standby",
+    "kind": "fix",
+    "metric": "committed_app_mb",
+    "metric_label": "Active app commit",
+    "note": "",
+    "persistent": false,
+    "priority": 1,
+    "recur_count": 0,
+    "recurred": false,
+    "resolution": "",
+    "resolved": false,
+    "reversible": true,
+    "status": "open",
+    "steps": [
+     "Download Sysinternals RAMMap from https://learn.microsoft.com/sysinternals/downloads/rammap and unblock the zip (Properties \u2192 Unblock) before extracting.",
+     "Open Windows PowerShell as Administrator (Win+X \u2192 'Terminal (Admin)' / 'PowerShell (Admin)').",
+     "Run: RAMMap.exe -Et",
+     "The window does not need to stay open \u2014 '-Et' empties the standby list and exits."
+    ],
+    "title": "Clear standby (cached) memory list",
+    "verify": "Watch 'Available physical' and 'Memory Compression' on the Details tab. The next sample (within 20 s) should show available memory up and the compressed set down.",
+    "where": "Windows PowerShell, opened as Administrator",
+    "why_code": "needs_elevation",
+    "why_detail": "The dashboard service runs unprivileged on purpose \u2014 a telemetry process that can elevate is a far larger risk than the problem it fixes. There is no way for it to acquire admin rights without a UAC prompt only you can answer.",
+    "why_headline": "Needs administrator rights"
+   },
+   {
+    "cause": "chronic_unreachable",
+    "caveat": "",
+    "closed_at": "2026-09-29T07:00:00+00:00",
+    "closed_by": "human",
+    "closed_reason": "action taken",
+    "command": "",
+    "effort": "5 min, one-off download",
+    "evidence": "Active app commit contributes 12.4% of the gap (long_term_regression)",
+    "expected": "Standby (cached) pages are released back to the free list. The effect is immediate but temporary \u2014 Windows refills the cache as you work, which is normal.",
+    "gap_share_pct": null,
+    "has_recipe": true,
+    "id": "decision_handles",
+    "key": "decision:handles",
+    "kind": "decision",
+    "metric": "handles",
+    "metric_label": "Active app handles",
+    "note": "revised the target",
+    "persistent": false,
+    "priority": null,
+    "recur_count": 0,
+    "recurred": false,
+    "resolution": "",
+    "resolved": false,
+    "reversible": true,
+    "status": "closed",
+    "steps": [
+     "Download Sysinternals RAMMap from https://learn.microsoft.com/sysinternals/downloads/rammap and unblock the zip (Properties \u2192 Unblock) before extracting.",
+     "Open Windows PowerShell as Administrator (Win+X \u2192 'Terminal (Admin)' / 'PowerShell (Admin)').",
+     "Run: RAMMap.exe -Et",
+     "The window does not need to stay open \u2014 '-Et' empties the standby list and exits."
+    ],
+    "title": "Decide what to do about handles",
+    "verify": "Watch 'Available physical' and 'Memory Compression' on the Details tab. The next sample (within 20 s) should show available memory up and the compressed set down.",
+    "where": "Windows PowerShell, opened as Administrator",
+    "why_code": "chronic_unreachable",
+    "why_detail": "Every remediation available has been measured and none closes the gap: the target sits at or under this hardware's floor for your workload. The only real options are to revise the target, change the workload, or change the hardware \u2014 all decisions, not actions.",
+    "why_headline": "The target is below what this machine can deliver"
+   }
+  ],
+  "open": 1,
+  "reasons": {
+   "chronic_unreachable": {
+    "detail": "Every remediation available has been measured and none closes the gap: the target sits at or under this hardware's floor for your workload. The only real options are to revise the target, change the workload, or change the hardware \u2014 all decisions, not actions.",
+    "headline": "The target is below what this machine can deliver"
+   },
+   "grant_capability": {
+    "detail": "The evolution layer proposed this from measured evidence, but a system that can widen its own permissions has no meaningful limit. Promotion is the deliberate boundary: it stays inert until you accept it.",
+    "headline": "Only you may grant the loop new capability"
+   },
+   "gui_only": {
+    "detail": "The setting lives behind a GUI or a per-application profile. Editing the underlying store directly is undocumented and version-specific, so scripting it risks corrupting the application's configuration.",
+    "headline": "No safe scriptable equivalent"
+   },
+   "needs_elevation": {
+    "detail": "The dashboard service runs unprivileged on purpose \u2014 a telemetry process that can elevate is a far larger risk than the problem it fixes. There is no way for it to acquire admin rights without a UAC prompt only you can answer.",
+    "headline": "Needs administrator rights"
+   },
+   "needs_judgement": {
+    "detail": "Which items are essential is specific to how you work. The loop has no way to tell a critical tool from an unnecessary one, and guessing wrong breaks something you depend on. It is left manual deliberately.",
+    "headline": "Requires knowing what matters to you"
+   },
+   "no_evidence": {
+    "detail": "The recipe needs a parameter the loop has no measurement for, and inventing a plausible value is worse than leaving it blank. Supply the value, or wait for the evidence to accumulate.",
+    "headline": "Missing a value nothing has measured"
+   },
+   "persistent_config": {
+    "detail": "This is not a transient tweak: it rewrites persistent machine configuration. You should know it happened, because it keeps applying long after the shortfall that prompted it has gone.",
+    "headline": "Changes configuration that survives reboot"
+   },
+   "session_killing": {
+    "detail": "The action restarts the WSL VM, which hosts the dashboard, its collector and the sampling history. Run automatically it would kill the process mid-cycle and lose the measurement it was trying to make.",
+    "headline": "Would terminate this dashboard"
+   }
+  },
+  "recurred": 0,
+  "unique_keys": true
+ },
+ "api/appctl": {
+  "apps": [
+   {
+    "can_start": true,
+    "consistency_pct": 33.3,
+    "controllable": true,
+    "current_cpu_pct": 30.42,
+    "median_cpu_pct": 2.21,
+    "name": "explorer",
+    "peak_cpu_pct": 30.42,
+    "running": true,
+    "ws_mb": 456
+   },
+   {
+    "can_start": true,
+    "consistency_pct": 20.0,
+    "controllable": true,
+    "current_cpu_pct": 0.39,
+    "median_cpu_pct": 0.93,
+    "name": "msedgewebview2",
+    "peak_cpu_pct": 15.02,
+    "running": true,
+    "ws_mb": 1403
+   },
+   {
+    "can_start": true,
+    "consistency_pct": 13.3,
+    "controllable": true,
+    "current_cpu_pct": 2.73,
+    "median_cpu_pct": 0.82,
+    "name": "msedge",
+    "peak_cpu_pct": 9.94,
+    "running": true,
+    "ws_mb": 431
+   }
+  ],
+  "available": true,
+  "cpu_top": [
+   {
+    "cpu_pct": 43.1,
+    "n": "explorer",
+    "of1core": 344.7
+   },
+   {
+    "cpu_pct": 21.0,
+    "n": "vmmemwsl",
+    "of1core": 167.8
+   },
+   {
+    "cpu_pct": 8.0,
+    "n": "pwsh",
+    "of1core": 64.1
+   },
+   {
+    "cpu_pct": 7.6,
+    "n": "wslhost",
+    "of1core": 61.0
+   }
+  ],
+  "execution_enabled": true,
+  "top": 5,
+  "total_cpu": {
+   "current_pct": 100.0,
+   "good": false,
+   "status": "regress",
+   "target_pct": 25,
+   "typical_pct": 100.0
+  },
+  "window_min": 48.5
+ },
+ "api/autoimprove": {
+  "allowed_risks": [
+   "safe",
+   "caution"
+  ],
+  "cooldown_s": 1800.0,
+  "cooldowns": {
+   "background_cpu_hog": 1509.1,
+   "restart_explorer": 1178.1,
+   "trim_working_sets": 1509.1
+  },
+  "cpu_consumers": {
+   "available": true,
+   "consumers": [
+    {
+     "active_intervals": 10,
+     "avg_cpu_pct": 4.4,
+     "consistency_pct": 33.3,
+     "consistent": false,
+     "current_cpu_pct": 30.42,
+     "intervals": 30,
+     "median_cpu_pct": 2.21,
+     "name": "explorer",
+     "peak_cpu_pct": 30.42,
+     "ws_mb": 456
+    },
+    {
+     "active_intervals": 6,
+     "avg_cpu_pct": 2.63,
+     "consistency_pct": 20.0,
+     "consistent": false,
+     "current_cpu_pct": 0.39,
+     "intervals": 30,
+     "median_cpu_pct": 0.93,
+     "name": "msedgewebview2",
+     "peak_cpu_pct": 15.02,
+     "ws_mb": 1403
+    },
+    {
+     "active_intervals": 4,
+     "avg_cpu_pct": 1.79,
+     "consistency_pct": 13.3,
+     "consistent": false,
+     "current_cpu_pct": 2.73,
+     "intervals": 30,
+     "median_cpu_pct": 0.82,
+     "name": "msedge",
+     "peak_cpu_pct": 9.94,
+     "ws_mb": 431
+    }
+   ],
+   "intervals": 30,
+   "min_pct": 3.0,
+   "ncpu": 8,
+   "window_min": 48.5
+  },
+  "cycles": 1318,
+  "execution_enabled": true,
+  "interval_s": 300.0,
+  "last": {
+   "at": "2026-09-29T12:19:35.713355+00:00",
+   "breach": true,
+   "executed": [],
+   "findings": [
+    {
+     "cause": "transient_spike",
+     "confidence": 0.7,
+     "contribution_pct": 18.5,
+     "explanation": "current sustained value 72 is >15% worse than this metric's own recent daily typical (39.1) while the long-term trend is stable \u2014 a burst, not a regression",
+     "key": "net_remote",
+     "label": "Network - remote TCP conns",
+     "remediations": [
+      "flush_dns"
+     ],
+     "scored_typical": 72,
+     "target": 40
+    },
+    {
+     "cause": "transient_spike",
+     "confidence": 0.7,
+     "contribution_pct": 18.5,
+     "explanation": "current sustained value 98.9 is >15% worse than this metric's own recent daily typical (39.6) while the long-term trend is improving \u2014 a burst, not a regression",
+     "key": "cpu_pct",
+     "label": "CPU utilisation",
+     "remediations": [
+      "background_cpu_hog",
+      "evolved_cap_cpu_offenders_cpu_pct"
+     ],
+     "scored_typical": 98.9,
+     "target": 25
+    },
+    {
+     "cause": "long_term_regression",
+     "confidence": 0.85,
+     "contribution_pct": 18.5,
+     "explanation": "daily typical is trending the wrong way; at +17.37%/day it has been drifting away for 11 days",
+     "key": "cpu_queue",
+     "label": "CPU run-queue depth",
+     "remediations": [
+      "background_cpu_hog"
+     ],
+     "scored_typical": 16.0,
+     "target": 1
+    }
+   ],
+   "mode": "auto",
+   "note": "no eligible action this cycle",
+   "planned": [
+    {
+     "eligible": false,
+     "for": "net_remote",
+     "id": "flush_dns",
+     "risk": "safe",
+     "skip_reason": "learned ineffective for net_remote: no net benefit across 3 verified attempts (avg -0.00%)",
+     "title": "Flush DNS resolver cache",
+     "why": "Network - remote TCP conns contributes 18.5% of the gap (transient_spike)"
+    },
+    {
+     "eligible": false,
+     "for": "cpu_pct",
+     "id": "background_cpu_hog",
+     "risk": "caution",
+     "skip_reason": "cooling down (26 min left)",
+     "title": "Move the top sustained CPU consumer to background priority",
+     "why": "CPU utilisation contributes 18.5% of the gap (transient_spike)"
+    },
+    {
+     "eligible": false,
+     "for": "cpu_pct",
+     "id": "evolved_cap_cpu_offenders_cpu_pct",
+     "risk": "manual",
+     "skip_reason": "manual action required",
+     "title": "Lower the priority of a sustained CPU consumer",
+     "why": "CPU utilisation contributes 18.5% of the gap (transient_spike)"
+    }
+   ],
+   "preventive": [
+    {
+     "days_to_target": 10.5,
+     "direction": "degrading",
+     "key": "startup_apps",
+     "label": "Startup programs (enabled)",
+     "pct_per_day": 0.58,
+     "reason": "met today but drifting +0.58%/day over 11 days",
+     "remediations": [
+      "trim_startup"
+     ]
+    },
+    {
+     "days_to_target": null,
+     "direction": "degrading",
+     "key": "hw_faults",
+     "label": "Hardware - device faults",
+     "pct_per_day": 19.02,
+     "reason": "met today but drifting +19.02%/day over 11 days",
+     "remediations": []
+    }
+   ],
+   "proposals_open": 2,
+   "regime": "heavy",
+   "score": 54.9,
+   "score_trend": "degrading",
+   "skipped": [
+    {
+     "eligible": false,
+     "for": "net_remote",
+     "id": "flush_dns",
+     "risk": "safe",
+     "skip_reason": "learned ineffective for net_remote: no net benefit across 3 verified attempts (avg -0.00%)",
+     "title": "Flush DNS resolver cache",
+     "why": "Network - remote TCP conns contributes 18.5% of the gap (transient_spike)"
+    },
+    {
+     "eligible": false,
+     "for": "cpu_pct",
+     "id": "background_cpu_hog",
+     "risk": "caution",
+     "skip_reason": "cooling down (26 min left)",
+     "title": "Move the top sustained CPU consumer to background priority",
+     "why": "CPU utilisation contributes 18.5% of the gap (transient_spike)"
+    },
+    {
+     "eligible": false,
+     "for": "cpu_pct",
+     "id": "evolved_cap_cpu_offenders_cpu_pct",
+     "risk": "manual",
+     "skip_reason": "manual action required",
+     "title": "Lower the priority of a sustained CPU consumer",
+     "why": "CPU utilisation contributes 18.5% of the gap (transient_spike)"
+    }
+   ],
+   "summary": "Score 54.9% is below the 80% threshold; long-term score trend is degrading (-1.29 pts/day over 11 days). Under heavy load, the gap is dominated by: Network - remote TCP conns (18.5% of the gap, transient_spike), CPU utilisation (18.5% of the gap, transient_spike), CPU run-queue depth (18.5% of the gap, long_term_regression).",
+   "t": 1790684375.7133806,
+   "threshold": 80.0,
+   "verification": null
+  },
+  "last_scan": "2026-09-29T12:19:35.713355+00:00",
+  "ledger": {
+   "background_cpu_hog": {
+    "committed_app_mb": {
+     "ema": 0.020895285674636215,
+     "last": 0.0209,
+     "losses": 0,
+     "n": 1,
+     "wins": 1
+    },
+    "compression_mb": {
+     "ema": 0.024431818181818183,
+     "last": 0.0244,
+     "losses": 0,
+     "n": 1,
+     "wins": 1
+    },
+    "cpu_pct": {
+     "ema": 0.1695610457516339,
+     "last": -0.5824,
+     "losses": 1,
+     "n": 2,
+     "wins": 1
+    }
+   },
+   "clear_temp": {
+    "c_free_gb": {
+     "ema": -0.0002683461117195904,
+     "last": 0.0,
+     "losses": 0,
+     "n": 3,
+     "wins": 0
+    }
+   },
+   "flush_dns": {
+    "net_remote": {
+     "ema": -0.0,
+     "last": -0.0,
+     "losses": 0,
+     "n": 3,
+     "wins": 0
+    }
+   },
+   "restart_explorer": {
+    "handles": {
+     "ema": 0.013914243680200927,
+     "last": -0.0162,
+     "losses": 1,
+     "n": 11,
+     "wins": 6
+    }
+   },
+   "trim_working_sets": {
+    "committed_app_mb": {
+     "ema": 0.020895285674636215,
+     "last": 0.0209,
+     "losses": 0,
+     "n": 1,
+     "wins": 1
+    },
+    "compression_mb": {
+     "ema": 0.024431818181818183,
+     "last": 0.0244,
+     "losses": 0,
+     "n": 1,
+     "wins": 1
+    },
+    "cpu_pct": {
+     "ema": 0.1695610457516339,
+     "last": -0.5824,
+     "losses": 1,
+     "n": 2,
+     "wins": 1
+    }
+   }
+  },
+  "max_actions_per_cycle": 2,
+  "mode": "auto",
+  "modes": [
+   "off",
+   "observe",
+   "auto"
+  ],
+  "next_scan_in_s": 233.7,
+  "onedrive": {
+   "default_stopped": true,
+   "execution_enabled": true,
+   "known": true,
+   "running": false
+  },
+  "pending_verification": null,
+  "proposals": [
+   {
+    "detail": "C: free is regressing long-term (-2.09%/day) and the available safe remediation is learned-ineffective (clear_temp). Manual investigation needed.",
+    "evidence": {
+     "chronic": false,
+     "days_to_target": null,
+     "direction": "degrading",
+     "first": 188.9,
+     "higher_is_better": true,
+     "key": "c_free_gb",
+     "label": "C: free",
+     "last": 172.8,
+     "max": 188.9,
+     "mean": 182.2,
+     "met_days": 3,
+     "min": 172.8,
+     "pct_change": -8.5,
+     "pct_per_day": -2.09,
+     "samples": 606,
+     "settled_days": 4,
+     "slope_per_day": -3.81,
+     "target": 180,
+     "volatility_pct": 8.8,
+     "window_days": 14
+    },
+    "first": "2026-09-22T05:08:16.536220+00:00",
+    "key": "c_free_gb",
+    "kind": "escalate_manual",
+    "last": "2026-09-22T14:53:57.341088+00:00",
+    "seen": 13
+   },
+   {
+    "detail": "Network - remote TCP conns is regressing long-term (+0.59%/day) and the available safe remediation is learned-ineffective (flush_dns). Manual investigation needed.",
+    "evidence": {
+     "chronic": false,
+     "days_to_target": 17.3,
+     "direction": "degrading",
+     "first": 19.4,
+     "higher_is_better": false,
+     "key": "net_remote",
+     "label": "Network - remote TCP conns",
+     "last": 36.9,
+     "max": 41.1,
+     "mean": 30.8,
+     "met_days": 11,
+     "min": 19.4,
+     "pct_change": 90.4,
+     "pct_per_day": 0.59,
+     "samples": 3861,
+     "settled_days": 14,
+     "slope_per_day": 0.18,
+     "target": 40,
+     "volatility_pct": 70.4,
+     "window_days": 14
+    },
+    "first": "2026-09-28T05:00:11.269960+00:00",
+    "key": "net_remote",
+    "kind": "escalate_manual",
+    "last": "2026-09-28T13:39:05.155998+00:00",
+    "seen": 8
+   }
+  ],
+  "recent": [
+   {
+    "at": "2026-09-29T12:19:35.713355+00:00",
+    "breach": true,
+    "executed": [],
+    "findings": [
+     {
+      "cause": "transient_spike",
+      "confidence": 0.7,
+      "contribution_pct": 18.5,
+      "explanation": "current sustained value 72 is >15% worse than this metric's own recent daily typical (39.1) while the long-term trend is stable \u2014 a burst, not a regression",
+      "key": "net_remote",
+      "label": "Network - remote TCP conns",
+      "remediations": [
+       "flush_dns"
+      ],
+      "scored_typical": 72,
+      "target": 40
+     },
+     {
+      "cause": "transient_spike",
+      "confidence": 0.7,
+      "contribution_pct": 18.5,
+      "explanation": "current sustained value 98.9 is >15% worse than this metric's own recent daily typical (39.6) while the long-term trend is improving \u2014 a burst, not a regression",
+      "key": "cpu_pct",
+      "label": "CPU utilisation",
+      "remediations": [
+       "background_cpu_hog",
+       "evolved_cap_cpu_offenders_cpu_pct"
+      ],
+      "scored_typical": 98.9,
+      "target": 25
+     },
+     {
+      "cause": "long_term_regression",
+      "confidence": 0.85,
+      "contribution_pct": 18.5,
+      "explanation": "daily typical is trending the wrong way; at +17.37%/day it has been drifting away for 11 days",
+      "key": "cpu_queue",
+      "label": "CPU run-queue depth",
+      "remediations": [
+       "background_cpu_hog"
+      ],
+      "scored_typical": 16.0,
+      "target": 1
+     }
+    ],
+    "mode": "auto",
+    "note": "no eligible action this cycle",
+    "planned": [
+     {
+      "eligible": false,
+      "for": "net_remote",
+      "id": "flush_dns",
+      "risk": "safe",
+      "skip_reason": "learned ineffective for net_remote: no net benefit across 3 verified attempts (avg -0.00%)",
+      "title": "Flush DNS resolver cache",
+      "why": "Network - remote TCP conns contributes 18.5% of the gap (transient_spike)"
+     },
+     {
+      "eligible": false,
+      "for": "cpu_pct",
+      "id": "background_cpu_hog",
+      "risk": "caution",
+      "skip_reason": "cooling down (26 min left)",
+      "title": "Move the top sustained CPU consumer to background priority",
+      "why": "CPU utilisation contributes 18.5% of the gap (transient_spike)"
+     },
+     {
+      "eligible": false,
+      "for": "cpu_pct",
+      "id": "evolved_cap_cpu_offenders_cpu_pct",
+      "risk": "manual",
+      "skip_reason": "manual action required",
+      "title": "Lower the priority of a sustained CPU consumer",
+      "why": "CPU utilisation contributes 18.5% of the gap (transient_spike)"
+     }
+    ],
+    "preventive": [
+     {
+      "days_to_target": 10.5,
+      "direction": "degrading",
+      "key": "startup_apps",
+      "label": "Startup programs (enabled)",
+      "pct_per_day": 0.58,
+      "reason": "met today but drifting +0.58%/day over 11 days",
+      "remediations": [
+       "trim_startup"
+      ]
+     },
+     {
+      "days_to_target": null,
+      "direction": "degrading",
+      "key": "hw_faults",
+      "label": "Hardware - device faults",
+      "pct_per_day": 19.02,
+      "reason": "met today but drifting +19.02%/day over 11 days",
+      "remediations": []
+     }
+    ],
+    "proposals_open": 2,
+    "regime": "heavy",
+    "score": 54.9,
+    "score_trend": "degrading",
+    "skipped": [
+     {
+      "eligible": false,
+      "for": "net_remote",
+      "id": "flush_dns",
+      "risk": "safe",
+      "skip_reason": "learned ineffective for net_remote: no net benefit across 3 verified attempts (avg -0.00%)",
+      "title": "Flush DNS resolver cache",
+      "why": "Network - remote TCP conns contributes 18.5% of the gap (transient_spike)"
+     },
+     {
+      "eligible": false,
+      "for": "cpu_pct",
+      "id": "background_cpu_hog",
+      "risk": "caution",
+      "skip_reason": "cooling down (26 min left)",
+      "title": "Move the top sustained CPU consumer to background priority",
+      "why": "CPU utilisation contributes 18.5% of the gap (transient_spike)"
+     },
+     {
+      "eligible": false,
+      "for": "cpu_pct",
+      "id": "evolved_cap_cpu_offenders_cpu_pct",
+      "risk": "manual",
+      "skip_reason": "manual action required",
+      "title": "Lower the priority of a sustained CPU consumer",
+      "why": "CPU utilisation contributes 18.5% of the gap (transient_spike)"
+     }
+    ],
+    "summary": "Score 54.9% is below the 80% threshold; long-term score trend is degrading (-1.29 pts/day over 11 days). Under heavy load, the gap is dominated by: Network - remote TCP conns (18.5% of the gap, transient_spike), CPU utilisation (18.5% of the gap, transient_spike), CPU run-queue depth (18.5% of the gap, long_term_regression).",
+    "t": 1790684375.7133806,
+    "threshold": 80.0,
+    "verification": null
+   },
+   {
+    "at": "2026-09-29T12:18:51.152455+00:00",
+    "breach": true,
+    "executed": [],
+    "findings": [
+     {
+      "cause": "transient_spike",
+      "confidence": 0.7,
+      "contribution_pct": 18.5,
+      "explanation": "current sustained value 72 is >15% worse than this metric's own recent daily typical (38.8) while the long-term trend is stable \u2014 a burst, not a regression",
+      "key": "net_remote",
+      "label": "Network - remote TCP conns",
+      "remediations": [
+       "flush_dns"
+      ],
+      "scored_typical": 72,
+      "target": 40
+     },
+     {
+      "cause": "transient_spike",
+      "confidence": 0.7,
+      "contribution_pct": 18.5,
+      "explanation": "current sustained value 98.9 is >15% worse than this metric's own recent daily typical (39.1) while the long-term trend is improving \u2014 a burst, not a regression",
+      "key": "cpu_pct",
+      "label": "CPU utilisation",
+      "remediations": [
+       "background_cpu_hog",
+       "evolved_cap_cpu_offenders_cpu_pct"
+      ],
+      "scored_typical": 98.9,
+      "target": 25
+     },
+     {
+      "cause": "long_term_regression",
+      "confidence": 0.85,
+      "contribution_pct": 18.5,
+      "explanation": "daily typical is trending the wrong way; at +17.23%/day it has been drifting away for 11 days",
+      "key": "cpu_queue",
+      "label": "CPU run-queue depth",
+      "remediations": [
+       "background_cpu_hog"
+      ],
+      "scored_typical": 16.0,
+      "target": 1
+     }
+    ],
+    "mode": "auto",
+    "note": "no eligible action this cycle",
+    "planned": [
+     {
+      "eligible": false,
+      "for": "net_remote",
+      "id": "flush_dns",
+      "risk": "safe",
+      "skip_reason": "learned ineffective for net_remote: no net benefit across 3 verified attempts (avg -0.00%)",
+      "title": "Flush DNS resolver cache",
+      "why": "Network - remote TCP conns contributes 18.5% of the gap (transient_spike)"
+     },
+     {
+      "eligible": false,
+      "for": "cpu_pct",
+      "id": "background_cpu_hog",
+      "risk": "caution",
+      "skip_reason": "cooling down (27 min left)",
+      "title": "Move the top sustained CPU consumer to background priority",
+      "why": "CPU utilisation contributes 18.5% of the gap (transient_spike)"
+     },
+     {
+      "eligible": false,
+      "for": "cpu_pct",
+      "id": "evolved_cap_cpu_offenders_cpu_pct",
+      "risk": "manual",
+      "skip_reason": "manual action required",
+      "title": "Lower the priority of a sustained CPU consumer",
+      "why": "CPU utilisation contributes 18.5% of the gap (transient_spike)"
+     }
+    ],
+    "preventive": [
+     {
+      "days_to_target": 10.4,
+      "direction": "degrading",
+      "key": "startup_apps",
+      "label": "Startup programs (enabled)",
+      "pct_per_day": 0.58,
+      "reason": "met today but drifting +0.58%/day over 11 days",
+      "remediations": [
+       "trim_startup"
+      ]
+     },
+     {
+      "days_to_target": null,
+      "direction": "degrading",
+      "key": "hw_faults",
+      "label": "Hardware - device faults",
+      "pct_per_day": 19.02,
+      "reason": "met today but drifting +19.02%/day over 11 days",
+      "remediations": []
+     }
+    ],
+    "proposals_open": 2,
+    "regime": "heavy",
+    "score": 54.9,
+    "score_trend": "degrading",
+    "skipped": [
+     {
+      "eligible": false,
+      "for": "net_remote",
+      "id": "flush_dns",
+      "risk": "safe",
+      "skip_reason": "learned ineffective for net_remote: no net benefit across 3 verified attempts (avg -0.00%)",
+      "title": "Flush DNS resolver cache",
+      "why": "Network - remote TCP conns contributes 18.5% of the gap (transient_spike)"
+     },
+     {
+      "eligible": false,
+      "for": "cpu_pct",
+      "id": "background_cpu_hog",
+      "risk": "caution",
+      "skip_reason": "cooling down (27 min left)",
+      "title": "Move the top sustained CPU consumer to background priority",
+      "why": "CPU utilisation contributes 18.5% of the gap (transient_spike)"
+     },
+     {
+      "eligible": false,
+      "for": "cpu_pct",
+      "id": "evolved_cap_cpu_offenders_cpu_pct",
+      "risk": "manual",
+      "skip_reason": "manual action required",
+      "title": "Lower the priority of a sustained CPU consumer",
+      "why": "CPU utilisation contributes 18.5% of the gap (transient_spike)"
+     }
+    ],
+    "summary": "Score 54.9% is below the 80% threshold; long-term score trend is degrading (-1.28 pts/day over 11 days). Under heavy load, the gap is dominated by: Network - remote TCP conns (18.5% of the gap, transient_spike), CPU utilisation (18.5% of the gap, transient_spike), CPU run-queue depth (18.5% of the gap, long_term_regression).",
+    "t": 1790684331.1524823,
+    "threshold": 80.0,
+    "verification": {
+     "actions": [
+      "background_cpu_hog",
+      "trim_working_sets"
+     ],
+     "metrics": {
+      "committed_app_mb": {
+       "after": 12347.0,
+       "before": 12610.5,
+       "delta_pct": 2.09
+      },
+      "cpu_pct": {
+       "after": 98.9,
+       "before": 62.5,
+       "delta_pct": -58.24
+      }
+     },
+     "status": "verified",
+     "verdicts": {
+      "committed_app_mb": "improved",
+      "cpu_pct": "worsened"
+     },
+     "waited_s": 183.1
+    }
+   },
+   {
+    "at": "2026-09-29T12:15:29.983389+00:00",
+    "breach": true,
+    "executed": [
+     {
+      "id": "background_cpu_hog",
+      "output": "background mode on msedge (pid 11832, 1.47s CPU in 3s) -> False",
+      "returncode": 0,
+      "risk": "caution",
+      "status": "ok",
+      "title": "Move the top sustained CPU consumer to background priority"
+     },
+     {
+      "id": "trim_working_sets",
+      "output": "trimmed 5 working set(s), released 1881 MB",
+      "returncode": 0,
+      "risk": "caution",
+      "status": "ok",
+      "title": "Trim the largest application working sets"
+     }
+    ],
+    "findings": [
+     {
+      "cause": "transient_spike",
+      "confidence": 0.7,
+      "contribution_pct": 18.4,
+      "explanation": "current sustained value 72.0 is >15% worse than this metric's own recent daily typical (38.4) while the long-term trend is stable \u2014 a burst, not a regression",
+      "key": "net_remote",
+      "label": "Network - remote TCP conns",
+      "remediations": [
+       "flush_dns"
+      ],
+      "scored_typical": 72.0,
+      "target": 40
+     },
+     {
+      "cause": "transient_spike",
+      "confidence": 0.7,
+      "contribution_pct": 18.4,
+      "explanation": "current sustained value 62.5 is >15% worse than this metric's own recent daily typical (38.5) while the long-term trend is improving \u2014 a burst, not a regression",
+      "key": "cpu_pct",
+      "label": "CPU utilisation",
+      "remediations": [
+       "background_cpu_hog",
+       "evolved_cap_cpu_offenders_cpu_pct"
+      ],
+      "scored_typical": 62.5,
+      "target": 25
+     },
+     {
+      "cause": "long_term_regression",
+      "confidence": 0.85,
+      "contribution_pct": 18.4,
+      "explanation": "daily typical is trending the wrong way; at +17.10%/day it has been drifting away for 11 days",
+      "key": "cpu_queue",
+      "label": "CPU run-queue depth",
+      "remediations": [
+       "background_cpu_hog"
+      ],
+      "scored_typical": 18.0,
+      "target": 1
+     }
+    ],
+    "mode": "auto",
+    "note": "applied 2 remediation(s); effect will be measured on the next scan",
+    "planned": [
+     {
+      "eligible": false,
+      "for": "net_remote",
+      "id": "flush_dns",
+      "risk": "safe",
+      "skip_reason": "learned ineffective for net_remote: no net benefit across 3 verified attempts (avg -0.00%)",
+      "title": "Flush DNS resolver cache",
+      "why": "Network - remote TCP conns contributes 18.4% of the gap (transient_spike)"
+     },
+     {
+      "eligible": true,
+      "for": "cpu_pct",
+      "id": "background_cpu_hog",
+      "risk": "caution",
+      "skip_reason": null,
+      "title": "Move the top sustained CPU consumer to background priority",
+      "why": "CPU utilisation contributes 18.4% of the gap (transient_spike)"
+     },
+     {
+      "eligible": false,
+      "for": "cpu_pct",
+      "id": "evolved_cap_cpu_offenders_cpu_pct",
+      "risk": "manual",
+      "skip_reason": "manual action required",
+      "title": "Lower the priority of a sustained CPU consumer",
+      "why": "CPU utilisation contributes 18.4% of the gap (transient_spike)"
+     }
+    ],
+    "preventive": [
+     {
+      "days_to_target": 10.3,
+      "direction": "degrading",
+      "key": "startup_apps",
+      "label": "Startup programs (enabled)",
+      "pct_per_day": 0.58,
+      "reason": "met today but drifting +0.58%/day over 11 days",
+      "remediations": [
+       "trim_startup"
+      ]
+     },
+     {
+      "days_to_target": null,
+      "direction": "degrading",
+      "key": "hw_faults",
+      "label": "Hardware - device faults",
+      "pct_per_day": 19.02,
+      "reason": "met today but drifting +19.02%/day over 11 days",
+      "remediations": []
+     }
+    ],
+    "proposals_open": 2,
+    "regime": "normal",
+    "score": 54.8,
+    "score_trend": "degrading",
+    "skipped": [
+     {
+      "eligible": false,
+      "for": "net_remote",
+      "id": "flush_dns",
+      "risk": "safe",
+      "skip_reason": "learned ineffective for net_remote: no net benefit across 3 verified attempts (avg -0.00%)",
+      "title": "Flush DNS resolver cache",
+      "why": "Network - remote TCP conns contributes 18.4% of the gap (transient_spike)"
+     },
+     {
+      "eligible": false,
+      "for": "cpu_pct",
+      "id": "evolved_cap_cpu_offenders_cpu_pct",
+      "risk": "manual",
+      "skip_reason": "manual action required",
+      "title": "Lower the priority of a sustained CPU consumer",
+      "why": "CPU utilisation contributes 18.4% of the gap (transient_spike)"
+     },
+     {
+      "eligible": false,
+      "for": "committed_app_mb",
+      "id": "clear_standby",
+      "risk": "manual",
+      "skip_reason": "manual action required",
+      "title": "Clear standby (cached) memory list",
+      "why": "Active app commit contributes 13.3% of the gap (long_term_regression)"
+     }
+    ],
+    "summary": "Score 54.8% is below the 80% threshold; long-term score trend is degrading (-1.27 pts/day over 11 days). Under normal load, the gap is dominated by: Network - remote TCP conns (18.4% of the gap, transient_spike), CPU utilisation (18.4% of the gap, transient_spike), CPU run-queue depth (18.4% of the gap, long_term_regression).",
+    "t": 1790684129.9834578,
+    "threshold": 80.0,
+    "verification": {
+     "actions": [
+      "restart_explorer"
+     ],
+     "metrics": {
+      "handles": {
+       "after": 113235.5,
+       "before": 111432.0,
+       "delta_pct": -1.62
+      }
+     },
+     "status": "verified",
+     "verdicts": {
+      "handles": "worsened"
+     },
+     "waited_s": 312.9
+    }
+   }
+  ],
+  "settle_s": 120.0,
+  "threshold": 80.0
+ },
+ "api/evolution": {
+  "by_kind": {
+   "promotion": 1,
+   "recipe": 4,
+   "shard": 1
+  },
+  "caps": {
+   "per_pass": 5,
+   "proposals": 20,
+   "recipes": 20,
+   "shards": 20
+  },
+  "clusters": {
+   "long_term_regression": [
+    "wsl",
+    "disk"
+   ],
+   "steady_shortfall": [
+    "wsl",
+    "hardware"
+   ],
+   "transient_spike": [
+    "cpu"
+   ],
+   "usage_driven": [
+    "cpu",
+    "browser"
+   ]
+  },
+  "cycles_seen": 0,
+  "cycles_until_pass": 8,
+  "evolutions_dir": "/home/testuser/perf-dashboard/evolutions",
+  "evolve_every": 8,
+  "generation": 2,
+  "kpis": {
+   "candidates": 2,
+   "generation": 2,
+   "mappings": 1,
+   "promoted": 1,
+   "proposals": 1,
+   "shards": 1
+  },
+  "last_pass_at": null,
+  "library": [
+   {
+    "family": "cpu",
+    "id": "cap_cpu_offenders",
+    "metrics": [
+     "cpu_pct",
+     "cpu_queue"
+    ],
+    "params": [
+     "process"
+    ],
+    "rationale": "A process that holds a consistent share of CPU across many intervals is a scheduling problem, not a spike. Dropping its priority frees the run queue without killing the user's work.",
+    "risk": "caution",
+    "title": "Lower the priority of a sustained CPU consumer"
+   },
+   {
+    "family": "wsl",
+    "id": "cap_wsl_memory",
+    "metrics": [
+     "vmmem_mb",
+     "available_mb"
+    ],
+    "params": [
+     "limit_gb"
+    ],
+    "rationale": "vmmemWSL grows to its configured ceiling. Lowering the ceiling is persistent configuration, so it needs a restart and the user's knowledge.",
+    "risk": "manual",
+    "title": "Cap WSL memory in .wslconfig"
+   },
+   {
+    "family": "hardware",
+    "id": "report_device_faults",
+    "metrics": [
+     "hw_faults"
+    ],
+    "params": [],
+    "rationale": "A device fault cannot be cleared by the dashboard. The useful automated act is to surface exactly which devices are faulted so a human can act once.",
+    "risk": "manual",
+    "title": "Report Device-Manager faults for review"
+   }
+  ],
+  "log": [
+   {
+    "at": "2026-09-29T04:51:52+00:00",
+    "files": [],
+    "generation": 2,
+    "kind": "promotion",
+    "registry": [
+     "recipes/evolved_cap_cpu_offenders_cpu_pct"
+    ],
+    "reversible": true,
+    "summary": "human promoted 'Lower the priority of a sustained CPU consumer' for CPU utilisation \u2014 surfaced to RCA as a manual recommendation with the exact command"
+   },
+   {
+    "at": "2026-09-29T04:51:46+00:00",
+    "files": [
+     "startup_apps-rules.md"
+    ],
+    "generation": 0,
+    "kind": "shard",
+    "registry": [
+     "shards/startup_apps"
+    ],
+    "reversible": true,
+    "summary": "Startup programs (enabled) accumulated 483 shortfalls with no rules \u2014 generated startup_apps-rules.md"
+   },
+   {
+    "at": "2026-09-29T04:51:46+00:00",
+    "files": [],
+    "generation": 0,
+    "kind": "recipe",
+    "registry": [
+     "recipes/evolved_throttle_disk_indexer_disk_active_pct"
+    ],
+    "reversible": true,
+    "summary": "Disk active time fell short 34x with no remediation mapped \u2014 proposing the vetted 'Throttle the search indexer while disk is saturated' recipe as a candidate for review"
+   }
+  ],
+  "mappings": {
+   "cpu_pct": [
+    "evolved_cap_cpu_offenders_cpu_pct"
+   ]
+  },
+  "passes": 1,
+  "proposals": [
+   {
+    "created": "2026-09-29T07:30:00+00:00",
+    "detail": "The target sits below this hardware's floor.",
+    "evidence": {
+     "shortfalls": 400
+    },
+    "generation": 3,
+    "id": "structural_handles",
+    "kind": "structural",
+    "label": "Active app handles",
+    "metric": "handles",
+    "state": "open"
+   }
+  ],
+  "recipes": [
+   {
+    "cause": "long_term_regression",
+    "created": "2026-09-29T04:51:46+00:00",
+    "evidence_count": 66,
+    "executable": false,
+    "family": "cpu",
+    "generation": 1,
+    "id": "evolved_cap_cpu_offenders_cpu_queue",
+    "label": "CPU run-queue depth",
+    "manual_hint": "Get-Process {process} | ForEach-Object {{ $_.PriorityClass = 'BelowNormal' }}",
+    "metric": "cpu_queue",
+    "missing_params": [],
+    "params": {
+     "process": "msedge"
+    },
+    "promoted_at": null,
+    "rationale": "A process that holds a consistent share of CPU across many intervals is a scheduling problem, not a spike. Dropping its priority frees the run queue without killing the user's work.",
+    "recipe": "cap_cpu_offenders",
+    "reversible": true,
+    "risk": "caution",
+    "shell": "pwsh",
+    "state": "candidate",
+    "title": "Lower the priority of a sustained CPU consumer"
+   },
+   {
+    "cause": "long_term_regression",
+    "created": "2026-09-29T04:51:46+00:00",
+    "evidence_count": 66,
+    "executable": false,
+    "family": "cpu",
+    "generation": 1,
+    "id": "evolved_cap_cpu_offenders_cpu_queue_blocked",
+    "label": "CPU run-queue depth",
+    "manual_hint": "Get-Process {process} | ForEach-Object {{ $_.PriorityClass = 'BelowNormal' }}",
+    "metric": "cpu_queue",
+    "missing_params": [
+     "process"
+    ],
+    "params": {},
+    "promoted_at": null,
+    "rationale": "A process that holds a consistent share of CPU across many intervals is a scheduling problem, not a spike. Dropping its priority frees the run queue without killing the user's work.",
+    "recipe": "cap_cpu_offenders",
+    "reversible": true,
+    "risk": "caution",
+    "shell": "pwsh",
+    "state": "candidate",
+    "title": "Lower the priority of a sustained CPU consumer"
+   },
+   {
+    "cause": "steady_shortfall",
+    "created": "2026-09-29T04:51:46+00:00",
+    "evidence_count": 365,
+    "executable": false,
+    "family": "browser",
+    "generation": 1,
+    "id": "evolved_trim_browser_procs_browser_procs",
+    "label": "Browser processes",
+    "manual_hint": "Set the browser's process-per-site policy, or reduce the number of open profiles and pinned tabs.",
+    "metric": "browser_procs",
+    "missing_params": [],
+    "params": {},
+    "promoted_at": "2026-09-29T07:45:00+00:00",
+    "rationale": "Browser process count is driven by per-site isolation policy. Consolidation is a policy change the user should make knowingly, because it trades isolation for memory.",
+    "recipe": "trim_browser_procs",
+    "reversible": true,
+    "risk": "manual",
+    "shell": "pwsh",
+    "state": "promoted",
+    "title": "Enable browser process consolidation"
+   }
+  ],
+  "shards": [
+   {
+    "created": "2026-09-29T04:51:46+00:00",
+    "file": "startup_apps-rules.md",
+    "generation": 1,
+    "label": "Startup programs (enabled)",
+    "metric": "startup_apps",
+    "rules": 2,
+    "shortfalls": 483
+   }
+  ],
+  "thresholds": {
+   "cluster": 3,
+   "mapping": 2,
+   "recipe": 8,
+   "shard": 8
+  }
+ },
+ "api/fixes": {
+  "enabled": true,
+  "fixes": [
+   {
+    "category": "network",
+    "executable": true,
+    "id": "flush_dns",
+    "manual_hint": "",
+    "persistent": false,
+    "reason": "Remote TCP connections at 72 (target 40) - flushing DNS clears stale resolver entries that keep chatty connections alive.",
+    "reversible": true,
+    "risk": "safe",
+    "session_killing": false,
+    "title": "Flush DNS resolver cache"
+   },
+   {
+    "category": "storage",
+    "executable": true,
+    "id": "clear_temp",
+    "manual_hint": "",
+    "persistent": false,
+    "reason": "C: free 179.6 GB below target 180 GB - clearing the user TEMP folder reclaims space safely.",
+    "reversible": true,
+    "risk": "safe",
+    "session_killing": false,
+    "title": "Clear user TEMP folder"
+   },
+   {
+    "category": "storage",
+    "executable": true,
+    "id": "empty_recycle_bin",
+    "manual_hint": "",
+    "persistent": false,
+    "reason": "C: free below target - emptying the Recycle Bin reclaims disk space.",
+    "reversible": false,
+    "risk": "caution",
+    "session_killing": false,
+    "title": "Empty the Recycle Bin"
+   },
+   {
+    "category": "handles",
+    "executable": true,
+    "id": "restart_explorer",
+    "manual_hint": "",
+    "persistent": false,
+    "reason": "App handle count elevated (111793.0, target 95000) - restarting Explorer releases leaked shell handles without a reboot.",
+    "reversible": true,
+    "risk": "caution",
+    "session_killing": false,
+    "title": "Restart Windows Explorer"
+   }
+  ],
+  "token": "test-token"
+ },
+ "api/health": {
+  "data_dir": "/home/testuser/perf-dashboard",
+  "error": null,
+  "ok": true,
+  "platform": {
+   "can_collect": true,
+   "platform": "wsl",
+   "powershell": "/mnt/c/Users/testuser/AppData/Local/Microsoft/WindowsApps/pwsh.exe",
+   "why_not": null
+  },
+  "samples": 240,
+  "settings_file": null
+ },
+ "api/learning": {
+  "bands": {
+   "50-69": 2,
+   "70-89": 1,
+   "90-100": 4,
+   "<50": 0,
+   "unrated": 2
+  },
+  "by_type": {
+   "effect_measured": 13,
+   "escalated_manual": 728,
+   "fix_applied": 15,
+   "preventive_flagged": 1522,
+   "proposal_opened": 1,
+   "rca_run": 500
+  },
+  "cause_gloss": {
+   "chronic_unreachable": "target sits at or below this machine's floor",
+   "long_term_regression": "daily typical is drifting the wrong way",
+   "near_target": "effectively on target",
+   "steady_shortfall": "a persistent gap needing a structural change",
+   "transient_spike": "a burst above the metric's own recent typical",
+   "usage_driven": "the cost of the current workload"
+  },
+  "heal_vs_evolve": {
+   "evolution": {
+    "escalations_open": 2,
+    "knowledge_sets": 13,
+    "preventive_flags": 1522,
+    "strategies_effective": 7,
+    "strategies_learned": 9,
+    "strategies_suppressed": 2
+   },
+   "healing": {
+    "breaches_cleared": 38,
+    "breaches_seen": 240,
+    "effects_measured": 13,
+    "fixes_applied": 15,
+    "open_breach": true,
+    "transient_spikes_absorbed": 297
+   },
+   "window_cycles": 500
+  },
+  "knowledge_sets": [
+   {
+    "chronic": false,
+    "days": 14,
+    "direction": "degrading",
+    "key": "committed_app_mb",
+    "label": "Active app commit",
+    "mapped": [
+     "clear_standby",
+     "trim_working_sets"
+    ],
+    "mapped_count": 2,
+    "met_days": 9,
+    "pct_per_day": 0.38,
+    "state": "learned",
+    "strategies": [
+     {
+      "effect_pct": 2.09,
+      "id": "background_cpu_hog",
+      "status": "effective"
+     },
+     {
+      "effect_pct": 2.09,
+      "id": "trim_working_sets",
+      "status": "effective"
+     }
+    ],
+    "strategy_count": 2
+   },
+   {
+    "chronic": false,
+    "days": 14,
+    "direction": "degrading",
+    "key": "compression_mb",
+    "label": "Memory Compression",
+    "mapped": [
+     "clear_standby",
+     "trim_working_sets"
+    ],
+    "mapped_count": 2,
+    "met_days": 10,
+    "pct_per_day": 1.21,
+    "state": "learned",
+    "strategies": [
+     {
+      "effect_pct": 2.443,
+      "id": "background_cpu_hog",
+      "status": "effective"
+     },
+     {
+      "effect_pct": 2.443,
+      "id": "trim_working_sets",
+      "status": "effective"
+     }
+    ],
+    "strategy_count": 2
+   },
+   {
+    "chronic": false,
+    "days": 14,
+    "direction": "improving",
+    "key": "cpu_pct",
+    "label": "CPU utilisation",
+    "mapped": [
+     "background_cpu_hog",
+     "evolved_cap_cpu_offenders_cpu_pct"
+    ],
+    "mapped_count": 2,
+    "met_days": 11,
+    "pct_per_day": -0.69,
+    "state": "learned",
+    "strategies": [
+     {
+      "effect_pct": 16.956,
+      "id": "background_cpu_hog",
+      "status": "effective"
+     },
+     {
+      "effect_pct": 16.956,
+      "id": "trim_working_sets",
+      "status": "effective"
+     }
+    ],
+    "strategy_count": 2
+   },
+   {
+    "chronic": false,
+    "days": 14,
+    "direction": "stable",
+    "key": "c_free_gb",
+    "label": "C: free",
+    "mapped": [
+     "clear_temp",
+     "empty_recycle_bin"
+    ],
+    "mapped_count": 2,
+    "met_days": 10,
+    "pct_per_day": -0.24,
+    "state": "observed",
+    "strategies": [
+     {
+      "effect_pct": -0.027,
+      "id": "clear_temp",
+      "status": "suppressed"
+     }
+    ],
+    "strategy_count": 1
+   }
+  ],
+  "kpis": {
+   "avg_success_rate": 83.7,
+   "cycles": 1318,
+   "effective": 7,
+   "escalations": 2,
+   "execution_enabled": true,
+   "fixes_applied": 15,
+   "learning_days": 6,
+   "mode": "auto",
+   "strategies": 9
+  },
+  "learnings": [
+   {
+    "applied": [],
+    "at": "2026-09-29T12:19:35.713355+00:00",
+    "breach": true,
+    "cause": "transient_spike",
+    "cause_gloss": "a burst above the metric's own recent typical",
+    "driver": "Network - remote TCP conns",
+    "escalated": [
+     {
+      "id": "evolved_cap_cpu_offenders_cpu_pct",
+      "reason": "manual action required",
+      "title": "Lower the priority of a sustained CPU consumer"
+     },
+     {
+      "id": "clear_standby",
+      "reason": "manual action required",
+      "title": "Clear standby (cached) memory list"
+     }
+    ],
+    "headline": "Escalated to a human",
+    "kind": "escalated",
+    "measured": null,
+    "regime": "heavy",
+    "score": 54.9,
+    "summary": "Score 54.9% is below the 80% threshold; long-term score trend is degrading (-1.29 pts/day over 11 days). Under heavy load, the gap is dominated by: Network - remote TCP conns (18.5% of the gap, transient_spike), CPU utilisation (18.5% of the gap, transient_spike), CPU run-queue depth (18.5% of the gap, long_term_regression)."
+   },
+   {
+    "applied": [],
+    "at": "2026-09-29T12:18:51.152455+00:00",
+    "breach": true,
+    "cause": "transient_spike",
+    "cause_gloss": "a burst above the metric's own recent typical",
+    "driver": "Network - remote TCP conns",
+    "escalated": [
+     {
+      "id": "evolved_cap_cpu_offenders_cpu_pct",
+      "reason": "manual action required",
+      "title": "Lower the priority of a sustained CPU consumer"
+     },
+     {
+      "id": "clear_standby",
+      "reason": "manual action required",
+      "title": "Clear standby (cached) memory list"
+     }
+    ],
+    "headline": "Measured a fix's real effect",
+    "kind": "effect_measured",
+    "measured": {
+     "actions": [
+      "background_cpu_hog",
+      "trim_working_sets"
+     ],
+     "metrics": [
+      {
+       "delta_pct": 2.09,
+       "metric": "committed_app_mb",
+       "verdict": "improved"
+      },
+      {
+       "delta_pct": -58.24,
+       "metric": "cpu_pct",
+       "verdict": "worsened"
+      }
+     ],
+     "waited_s": 183.1
+    },
+    "regime": "heavy",
+    "score": 54.9,
+    "summary": "Score 54.9% is below the 80% threshold; long-term score trend is degrading (-1.28 pts/day over 11 days). Under heavy load, the gap is dominated by: Network - remote TCP conns (18.5% of the gap, transient_spike), CPU utilisation (18.5% of the gap, transient_spike), CPU run-queue depth (18.5% of the gap, long_term_regression)."
+   },
+   {
+    "applied": [
+     {
+      "id": "background_cpu_hog",
+      "risk": "caution",
+      "title": "Move the top sustained CPU consumer to background priority"
+     },
+     {
+      "id": "trim_working_sets",
+      "risk": "caution",
+      "title": "Trim the largest application working sets"
+     }
+    ],
+    "at": "2026-09-29T12:15:29.983389+00:00",
+    "breach": true,
+    "cause": "transient_spike",
+    "cause_gloss": "a burst above the metric's own recent typical",
+    "driver": "Network - remote TCP conns",
+    "escalated": [
+     {
+      "id": "evolved_cap_cpu_offenders_cpu_pct",
+      "reason": "manual action required",
+      "title": "Lower the priority of a sustained CPU consumer"
+     },
+     {
+      "id": "clear_standby",
+      "reason": "manual action required",
+      "title": "Clear standby (cached) memory list"
+     }
+    ],
+    "headline": "Measured a fix's real effect",
+    "kind": "effect_measured",
+    "measured": {
+     "actions": [
+      "restart_explorer"
+     ],
+     "metrics": [
+      {
+       "delta_pct": -1.62,
+       "metric": "handles",
+       "verdict": "worsened"
+      }
+     ],
+     "waited_s": 312.9
+    },
+    "regime": "normal",
+    "score": 54.8,
+    "summary": "Score 54.8% is below the 80% threshold; long-term score trend is degrading (-1.27 pts/day over 11 days). Under normal load, the gap is dominated by: Network - remote TCP conns (18.4% of the gap, transient_spike), CPU utilisation (18.4% of the gap, transient_spike), CPU run-queue depth (18.4% of the gap, long_term_regression)."
+   }
+  ],
+  "rulebook": {
+   "compliance": {
+    "checked_rules": 7,
+    "clean": true,
+    "verifiable_rules": 7,
+    "violations": [],
+    "window_cycles": 500
+   },
+   "rule_count": 7,
+   "rules": [
+    {
+     "checked": 15,
+     "expect": "safe, caution",
+     "ok": true,
+     "rule": "Only reversible, non-disruptive fixes run unattended",
+     "severity": "critical",
+     "verifiable": true,
+     "violations": []
+    },
+    {
+     "checked": 500,
+     "expect": "2 (+1 while the score trend is degrading)",
+     "ok": true,
+     "rule": "At most N remediations per cycle",
+     "severity": "critical",
+     "verifiable": true,
+     "violations": []
+    },
+    {
+     "checked": 15,
+     "expect": "1800s",
+     "ok": true,
+     "rule": "A repeated action waits out its cooldown",
+     "severity": "high",
+     "verifiable": true,
+     "violations": []
+    },
+    {
+     "checked": 13,
+     "expect": "settle 120s",
+     "ok": true,
+     "rule": "A fix's effect is measured on the next scan before it repeats",
+     "severity": "high",
+     "verifiable": true,
+     "violations": []
+    }
+   ]
+  },
+  "strategies": [
+   {
+    "attempts": 11,
+    "category": "handles",
+    "effect_pct": 1.391,
+    "id": "restart_explorer",
+    "kind": "autofix",
+    "last_effect_pct": -1.62,
+    "losses": 1,
+    "metric": "handles",
+    "reversible": true,
+    "risk": "caution",
+    "status": "effective",
+    "success_rate": 85.7,
+    "title": "Restart Windows Explorer",
+    "wins": 6
+   },
+   {
+    "attempts": 3,
+    "category": "storage",
+    "effect_pct": -0.027,
+    "id": "clear_temp",
+    "kind": "autofix",
+    "last_effect_pct": 0.0,
+    "losses": 0,
+    "metric": "c_free_gb",
+    "reversible": true,
+    "risk": "safe",
+    "status": "suppressed",
+    "success_rate": null,
+    "title": "Clear user TEMP folder",
+    "wins": 0
+   },
+   {
+    "attempts": 3,
+    "category": "network",
+    "effect_pct": -0.0,
+    "id": "flush_dns",
+    "kind": "autofix",
+    "last_effect_pct": -0.0,
+    "losses": 0,
+    "metric": "net_remote",
+    "reversible": true,
+    "risk": "safe",
+    "status": "suppressed",
+    "success_rate": null,
+    "title": "Flush DNS resolver cache",
+    "wins": 0
+   }
+  ],
+  "timeline": [
+   {
+    "breaches": 5,
+    "count": 91,
+    "cycles": 22,
+    "date": "2026-09-24"
+   },
+   {
+    "breaches": 41,
+    "count": 243,
+    "cycles": 103,
+    "date": "2026-09-25"
+   },
+   {
+    "breaches": 26,
+    "count": 128,
+    "cycles": 37,
+    "date": "2026-09-26"
+   }
+  ],
+  "window_cycles": 500
+ },
+ "api/metrics": {
+  "browser": {
+   "current_total": 93,
+   "edge_split": {
+    "extension": 5,
+    "main": 1,
+    "renderer": 16,
+    "utility": 7
+   },
+   "edge_total": 29,
+   "extension_mb": 432.0,
+   "hard_floor": 64,
+   "host_labels": {
+    "OUTLOOK": "Active work app",
+    "OneDrive": "Required by workflows",
+    "PanGPA": "GlobalProtect VPN",
+    "SearchHost": "Windows Start / Search",
+    "ms-teams": "Active work app"
+   },
+   "inuse": {
+    "OUTLOOK": 14,
+    "ms-teams": 8
+   },
+   "inuse_total": 22,
+   "mandatory": {
+    "PanGPA": 24,
+    "SearchHost": 6
+   },
+   "mandatory_total": 30,
+   "note": "Target history: Rev 1 <45 (impossible \u2014 below the non-closable base), Rev 2.1 <66, then <72 (2026-09-04). 37 WebView2 processes belong to GlobalProtect, OneDrive and SearchHost (not closable) and 14 to Teams/Outlook (in use), so the floor with Edge fully closed is 51 and the realistic floor with a minimal Edge open is ~71. Baseline is the true pre-optimization level (105), not the mid-optimization 82.",
+   "other": {
+    "SelfService": 7,
+    "orphan": 5
+   },
+   "other_total": 12,
+   "realistic_floor": 77
+  },
+  "components": {
+   "assessment_date": "2026-09-12",
+   "avg_uplift": 0,
+   "note": "current = measured live. latest = recommended target achievable via the component's SUPPORTED channel on this machine (apt for the Ubuntu 24.04 LTS packages, NodeSource for Node, winget/Store/IT for Windows). 'upstream' notes a newer bleeding-edge release that would need a third-party repo/PPA/source build - not auto-applied on this live machine. Driver/BIOS staleness is judged by age. perf = estimated performance/stability benefit (0-100). Edit this file to retune.",
+   "rows": [
+    {
+     "category": "Driver",
+     "channel": "Intel DSA / HP Support Assistant",
+     "current": "24.20.0.4",
+     "current_date": "2026-01-06",
+     "key": "net-driver",
+     "latest": "24.40.0.x (Intel ref)",
+     "months_old": 8.8,
+     "name": "Intel Wi-Fi 6 AX201 driver",
+     "outdated": false,
+     "owner": "IT / user",
+     "perf": 30,
+     "upstream": "",
+     "why": "A current Wi-Fi driver improves sustained throughput, roaming stability and power, and fixes latency spikes."
+    },
+    {
+     "category": "Platform",
+     "channel": "wsl --update (Store)",
+     "current": "2.6.2.0",
+     "key": "wsl",
+     "latest": "2.6.2.0",
+     "name": "WSL 2 platform",
+     "outdated": false,
+     "owner": "user",
+     "perf": 25,
+     "upstream": "",
+     "why": "WSL updates carry autoMemoryReclaim + networking-mode improvements that directly reduce the vmmemWSL footprint. Update with `wsl --update`."
+    },
+    {
+     "category": "Driver",
+     "channel": "Intel DSA / HP Support Assistant",
+     "current": "32.0.101.7085",
+     "current_date": "2026-03-03",
+     "key": "gpu-driver",
+     "latest": "32.0.101.78xx (Intel ref)",
+     "months_old": 6.9,
+     "name": "Intel Iris Xe graphics driver",
+     "outdated": false,
+     "owner": "IT / user",
+     "perf": 22,
+     "upstream": "",
+     "why": "Newer Intel graphics drivers resolve the boot-time Intel 7009 stall and improve compositor and WebView2 rendering."
+    },
+    {
+     "category": "Platform",
+     "channel": "wsl --update",
+     "current": "6.6.87.2",
+     "key": "kernel",
+     "latest": "6.6.87.2",
+     "name": "WSL 2 kernel",
+     "outdated": false,
+     "owner": "user",
+     "perf": 20,
+     "upstream": "",
+     "why": "The WSL2 Linux kernel governs guest memory reclaim and virtio I/O. Ships with `wsl --update`."
+    },
+    {
+     "category": "Runtime",
+     "channel": "NodeSource node_22.x (major upgrade - confirm first)",
+     "current": "22.23.2",
+     "key": "node",
+     "latest": "22.20.0",
+     "name": "Node.js runtime",
+     "outdated": false,
+     "owner": "user",
+     "perf": 18,
+     "upstream": "",
+     "why": "Node 22 LTS ships a newer V8 with faster startup, JIT and GC. This is a MAJOR bump requiring a NodeSource channel switch and a re-test of global tooling (ExcelJS etc.) - apply deliberately, not blindly. Node 20 is patched to 20.20.2 in-channel."
+    },
+    {
+     "category": "Tooling",
+     "channel": "installed (user-scope, LOCALAPPDATA)",
+     "current": "7.6.6",
+     "key": "powershell",
+     "latest": "7.6.6",
+     "name": "PowerShell",
+     "outdated": false,
+     "owner": "user",
+     "perf": 15,
+     "upstream": "",
+     "why": "PowerShell 7.6.6 installed alongside the frozen Windows PowerShell 5.1 (user-scope portable, no admin needed) - faster startup/parsing. For a machine-wide managed install, IT can run `winget install Microsoft.PowerShell` elevated. The collector still uses 5.1 for compatibility."
+    }
+   ],
+   "total": 18,
+   "upgrades": 0
+  },
+  "hardware": {
+   "battery": {
+    "charge": 97,
+    "status": 2
+   },
+   "disks": [
+    {
+     "health": "Healthy",
+     "media": "SSD",
+     "name": "KXG60ZNV512G KIOXIA",
+     "op": "OK"
+    }
+   ],
+   "disks_unhealthy": 0,
+   "drivers": {
+    "problem": 0,
+    "problem_list": [],
+    "stale": 79,
+    "stale_list": [
+     {
+      "class": "HIDClass",
+      "date": "2009-07-01",
+      "name": "hpwav001.inf",
+      "provider": "HP",
+      "version": "1.0.0.3"
+     },
+     {
+      "class": "Mouse",
+      "date": "2009-07-01",
+      "name": "hpwavm01.inf",
+      "provider": "HP",
+      "version": "1.0.0.2"
+     },
+     {
+      "class": "USB",
+      "date": "2017-09-19",
+      "name": "jabrabcdfu.inf",
+      "provider": "Jabra",
+      "version": "4.0.0.0"
+     },
+     {
+      "class": "Biometric",
+      "date": "2018-06-01",
+      "name": "helloface.inf",
+      "provider": "Windows Hello Face",
+      "version": "10.0.19041.3636"
+     }
+    ],
+    "total": 359,
+    "unsigned": 0
+   },
+   "faults": 0,
+   "open_issues": 1,
+   "pointing": [
+    {
+     "code": 0,
+     "name": "Synaptics HID PointStyk",
+     "status": "OK"
+    },
+    {
+     "code": 0,
+     "name": "HID-compliant mouse",
+     "status": "OK"
+    },
+    {
+     "code": 0,
+     "name": "HID-compliant mouse",
+     "status": "OK"
+    }
+   ],
+   "problem_devices": 0,
+   "problem_list": [],
+   "touchpad": [
+    {
+     "code": 0,
+     "name": "Synaptics HID PointStyk",
+     "status": "OK"
+    },
+    {
+     "code": 0,
+     "name": "Synaptics HID Device",
+     "status": "OK"
+    },
+    {
+     "code": 0,
+     "name": "Synaptics FS7605 Touch Fingerprint Sensor with PurePrint(TM)",
+     "status": "OK"
+    },
+    {
+     "code": 0,
+     "name": "Synaptics StykFHID Device",
+     "status": "OK"
+    }
+   ],
+   "watchlist": [
+    {
+     "component": "Touchpad",
+     "issue": "Left/right click button not registering reliably",
+     "last_action": "Started Synaptics SynTPEnhService (was stopped) and set it to Automatic startup; re-initialized the HID-compliant touch pad device.",
+     "last_action_date": "2026-08-28",
+     "note": "Root cause: SynTPEnhService \u2014 which handles physical button clicks and tap zones \u2014 was stopped, so clicks registered unreliably. It is now Running and set to auto-start on boot, and the touchpad device was re-initialized. Please test the buttons: if reliable, set status to \"resolved\". If it recurs, update/reinstall the Synaptics driver (current v19.6.1.26) via HP Support Assistant.",
+     "reported": "2026-08-28",
+     "severity": "minor",
+     "status": "monitoring"
+    }
+   ]
+  },
+  "latest": {
+   "_iso": "2026-09-29T12:20:15.073710+00:00",
+   "_t": 1790684415.0737035,
+   "available_mb": 12635.0,
+   "bios_date": "2025-11-06",
+   "bios_version": "T76 Ver. 01.23.00",
+   "boot": "2026-09-29T06:53:28.5000000+05:30",
+   "browser_procs": 93,
+   "c_free_gb": 179.6,
+   "c_size_gb": 473.7,
+   "commit_limit_mb": 65216.0,
+   "committed_app_mb": 12060.0,
+   "committed_mb": 28896.0,
+   "committed_system_mb": 9582.0,
+   "compression_mb": 3529.0,
+   "cpu_pct": 100.0,
+   "cpu_procs": [
+    {
+     "cpu_s": 2442.6,
+     "exe": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\153.0.4234.48\\msedgewebview2.exe",
+     "n": "msedgewebview2",
+     "pid": 6984,
+     "ws_mb": 383.0
+    },
+    {
+     "cpu_s": 2087.5,
+     "exe": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+     "n": "msedge",
+     "pid": 5476,
+     "ws_mb": 210.0
+    },
+    {
+     "cpu_s": 2020.2,
+     "exe": "C:\\Program Files\\WindowsApps\\OpenAI.ChatGPT-Desktop_1.2026.190.0_x64__2p2nqsd0c76g0\\app\\ChatGPT Classic.exe",
+     "n": "ChatGPT Classic",
+     "pid": 21388,
+     "ws_mb": 310.0
+    },
+    {
+     "cpu_s": 1857.0,
+     "exe": "C:\\Program Files\\Microsoft Office\\root\\Office16\\OUTLOOK.EXE",
+     "n": "OUTLOOK",
+     "pid": 19848,
+     "ws_mb": 93.0
+    }
+   ],
+   "cpu_queue": 60.0,
+   "cpu_top": [
+    {
+     "cpu_pct": 43.1,
+     "n": "explorer",
+     "of1core": 344.7
+    },
+    {
+     "cpu_pct": 21.0,
+     "n": "vmmemwsl",
+     "of1core": 167.8
+    },
+    {
+     "cpu_pct": 8.0,
+     "n": "pwsh",
+     "of1core": 64.1
+    },
+    {
+     "cpu_pct": 7.6,
+     "n": "wslhost",
+     "of1core": 61.0
+    }
+   ],
+   "disk_active_pct": 0.9,
+   "drv_problem": 0,
+   "drv_problem_list": [],
+   "drv_stale": 79,
+   "drv_stale_list": [
+    {
+     "class": "HIDClass",
+     "date": "2009-07-01",
+     "name": "hpwav001.inf",
+     "provider": "HP",
+     "version": "1.0.0.3"
+    },
+    {
+     "class": "Mouse",
+     "date": "2009-07-01",
+     "name": "hpwavm01.inf",
+     "provider": "HP",
+     "version": "1.0.0.2"
+    },
+    {
+     "class": "USB",
+     "date": "2017-09-19",
+     "name": "jabrabcdfu.inf",
+     "provider": "Jabra",
+     "version": "4.0.0.0"
+    },
+    {
+     "class": "Biometric",
+     "date": "2018-06-01",
+     "name": "helloface.inf",
+     "provider": "Windows Hello Face",
+     "version": "10.0.19041.3636"
+    }
+   ],
+   "drv_total": 359,
+   "drv_unsigned": 0,
+   "edge_ext_mb": 432.0,
+   "edge_extension": 5,
+   "edge_main": 1,
+   "edge_procs": 29,
+   "edge_renderer": 16,
+   "edge_utility": 7,
+   "edge_version": "154.0.4258.37",
+   "gpu_driver": "32.0.101.7085",
+   "gpu_driver_date": "2026-03-03",
+   "gpu_name": "Intel(R) Iris(R) Xe Graphics",
+   "handles": 111793.0,
+   "handles_system": 80878.0,
+   "handles_total": 192671.0,
+   "hw_battery": {
+    "charge": 97,
+    "status": 2
+   },
+   "hw_disks": [
+    {
+     "health": "Healthy",
+     "media": "SSD",
+     "name": "KXG60ZNV512G KIOXIA",
+     "op": "OK"
+    }
+   ],
+   "hw_disks_unhealthy": 0,
+   "hw_faults": 0,
+   "hw_pointing": [
+    {
+     "code": 0,
+     "name": "Synaptics HID PointStyk",
+     "status": "OK"
+    },
+    {
+     "code": 0,
+     "name": "HID-compliant mouse",
+     "status": "OK"
+    },
+    {
+     "code": 0,
+     "name": "HID-compliant mouse",
+     "status": "OK"
+    }
+   ],
+   "hw_problem_devices": 0,
+   "hw_problem_list": [],
+   "hw_touchpad": [
+    {
+     "code": 0,
+     "name": "Synaptics HID PointStyk",
+     "status": "OK"
+    },
+    {
+     "code": 0,
+     "name": "Synaptics HID Device",
+     "status": "OK"
+    },
+    {
+     "code": 0,
+     "name": "Synaptics FS7605 Touch Fingerprint Sensor with PurePrint(TM)",
+     "status": "OK"
+    },
+    {
+     "code": 0,
+     "name": "Synaptics StykFHID Device",
+     "status": "OK"
+    }
+   ],
+   "ncpu": 8,
+   "net_adapters": [
+    {
+     "desc": "Intel(R) Wi-Fi 6 AX201 160MHz",
+     "link_mbps": 130.0,
+     "media": "Native 802.11",
+     "name": "Wi-Fi",
+     "status": "Up"
+    }
+   ],
+   "net_category": "Public",
+   "net_driver_date": "2026-01-06",
+   "net_driver_name": "Intel(R) Wi-Fi 6 AX201 160MHz",
+   "net_driver_provider": "Intel",
+   "net_driver_ver": "24.20.0.4",
+   "net_established": 117,
+   "net_ipv4_conn": "LocalNetwork",
+   "net_ipv6_conn": "NoTraffic",
+   "net_listen": 44,
+   "net_loopback": 42,
+   "net_remote": 72,
+   "net_remote_hosts": 59,
+   "net_remote_raw": 75,
+   "net_tcp_total": 279,
+   "onedrive_last_sync": 1790684192.0,
+   "onedrive_running": false,
+   "pool_nonpaged_mb": 1584.0,
+   "pool_paged_mb": 2042.0,
+   "processes": 373,
+   "ps_version": "7.6.6",
+   "pwsh_version": "7.6.6",
+   "search_procs": 12,
+   "services_running": 139,
+   "services_total": 322,
+   "session_locked": true,
+   "startup_apps": 9,
+   "startup_apps_total": 23,
+   "svchost_procs": 98,
+   "total_ram_mb": 32448.0,
+   "ts": "2026-09-29T17:49:54.2823408+05:30",
+   "uptime_h": 10.94,
+   "vmmem_mb": 2636.0,
+   "webview2_version": "154.0.4258.37",
+   "wifi": {
+    "adapter": "Intel(R) Wi-Fi 6 AX201 160MHz",
+    "category": "Public",
+    "detail_limited": true,
+    "ipv4": "Internet",
+    "link_mbps": 130.0,
+    "link_mbps_samples": 90,
+    "link_mbps_typical": 130.0,
+    "plan_mbps": 100,
+    "present": true,
+    "radio": "802.11ax (Wi-Fi 6)",
+    "score": 78,
+    "score_basis": "plan",
+    "ssid": "home-network",
+    "state": "connected",
+    "usable_mbps": 78.0
+   },
+   "wifi_scan": {
+    "available": false,
+    "nets": [],
+    "reason": "location"
+   },
+   "win_build": "10.0.26200",
+   "wsl": {
+    "available_mb": 4980,
+    "cached_mb": 1471,
+    "cap_active": true,
+    "containers_running": 5,
+    "load1": 4.77,
+    "nproc": 6,
+    "swap_total_mb": 4096,
+    "total_mb": 9947
+   },
+   "wv2_hosts": {
+    "OUTLOOK": 14,
+    "PanGPA": 24,
+    "SearchHost": 6,
+    "SelfService": 7,
+    "ms-teams": 8,
+    "orphan": 5
+   },
+   "wv2_procs": 64
+  },
+  "meta": {
+   "baseline_date": "2026-08-25 12:29",
+   "error": null,
+   "fresh_samples": 1,
+   "last_duration_s": 42.62,
+   "revision": "2.1",
+   "sample_seconds": 60.0,
+   "samples": 240,
+   "server_time": "2026-09-29T12:20:38.844989+00:00",
+   "stale_latest": false
+  },
+  "net_plan": [
+   {
+    "sev": "warn",
+    "side": "client",
+    "t": "Negotiated link is only 130.0 Mbps \u2014 improve signal (move closer / reposition AP), prefer 5/6 GHz, and disable adapter power-saving (optimize-wifi.ps1)."
+   },
+   {
+    "sev": "warn",
+    "side": "os",
+    "t": "Enable Windows Location (Settings \u2192 Privacy & security \u2192 Location) so the WLAN service can scan neighbours \u2014 required for live band/channel overlap analysis."
+   },
+   {
+    "sev": "warn",
+    "side": "router",
+    "t": "On the router: set 2.4 GHz to a fixed non-overlapping channel (1, 6 or 11) at 20 MHz width, and put 5 GHz on an 80 MHz clear channel \u2014 this removes 2.4 GHz overlap."
+   },
+   {
+    "sev": "warn",
+    "side": "router",
+    "t": "Enable band steering / separate the 5 GHz SSID so devices prefer 5/6 GHz over 2.4 GHz."
+   }
+  ],
+  "scorecard": {
+   "adaptive": {
+    "at_personal_best": 0,
+    "improved_today": 0,
+    "learning": 0,
+    "metrics_scored": 7,
+    "metrics_tracked": 7,
+    "self_improvement_score": 77.1
+   },
+   "counts": {
+    "measuring": 1,
+    "met": 4,
+    "partial": 5,
+    "regress": 3
+   },
+   "overall_improvement": 55.6,
+   "overall_room": 44.4,
+   "rows": [
+    {
+     "adaptive": {
+      "adaptive_baseline": 21433.0,
+      "adaptive_progress": 67.6,
+      "adaptive_target": 6310.6,
+      "at_personal_best": false,
+      "best_date": "2026-09-13",
+      "improved_today": false,
+      "learning": false,
+      "n": 11979,
+      "personal_best": 6642.7,
+      "today_typical": 11210.8
+     },
+     "baseline": 14000,
+     "change_pct": -13.9,
+     "current": 12060.0,
+     "higher_is_better": false,
+     "key": "committed_app_mb",
+     "label": "Active app commit",
+     "note": "12,060.0 MB actionable app commit (9,582.0 MB OS/security/WSL floor excluded; 28,896.0 MB raw commit charge counter)",
+     "progress": 38.8,
+     "room": 61.2,
+     "scored_typical": 12060.0,
+     "shortfall": 3060.0,
+     "status": "partial",
+     "target": 9000,
+     "unit": "MB"
+    },
+    {
+     "adaptive": {
+      "adaptive_baseline": 6331.0,
+      "adaptive_progress": 68.3,
+      "adaptive_target": 1643.6,
+      "at_personal_best": false,
+      "best_date": "2026-09-20",
+      "improved_today": false,
+      "learning": false,
+      "n": 26004,
+      "personal_best": 1730.1,
+      "today_typical": 3129.4
+     },
+     "baseline": 4113,
+     "change_pct": -14.2,
+     "current": 3529.0,
+     "higher_is_better": false,
+     "key": "compression_mb",
+     "label": "Memory Compression",
+     "note": null,
+     "progress": 42.8,
+     "room": 57.2,
+     "scored_typical": 3529.0,
+     "shortfall": 779.0,
+     "status": "partial",
+     "target": 2750,
+     "unit": "MB"
+    },
+    {
+     "adaptive": {
+      "adaptive_baseline": 2746.0,
+      "adaptive_progress": 72.9,
+      "adaptive_target": 16576.5,
+      "at_personal_best": false,
+      "best_date": "2026-09-13",
+      "improved_today": false,
+      "learning": false,
+      "n": 26004,
+      "personal_best": 15787.1,
+      "today_typical": 12822.6
+     },
+     "baseline": 7013,
+     "change_pct": 80.2,
+     "current": 12635.0,
+     "higher_is_better": true,
+     "key": "available_mb",
+     "label": "Available physical",
+     "note": null,
+     "progress": 100.0,
+     "room": 0.0,
+     "scored_typical": 12635.0,
+     "shortfall": 0,
+     "status": "met",
+     "target": 12000,
+     "unit": "MB"
+    },
+    {
+     "adaptive": {
+      "adaptive_baseline": 10063.0,
+      "adaptive_progress": 88.1,
+      "adaptive_target": 1178.4,
+      "at_personal_best": false,
+      "best_date": "2026-09-02",
+      "improved_today": false,
+      "learning": false,
+      "n": 26004,
+      "personal_best": 1240.4,
+      "today_typical": 2231.3
+     },
+     "baseline": 5627,
+     "change_pct": -53.2,
+     "current": 2636.0,
+     "higher_is_better": false,
+     "key": "vmmem_mb",
+     "label": "vmmemWSL",
+     "note": "under cap; slope needs ~11 more min of samples (have 1 over 0 min)",
+     "progress": null,
+     "room": null,
+     "scored_typical": 2636.0,
+     "shortfall": 7604.0,
+     "status": "measuring",
+     "target": 10240,
+     "unit": "MB"
+    },
+    {
+     "adaptive": {
+      "adaptive_baseline": 132.0,
+      "adaptive_progress": 66.4,
+      "adaptive_target": 55.7,
+      "at_personal_best": false,
+      "best_date": "2026-09-24",
+      "improved_today": false,
+      "learning": false,
+      "n": 26004,
+      "personal_best": 58.6,
+      "today_typical": 81.3
+     },
+     "baseline": 105,
+     "change_pct": -11.4,
+     "current": 93,
+     "higher_is_better": false,
+     "key": "browser_procs",
+     "label": "Browser processes",
+     "note": null,
+     "progress": 36.4,
+     "room": 63.6,
+     "scored_typical": 93,
+     "shortfall": 21,
+     "status": "partial",
+     "target": 72,
+     "unit": ""
+    },
+    {
+     "adaptive": {
+      "adaptive_baseline": 266120.0,
+      "adaptive_progress": 87.3,
+      "adaptive_target": 77229.4,
+      "at_personal_best": false,
+      "best_date": "2026-09-13",
+      "improved_today": false,
+      "learning": false,
+      "n": 26004,
+      "personal_best": 81294.1,
+      "today_typical": 101142.5
+     },
+     "baseline": 130000,
+     "change_pct": -14.0,
+     "current": 111793.0,
+     "higher_is_better": false,
+     "key": "handles",
+     "label": "Active app handles",
+     "note": "111,793.0 actionable app handles (80,878.0 OS/kernel/security-agent floor excluded as non-actionable; 192,671.0 total system-wide)",
+     "progress": 52.0,
+     "room": 48.0,
+     "scored_typical": 111793.0,
+     "shortfall": 16793.0,
+     "status": "partial",
+     "target": 95000,
+     "unit": ""
+    }
+   ],
+   "scored": 12,
+   "session_samples": 1,
+   "smooth_window": 5,
+   "static": [
+    {
+     "baseline": "45,000 ms stall",
+     "change_pct": null,
+     "current": "none on last 3 boots (Rev 2.1)",
+     "key": "intel_boot",
+     "label": "Boot \u2014 Intel graphics 7009",
+     "note": "Informational only \u2014 not live-measured (boot events need elevation); excluded from the overall score.",
+     "progress": null,
+     "room": null,
+     "status": "info",
+     "target": "no 7009 event"
+    }
+   ],
+   "total_criteria": 13,
+   "vmmem_trend": 0.0,
+   "vmmem_trend_points": 1,
+   "vmmem_trend_span_min": 0.0,
+   "warming_up": true
+  },
+  "series": {
+   "available_mb": [
+    12552.0,
+    11536.0,
+    11608.0,
+    12975.0
+   ],
+   "battery_wear_pct": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "boot_time_s": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "browser_procs": [
+    82,
+    88,
+    91,
+    82
+   ],
+   "c_free_gb": [
+    182.5,
+    182.4,
+    182.4,
+    182.3
+   ],
+   "committed_app_mb": [
+    11658.0,
+    12725.0,
+    12965.0,
+    11549.0
+   ],
+   "committed_mb": [
+    25885.0,
+    27403.0,
+    27583.0,
+    25585.0
+   ],
+   "committed_system_mb": [
+    8248.0,
+    8275.0,
+    8290.0,
+    8290.0
+   ],
+   "compression_mb": [
+    2899.0,
+    2859.0,
+    3044.0,
+    3044.0
+   ],
+   "cpu_pct": [
+    15.6,
+    90.4,
+    22.0,
+    9.7
+   ],
+   "cpu_queue": [
+    0.0,
+    43.0,
+    3.0,
+    1.0
+   ],
+   "cpu_temp_c": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "disk_active_pct": [
+    0.4,
+    0.2,
+    0.3,
+    0.4
+   ],
+   "edge_procs": [
+    29,
+    35,
+    38,
+    29
+   ],
+   "explorer_launch_s": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "handles": [
+    100763.0,
+    102560.0,
+    103438.0,
+    100132.0
+   ],
+   "handles_system": [
+    76356.0,
+    75759.0,
+    76379.0,
+    75053.0
+   ],
+   "handles_total": [
+    177119.0,
+    178319.0,
+    179817.0,
+    175185.0
+   ],
+   "net_established": [
+    84,
+    84,
+    84,
+    84
+   ],
+   "net_listen": [
+    44,
+    44,
+    44,
+    44
+   ],
+   "net_loopback": [
+    42,
+    42,
+    42,
+    42
+   ],
+   "net_remote": [
+    41,
+    41,
+    41,
+    41
+   ],
+   "outlook_launch_s": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "pool_nonpaged_mb": [
+    1480.0,
+    1470.0,
+    1484.0,
+    1471.0
+   ],
+   "pool_paged_mb": [
+    1862.0,
+    1867.0,
+    1865.0,
+    1864.0
+   ],
+   "processes": [
+    353,
+    355,
+    359,
+    347
+   ],
+   "startup_apps": [
+    9,
+    9,
+    9,
+    9
+   ],
+   "t": [
+    1790664293.8447988,
+    1790664384.914899,
+    1790664467.8939679,
+    1790664550.0984898
+   ],
+   "vmmem_mb": [
+    2099.0,
+    2093.0,
+    1976.0,
+    1989.0
+   ],
+   "wifi_signal": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "word_launch_s": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "wsl_start_s": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "wv2_procs": [
+    53,
+    53,
+    53,
+    53
+   ]
+  },
+  "vmmem_trend_mb_per_h": 0.0,
+  "wifi_overlap": {
+   "available": false,
+   "reason": "location"
+  }
+ },
+ "api/onedrive": {
+  "control_disabled": false,
+  "default_stopped": true,
+  "execution_enabled": true,
+  "known": true,
+  "last_sync": 1790684192.0,
+  "lock_policy": {
+   "control_disabled": false,
+   "enabled": true,
+   "last_locked": true,
+   "manual_hold_s": 0,
+   "reconcile": true
+  },
+  "running": false,
+  "session_locked": true
+ },
+ "api/procwatch": {
+  "action_count": 3,
+  "cooldown_left_s": 0.0,
+  "cooldown_s": 600.0,
+  "current_cpu_pct": 30.42,
+  "effective": true,
+  "enabled": true,
+  "execution_enabled": true,
+  "last_action_at": 1790674962.0310836,
+  "last_result": {
+   "action": "restart_explorer",
+   "at": 1790674962.0310836,
+   "output": "",
+   "returncode": 0,
+   "status": "ok",
+   "trigger": {
+    "current_cpu_pct": 47.17,
+    "process": "explorer",
+    "recent_cpu_pct": [
+     25.93,
+     47.17
+    ],
+    "threshold_pct": 25.0
+   }
+  },
+  "max_age_s": 360.0,
+  "offending": false,
+  "process": "explorer",
+  "recent": [
+   {
+    "action": "restart",
+    "at": "2026-09-29T07:00:00+00:00",
+    "cpu_pct": 18.0,
+    "status": "ok"
+   }
+  ],
+  "recent_cpu_pct": [
+   5.37,
+   30.42
+  ],
+  "sample_age_s": 24.3,
+  "stale": false,
+  "sustain_intervals": 2,
+  "threshold_pct": 25.0
+ },
+ "api/rca": {
+  "actionable_count": 6,
+  "breach": true,
+  "counts": {
+   "measuring": 1,
+   "met": 4,
+   "partial": 5,
+   "regress": 3
+  },
+  "findings": [
+   {
+    "actionable": true,
+    "cause": "transient_spike",
+    "confidence": 0.7,
+    "contribution_pct": 18.8,
+    "current": 72,
+    "evidence": [
+     {
+      "key": "net_remote_raw",
+      "value": 75,
+      "what": "instantaneous remote conns"
+     },
+     {
+      "key": "net_remote_hosts",
+      "value": 59,
+      "what": "distinct remote hosts"
+     },
+     {
+      "key": "net_established",
+      "value": 117,
+      "what": "established conns"
+     }
+    ],
+    "explanation": "current sustained value 72 is >15% worse than this metric's own recent daily typical (39.1) while the long-term trend is stable \u2014 a burst, not a regression",
+    "key": "net_remote",
+    "label": "Network - remote TCP conns",
+    "long_term": {
+     "chronic": false,
+     "days_to_target": null,
+     "direction": "stable",
+     "first": 41.1,
+     "higher_is_better": false,
+     "key": "net_remote",
+     "label": "Network - remote TCP conns",
+     "last": 39.1,
+     "max": 41.1,
+     "mean": 32.2,
+     "met_days": 11,
+     "min": 23.7,
+     "pct_change": -4.9,
+     "pct_per_day": -0.02,
+     "samples": 3683,
+     "settled_days": 14,
+     "slope_per_day": -0.01,
+     "target": 40,
+     "volatility_pct": 54.0,
+     "window_days": 14
+    },
+    "progress": 0.0,
+    "remediations": [
+     "flush_dns"
+    ],
+    "score_gap": 100.0,
+    "scored_typical": 72,
+    "shortfall": 32,
+    "status": "regress",
+    "target": 40,
+    "unit": ""
+   },
+   {
+    "actionable": true,
+    "cause": "transient_spike",
+    "confidence": 0.7,
+    "contribution_pct": 18.8,
+    "current": 100.0,
+    "evidence": [
+     {
+      "key": "cpu_queue",
+      "value": 60.0,
+      "what": "run-queue depth"
+     },
+     {
+      "key": "processes",
+      "value": 373,
+      "what": "running processes"
+     }
+    ],
+    "explanation": "current sustained value 100.0 is >15% worse than this metric's own recent daily typical (39.6) while the long-term trend is improving \u2014 a burst, not a regression",
+    "key": "cpu_pct",
+    "label": "CPU utilisation",
+    "long_term": {
+     "chronic": false,
+     "days_to_target": null,
+     "direction": "improving",
+     "first": 22.1,
+     "higher_is_better": false,
+     "key": "cpu_pct",
+     "label": "CPU utilisation",
+     "last": 39.6,
+     "max": 48.9,
+     "mean": 34.4,
+     "met_days": 11,
+     "min": 19.2,
+     "pct_change": 79.1,
+     "pct_per_day": -0.69,
+     "samples": 1318,
+     "settled_days": 11,
+     "slope_per_day": -0.24,
+     "target": 25,
+     "volatility_pct": 86.3,
+     "window_days": 14
+    },
+    "progress": 0.0,
+    "remediations": [
+     "background_cpu_hog",
+     "evolved_cap_cpu_offenders_cpu_pct"
+    ],
+    "score_gap": 100.0,
+    "scored_typical": 100.0,
+    "shortfall": 75.0,
+    "status": "regress",
+    "target": 25,
+    "unit": "%"
+   },
+   {
+    "actionable": true,
+    "cause": "long_term_regression",
+    "confidence": 0.85,
+    "contribution_pct": 18.8,
+    "current": 60.0,
+    "evidence": [],
+    "explanation": "daily typical is trending the wrong way; at +17.37%/day it has been drifting away for 11 days",
+    "key": "cpu_queue",
+    "label": "CPU run-queue depth",
+    "long_term": {
+     "chronic": false,
+     "days_to_target": null,
+     "direction": "degrading",
+     "first": 0.0,
+     "higher_is_better": false,
+     "key": "cpu_queue",
+     "label": "CPU run-queue depth",
+     "last": 2.6,
+     "max": 14.7,
+     "mean": 2.5,
+     "met_days": 11,
+     "min": 0.0,
+     "pct_change": null,
+     "pct_per_day": 17.37,
+     "samples": 1318,
+     "settled_days": 11,
+     "slope_per_day": 0.44,
+     "target": 1,
+     "volatility_pct": 579.4,
+     "window_days": 14
+    },
+    "progress": 0.0,
+    "remediations": [
+     "background_cpu_hog"
+    ],
+    "score_gap": 100.0,
+    "scored_typical": 60.0,
+    "shortfall": 59.0,
+    "status": "regress",
+    "target": 1,
+    "unit": ""
+   }
+  ],
+  "preventive": [
+   {
+    "days_to_target": 15.0,
+    "direction": "degrading",
+    "key": "available_mb",
+    "label": "Available physical",
+    "pct_per_day": -0.39,
+    "reason": "met today but drifting -0.39%/day over 14 days",
+    "remediations": [
+     "clear_standby",
+     "trim_working_sets"
+    ]
+   },
+   {
+    "days_to_target": 10.5,
+    "direction": "degrading",
+    "key": "startup_apps",
+    "label": "Startup programs (enabled)",
+    "pct_per_day": 0.58,
+    "reason": "met today but drifting +0.58%/day over 11 days",
+    "remediations": [
+     "trim_startup"
+    ]
+   }
+  ],
+  "proposals": [],
+  "regime": {
+   "load_index": 1.55,
+   "ratios": {
+    "browser_procs": 1.18,
+    "committed_app_mb": 1.04,
+    "cpu_pct": 2.91,
+    "handles": 1.06
+   },
+   "regime": "heavy"
+  },
+  "score": 55.6,
+  "score_trend": {
+   "days": 11,
+   "direction": "degrading",
+   "first": 97.2,
+   "last": 82.1,
+   "mean": 82.7,
+   "slope_per_day": -1.29,
+   "window_days": 14
+  },
+  "summary": "Score 55.6% is below the 80% threshold; long-term score trend is degrading (-1.29 pts/day over 11 days). Under heavy load, the gap is dominated by: Network - remote TCP conns (18.8% of the gap, transient_spike), CPU utilisation (18.8% of the gap, transient_spike), CPU run-queue depth (18.8% of the gap, long_term_regression).",
+  "threshold": 80.0
+ },
+ "api/selftest": {
+  "age_s": 11965.4,
+  "available": true,
+  "coverage": {
+   "detail": "TOTAL          4665/4665 100.00%",
+   "line_pct": 100.0
+  },
+  "duration_s": 301.7,
+  "exit_code": 0,
+  "finished_at": 1790672473.9753726,
+  "gate_counts": {
+   "fail": 0,
+   "pass": 8,
+   "skip": 0,
+   "total": 8,
+   "unknown": 0
+  },
+  "gates": [
+   {
+    "description": "every module is registered in the coverage gate",
+    "detail": "",
+    "findings": [],
+    "name": "discover",
+    "skip_reason": "",
+    "status": "pass"
+   },
+   {
+    "description": "modules byte-compile and are documented",
+    "detail": "",
+    "findings": [],
+    "name": "compile",
+    "skip_reason": "",
+    "status": "pass"
+   },
+   {
+    "description": "AST checks (no external linter is installable here)",
+    "detail": "",
+    "findings": [],
+    "name": "lint",
+    "skip_reason": "",
+    "status": "pass"
+   },
+   {
+    "description": "pytest suite",
+    "detail": "649 passed in 153.12s (0:02:33)",
+    "findings": [],
+    "name": "unit",
+    "skip_reason": "",
+    "status": "pass"
+   },
+   {
+    "description": "100% line coverage on every target module",
+    "detail": "TOTAL          4665/4665 100.00%",
+    "findings": [],
+    "name": "coverage",
+    "skip_reason": "",
+    "status": "pass"
+   },
+   {
+    "description": "page JS parses, ids resolve, strings are escaped",
+    "detail": "",
+    "findings": [],
+    "name": "frontend",
+    "skip_reason": "",
+    "status": "pass"
+   },
+   {
+    "description": "the page renders and responds in a real browser",
+    "detail": "44 passed in 128.24s (0:02:08)  \u00b7  UI coverage 100.0%",
+    "findings": [],
+    "name": "browser",
+    "skip_reason": "",
+    "status": "pass"
+   }
+  ],
+  "last_error": null,
+  "pytest_cache": {
+   "available": true,
+   "collected": 653,
+   "failed": 1,
+   "failing": [
+    "tests/test_session_policy.py::test_no_action_between_transitions"
+   ],
+   "pass_rate": 99.8,
+   "passed": 652
+  },
+  "report_file": "/home/testuser/perf-dashboard/selftest_report.json",
+  "runnable": true,
+  "running": false,
+  "stale_after_s": 21600,
+  "started_at": null,
+  "state": "ok",
+  "unit": {
+   "detail": "649 passed in 153.12s (0:02:33)",
+   "duration_s": 153.12,
+   "passed": 649
+  },
+  "verdict": "ALL GATES PASSED"
+ },
+ "api/trends": {
+  "chronic": [],
+  "days_tracked": 27,
+  "degrading": [
+   "available_mb",
+   "committed_app_mb",
+   "compression_mb",
+   "cpu_queue"
+  ],
+  "first_day": "2026-08-28",
+  "improving": [
+   "browser_procs",
+   "cpu_pct",
+   "vmmem_mb"
+  ],
+  "is_peak_now": false,
+  "last_day": "2026-09-29",
+  "metrics": {
+   "available_mb": {
+    "chronic": false,
+    "days_to_target": 15.0,
+    "direction": "degrading",
+    "first": 10461.5,
+    "higher_is_better": true,
+    "key": "available_mb",
+    "label": "Available physical",
+    "last": 12701.0,
+    "max": 14350.6,
+    "mean": 12010.4,
+    "met_days": 10,
+    "min": 8945.6,
+    "pct_change": 21.4,
+    "pct_per_day": -0.39,
+    "samples": 3683,
+    "settled_days": 14,
+    "slope_per_day": -46.83,
+    "target": 12000,
+    "volatility_pct": 45.0,
+    "window_days": 14
+   },
+   "browser_procs": {
+    "chronic": false,
+    "days_to_target": null,
+    "direction": "improving",
+    "first": 94.0,
+    "higher_is_better": false,
+    "key": "browser_procs",
+    "label": "Browser processes",
+    "last": 81.5,
+    "max": 94.0,
+    "mean": 79.1,
+    "met_days": 9,
+    "min": 58.0,
+    "pct_change": -13.3,
+    "pct_per_day": -0.57,
+    "samples": 3683,
+    "settled_days": 14,
+    "slope_per_day": -0.45,
+    "target": 72,
+    "volatility_pct": 45.6,
+    "window_days": 14
+   },
+   "c_free_gb": {
+    "chronic": false,
+    "days_to_target": null,
+    "direction": "stable",
+    "first": 188.9,
+    "higher_is_better": true,
+    "key": "c_free_gb",
+    "label": "C: free",
+    "last": 181.3,
+    "max": 188.9,
+    "mean": 182.4,
+    "met_days": 10,
+    "min": 173.2,
+    "pct_change": -4.0,
+    "pct_per_day": -0.24,
+    "samples": 1318,
+    "settled_days": 11,
+    "slope_per_day": -0.43,
+    "target": 180,
+    "volatility_pct": 8.6,
+    "window_days": 14
+   },
+   "committed_app_mb": {
+    "chronic": false,
+    "days_to_target": null,
+    "direction": "degrading",
+    "first": 15976.4,
+    "higher_is_better": false,
+    "key": "committed_app_mb",
+    "label": "Active app commit",
+    "last": 11272.3,
+    "max": 15976.4,
+    "mean": 11630.7,
+    "met_days": 9,
+    "min": 7549.1,
+    "pct_change": -29.4,
+    "pct_per_day": 0.38,
+    "samples": 3683,
+    "settled_days": 14,
+    "slope_per_day": 44.47,
+    "target": 9000,
+    "volatility_pct": 72.5,
+    "window_days": 14
+   },
+   "compression_mb": {
+    "chronic": false,
+    "days_to_target": null,
+    "direction": "degrading",
+    "first": 3845.0,
+    "higher_is_better": false,
+    "key": "compression_mb",
+    "label": "Memory Compression",
+    "last": 3109.9,
+    "max": 3845.0,
+    "mean": 2828.1,
+    "met_days": 10,
+    "min": 1686.0,
+    "pct_change": -19.1,
+    "pct_per_day": 1.21,
+    "samples": 3683,
+    "settled_days": 14,
+    "slope_per_day": 34.21,
+    "target": 2750,
+    "volatility_pct": 76.3,
+    "window_days": 14
+   },
+   "cpu_pct": {
+    "chronic": false,
+    "days_to_target": null,
+    "direction": "improving",
+    "first": 22.1,
+    "higher_is_better": false,
+    "key": "cpu_pct",
+    "label": "CPU utilisation",
+    "last": 39.6,
+    "max": 48.9,
+    "mean": 34.4,
+    "met_days": 11,
+    "min": 19.2,
+    "pct_change": 79.1,
+    "pct_per_day": -0.69,
+    "samples": 1318,
+    "settled_days": 11,
+    "slope_per_day": -0.24,
+    "target": 25,
+    "volatility_pct": 86.3,
+    "window_days": 14
+   },
+   "cpu_queue": {
+    "chronic": false,
+    "days_to_target": null,
+    "direction": "degrading",
+    "first": 0.0,
+    "higher_is_better": false,
+    "key": "cpu_queue",
+    "label": "CPU run-queue depth",
+    "last": 2.6,
+    "max": 14.7,
+    "mean": 2.5,
+    "met_days": 11,
+    "min": 0.0,
+    "pct_change": null,
+    "pct_per_day": 17.37,
+    "samples": 1318,
+    "settled_days": 11,
+    "slope_per_day": 0.44,
+    "target": 1,
+    "volatility_pct": 579.4,
+    "window_days": 14
+   },
+   "disk_active_pct": {
+    "chronic": false,
+    "days_to_target": 9.0,
+    "direction": "degrading",
+    "first": 2.5,
+    "higher_is_better": false,
+    "key": "disk_active_pct",
+    "label": "Disk active time",
+    "last": 2.0,
+    "max": 27.1,
+    "mean": 7.9,
+    "met_days": 11,
+    "min": 2.0,
+    "pct_change": -20.8,
+    "pct_per_day": 11.21,
+    "samples": 1318,
+    "settled_days": 11,
+    "slope_per_day": 0.89,
+    "target": 10,
+    "volatility_pct": 316.2,
+    "window_days": 14
+   },
+   "handles": {
+    "chronic": false,
+    "days_to_target": null,
+    "direction": "stable",
+    "first": 127282.1,
+    "higher_is_better": false,
+    "key": "handles",
+    "label": "Active app handles",
+    "last": 101037.5,
+    "max": 127282.1,
+    "mean": 105326.1,
+    "met_days": 8,
+    "min": 86450.2,
+    "pct_change": -20.6,
+    "pct_per_day": -0.04,
+    "samples": 3683,
+    "settled_days": 14,
+    "slope_per_day": -47.16,
+    "target": 95000,
+    "volatility_pct": 38.8,
+    "window_days": 14
+   },
+   "hw_faults": {
+    "chronic": false,
+    "days_to_target": null,
+    "direction": "degrading",
+    "first": 0.0,
+    "higher_is_better": false,
+    "key": "hw_faults",
+    "label": "Hardware - device faults",
+    "last": 0.0,
+    "max": 0.1,
+    "mean": 0.0,
+    "met_days": 11,
+    "min": 0.0,
+    "pct_change": null,
+    "pct_per_day": 19.02,
+    "samples": 1318,
+    "settled_days": 11,
+    "slope_per_day": 0.0,
+    "target": 0,
+    "volatility_pct": 1100.0,
+    "window_days": 14
+   },
+   "net_remote": {
+    "chronic": false,
+    "days_to_target": null,
+    "direction": "stable",
+    "first": 41.1,
+    "higher_is_better": false,
+    "key": "net_remote",
+    "label": "Network - remote TCP conns",
+    "last": 39.1,
+    "max": 41.1,
+    "mean": 32.2,
+    "met_days": 11,
+    "min": 23.7,
+    "pct_change": -4.9,
+    "pct_per_day": -0.02,
+    "samples": 3683,
+    "settled_days": 14,
+    "slope_per_day": -0.01,
+    "target": 40,
+    "volatility_pct": 54.0,
+    "window_days": 14
+   },
+   "startup_apps": {
+    "chronic": false,
+    "days_to_target": 10.5,
+    "direction": "degrading",
+    "first": 10.0,
+    "higher_is_better": false,
+    "key": "startup_apps",
+    "label": "Startup programs (enabled)",
+    "last": 9.4,
+    "max": 11.0,
+    "mean": 10.4,
+    "met_days": 7,
+    "min": 9.4,
+    "pct_change": -6.3,
+    "pct_per_day": 0.58,
+    "samples": 1318,
+    "settled_days": 11,
+    "slope_per_day": 0.06,
+    "target": 10,
+    "volatility_pct": 15.7,
+    "window_days": 14
+   },
+   "vmmem_mb": {
+    "chronic": false,
+    "days_to_target": null,
+    "direction": "improving",
+    "first": 1400.2,
+    "higher_is_better": false,
+    "key": "vmmem_mb",
+    "label": "vmmemWSL",
+    "last": 2280.5,
+    "max": 3257.0,
+    "mean": 2267.9,
+    "met_days": 14,
+    "min": 1400.2,
+    "pct_change": 62.9,
+    "pct_per_day": -0.6,
+    "samples": 3683,
+    "settled_days": 14,
+    "slope_per_day": -13.72,
+    "target": 10240,
+    "volatility_pct": 81.9,
+    "window_days": 14
+   }
+  },
+  "peak_hours": [
+   1,
+   2,
+   18
+  ],
+  "regime": {
+   "load_index": 1.55,
+   "ratios": {
+    "browser_procs": 1.18,
+    "committed_app_mb": 1.04,
+    "cpu_pct": 2.91,
+    "handles": 1.06
+   },
+   "regime": "heavy"
+  },
+  "retain_days": 180,
+  "score_trend": {
+   "days": 11,
+   "direction": "degrading",
+   "first": 97.2,
+   "last": 82.1,
+   "mean": 82.7,
+   "slope_per_day": -1.29,
+   "window_days": 14
+  }
+ }
+}

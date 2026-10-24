@@ -1,0 +1,4 @@
+# SysPerf runtime dependencies — pinned for reproducible installs.
+# Both are pure Python, so there is nothing to compile on Windows.
+Flask==3.0.3
+waitress==3.0.0

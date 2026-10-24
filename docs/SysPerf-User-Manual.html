@@ -1,0 +1,2323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SysPerf 2.0.0 — User Manual</title>
+<meta name="description" content="A read-only performance dashboard and advisor for Windows 11">
+<meta name="generator" content="SysPerf docs/build_manual.py">
+<style>
+:root{
+  --bg:#f7f8fa; --panel:#ffffff; --ink:#1b2028; --muted:#5d6675; --line:#e2e6ec;
+  --accent:#1f6feb; --accent-soft:#eaf2ff; --code-bg:#f2f4f8; --code-ink:#1f2b3d;
+  --ok:#127a4b; --warn:#8a5a00; --bad:#b3261e;
+  --sidebar:300px; --maxtext:78ch;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.68 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+
+/* ---------- layout ---------- */
+.layout{display:flex;align-items:flex-start;gap:0}
+nav.toc{position:sticky;top:0;flex:0 0 var(--sidebar);width:var(--sidebar);
+  height:100vh;overflow-y:auto;background:var(--panel);border-right:1px solid var(--line);
+  padding:22px 18px 40px}
+nav.toc .brand{font-weight:700;font-size:17px;letter-spacing:-.2px}
+nav.toc .brand span{display:block;font-weight:400;font-size:12.5px;color:var(--muted);
+  letter-spacing:.02em;text-transform:uppercase;margin-top:2px}
+nav.toc .ver{margin:10px 0 16px;font-size:12px;color:var(--muted)}
+nav.toc ol{list-style:none;margin:0;padding:0}
+nav.toc li{margin:0}
+nav.toc a{display:block;padding:5px 9px;border-radius:6px;color:var(--ink);
+  text-decoration:none;font-size:13.5px;line-height:1.45}
+nav.toc a:hover{background:var(--accent-soft);color:var(--accent)}
+nav.toc li.lvl2 a{padding-left:22px;font-size:13px;color:var(--muted)}
+nav.toc li.lvl1{margin-top:3px}
+nav.toc li.lvl1 a{font-weight:600}
+
+main{flex:1 1 auto;min-width:0;padding:0 0 80px}
+.inner{max-width:calc(var(--maxtext) + 120px);margin:0 auto;padding:0 40px}
+
+/* ---------- cover ---------- */
+header.cover{background:linear-gradient(135deg,#12233d,#1c3557);color:#fff;
+  padding:56px 40px 44px;margin-bottom:38px}
+header.cover .wrap{max-width:calc(var(--maxtext) + 120px);margin:0 auto}
+header.cover .mark{font-size:12.5px;text-transform:uppercase;letter-spacing:.14em;
+  color:#9dc0f0}
+header.cover h1{margin:8px 0 4px;font-size:44px;line-height:1.05;letter-spacing:-1px}
+header.cover .tagline{margin:0;font-size:17px;color:#d5e3f7;max-width:60ch}
+header.cover .meta{margin-top:20px;font-size:13px;color:#9dc0f0}
+header.cover .claims{margin-top:24px;display:grid;gap:10px;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+header.cover .claims div{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);
+  border-radius:9px;padding:12px 14px;font-size:13.5px;color:#e8f0fb}
+header.cover .claims b{color:#fff;display:block;margin-bottom:2px}
+
+/* ---------- typography ---------- */
+h2,h3,h4{line-height:1.25;scroll-margin-top:20px}
+h2{margin:44px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--line);
+  font-size:27px;letter-spacing:-.4px}
+h3{margin:30px 0 10px;font-size:19.5px}
+h4{margin:22px 0 8px;font-size:16.5px;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.05em}
+p,ul,ol{max-width:var(--maxtext)}
+p{margin:0 0 14px}
+ul,ol{margin:0 0 14px;padding-left:24px}
+li{margin:4px 0}
+a{color:var(--accent)}
+strong{color:#111721}
+hr{border:0;border-top:1px solid var(--line);margin:38px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:var(--accent-soft);
+  border-left:4px solid var(--accent);border-radius:0 8px 8px 0;max-width:var(--maxtext)}
+blockquote p:last-child{margin:0}
+
+/* heading permalinks */
+.anchor{float:left;margin-left:-.75em;padding-right:.25em;color:var(--line);
+  text-decoration:none;font-weight:400;opacity:0}
+h2:hover .anchor,h3:hover .anchor{opacity:1}
+
+/* ---------- code ---------- */
+code{font-family:"Cascadia Code",Consolas,"SF Mono",Menlo,monospace;font-size:13.5px;
+  background:var(--code-bg);color:var(--code-ink);border:1px solid var(--line);
+  border-radius:4px;padding:1px 5px}
+pre{background:#0f1724;color:#e6edf7;border-radius:10px;padding:16px 18px;
+  overflow-x:auto;margin:0 0 18px;font-size:13.5px;line-height:1.6;
+  max-width:calc(var(--maxtext) + 8ch)}
+pre code{background:none;border:0;color:inherit;padding:0;font-size:inherit}
+
+/* ---------- tables ---------- */
+.tablewrap{overflow-x:auto;margin:0 0 20px;max-width:calc(var(--maxtext) + 16ch)}
+table{border-collapse:collapse;width:100%;font-size:14.5px;background:var(--panel);
+  border:1px solid var(--line);border-radius:8px}
+th{text-align:left;background:#eef1f6;color:#33405a;font-size:12.5px;
+  text-transform:uppercase;letter-spacing:.04em;padding:10px 12px;
+  border-bottom:1px solid var(--line)}
+td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr:nth-child(even){background:#fafbfd}
+
+/* ---------- footer ---------- */
+footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
+  color:var(--muted);font-size:13px}
+
+/* ---------- responsive ---------- */
+@media (max-width:1000px){
+  .layout{display:block}
+  nav.toc{position:static;width:auto;height:auto;border-right:0;
+    border-bottom:1px solid var(--line);max-height:none}
+  nav.toc ol{columns:2;column-gap:24px}
+  .inner{padding:0 22px}
+  header.cover{padding:40px 22px 32px}
+  header.cover h1{font-size:34px}
+}
+@media (max-width:620px){ nav.toc ol{columns:1} }
+
+/* ---------- print ---------- */
+@media print{
+  :root{--maxtext:100%}
+  body{background:#fff;font-size:11pt}
+  nav.toc{display:none}
+  header.cover{background:#12233d !important;-webkit-print-color-adjust:exact;
+    print-color-adjust:exact}
+  .inner{max-width:none;padding:0}
+  h2{page-break-after:avoid} pre,table,blockquote{page-break-inside:avoid}
+  a{color:inherit;text-decoration:none}
+  .anchor{display:none}
+}
+</style>
+</head>
+<body>
+<header class="cover">
+  <div class="wrap">
+    <div class="mark">System Performance Agent &middot; User Manual</div>
+    <h1>SysPerf</h1>
+    <p class="tagline">A read-only performance dashboard and advisor for Windows 11</p>
+    <div class="claims">
+      <div><b>Measures your machine</b>Baselines and targets come from your own RAM,
+        storage and measured process floor — not someone else's laptop.</div>
+      <div><b>Never changes a setting</b>Every system call is a query.
+        Recommendations are yours to act on.</div>
+      <div><b>Nothing leaves the machine</b>No telemetry, no accounts, no
+        third-party scripts. It works offline.</div>
+    </div>
+    <div class="meta">Version 2.0.0 &middot; Apache License 2.0 &middot;
+      Windows 11 &middot; Python 3.9+ &middot; built 2026-10-21</div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="Contents">
+    <div class="brand">SysPerf<span>User Manual</span></div>
+    <div class="ver">Version 2.0.0</div>
+    <ol><li class="lvl1"><a href="#1-introduction">#1. Introduction</a></li>
+<li class="lvl2"><a href="#11-what-sysperf-is">#1.1 What SysPerf is</a></li>
+<li class="lvl2"><a href="#12-what-sysperf-is-not">#1.2 What SysPerf is not</a></li>
+<li class="lvl2"><a href="#13-three-ideas-that-make-it-different">#1.3 Three ideas that make it different</a></li>
+<li class="lvl2"><a href="#14-who-it-is-for">#1.4 Who it is for</a></li>
+<li class="lvl1"><a href="#2-requirements">#2. Requirements</a></li>
+<li class="lvl1"><a href="#3-installation">#3. Installation</a></li>
+<li class="lvl2"><a href="#31-the-standard-install">#3.1 The standard install</a></li>
+<li class="lvl2"><a href="#32-installer-options">#3.2 Installer options</a></li>
+<li class="lvl2"><a href="#33-running-without-installing">#3.3 Running without installing</a></li>
+<li class="lvl2"><a href="#34-installing-with-pip">#3.4 Installing with pip</a></li>
+<li class="lvl2"><a href="#35-running-under-wsl-2-optional">#3.5 Running under WSL 2 (optional)</a></li>
+<li class="lvl2"><a href="#35a-running-in-a-container-optional-320">#3.5a Running in a container (optional, 3.2.0+)</a></li>
+<li class="lvl2"><a href="#36-if-installation-fails">#3.6 If installation fails</a></li>
+<li class="lvl1"><a href="#4-first-run">#4. First run</a></li>
+<li class="lvl2"><a href="#41-what-happens-in-the-first-minute">#4.1 What happens in the first minute</a></li>
+<li class="lvl2"><a href="#42-why-everything-reads-0">#4.2 Why everything reads 0%</a></li>
+<li class="lvl2"><a href="#43-the-first-ten-minutes">#4.3 The first ten minutes</a></li>
+<li class="lvl1"><a href="#5-reading-the-dashboard">#5. Reading the dashboard</a></li>
+<li class="lvl2"><a href="#50-summary-and-details-tabs">#5.0 Summary and Details tabs</a></li>
+<li class="lvl2"><a href="#501-wi-fi-network-optimisation-and-component-upgrades-new-in-20">#5.0.1 Wi-Fi, network optimisation and component upgrades (new in 2.0)</a></li>
+<li class="lvl2"><a href="#51-header">#5.1 Header</a></li>
+<li class="lvl2"><a href="#52-alerts">#5.2 Alerts</a></li>
+<li class="lvl2"><a href="#53-overview-cards">#5.3 Overview cards</a></li>
+<li class="lvl2"><a href="#54-recommendations">#5.4 Recommendations</a></li>
+<li class="lvl2"><a href="#55-key-metrics">#5.5 Key metrics</a></li>
+<li class="lvl2"><a href="#56-self-improving-scorecard">#5.6 Self-improving scorecard</a></li>
+<li class="lvl2"><a href="#57-success-criteria-scorecard">#5.7 Success-criteria scorecard</a></li>
+<li class="lvl2"><a href="#58-trends">#5.8 Trends</a></li>
+<li class="lvl2"><a href="#59-browser-processes">#5.9 Browser processes</a></li>
+<li class="lvl2"><a href="#510-wsl-2-and-kernel-pools">#5.10 WSL 2 and kernel pools</a></li>
+<li class="lvl2"><a href="#511-hardware-health">#5.11 Hardware health</a></li>
+<li class="lvl2"><a href="#512-drivers-health">#5.12 Drivers health</a></li>
+<li class="lvl2"><a href="#56-auto-improve-tab">#5.6 Auto-Improve tab</a></li>
+<li class="lvl1"><a href="#6-how-scoring-works">#6. How scoring works</a></li>
+<li class="lvl2"><a href="#61-progress">#6.1 Progress</a></li>
+<li class="lvl2"><a href="#62-where-targets-come-from">#6.2 Where targets come from</a></li>
+<li class="lvl2"><a href="#63-smoothing">#6.3 Smoothing</a></li>
+<li class="lvl2"><a href="#64-the-noise-dead-band">#6.4 The noise dead-band</a></li>
+<li class="lvl2"><a href="#65-ceiling-criteria">#6.5 Ceiling criteria</a></li>
+<li class="lvl2"><a href="#66-adaptive-scoring">#6.6 Adaptive scoring</a></li>
+<li class="lvl1"><a href="#7-recommendations-reference">#7. Recommendations reference</a></li>
+<li class="lvl2"><a href="#71-memory">#7.1 Memory</a></li>
+<li class="lvl2"><a href="#72-startup-and-maintenance">#7.2 Startup and maintenance</a></li>
+<li class="lvl2"><a href="#73-browser">#7.3 Browser</a></li>
+<li class="lvl2"><a href="#74-storage">#7.4 Storage</a></li>
+<li class="lvl2"><a href="#75-network">#7.5 Network</a></li>
+<li class="lvl2"><a href="#76-drivers-and-hardware">#7.6 Drivers and hardware</a></li>
+<li class="lvl2"><a href="#77-power-and-platform">#7.7 Power and platform</a></li>
+<li class="lvl2"><a href="#78-wsl-2">#7.8 WSL 2</a></li>
+<li class="lvl1"><a href="#8-configuration">#8. Configuration</a></li>
+<li class="lvl2"><a href="#81-where-the-file-is">#8.1 Where the file is</a></li>
+<li class="lvl2"><a href="#82-server-and-sampling">#8.2 Server and sampling</a></li>
+<li class="lvl2"><a href="#83-scoring">#8.3 Scoring</a></li>
+<li class="lvl2"><a href="#84-browser-ownership">#8.4 Browser ownership</a></li>
+<li class="lvl2"><a href="#85-hardware-watchlist">#8.5 Hardware watchlist</a></li>
+<li class="lvl2"><a href="#86-advisor-and-privacy">#8.6 Advisor and privacy</a></li>
+<li class="lvl2"><a href="#87-trends-and-autonomous-improvement">#8.7 Trends and autonomous improvement</a></li>
+<li class="lvl2"><a href="#88-environment-variables">#8.8 Environment variables</a></li>
+<li class="lvl1"><a href="#9-privacy-and-security">#9. Privacy and security</a></li>
+<li class="lvl2"><a href="#91-nothing-leaves-your-machine">#9.1 Nothing leaves your machine</a></li>
+<li class="lvl2"><a href="#92-read-only">#9.2 Read-only</a></li>
+<li class="lvl2"><a href="#93-treat-the-api-as-sensitive">#9.3 Treat the API as sensitive</a></li>
+<li class="lvl2"><a href="#94-if-you-expose-it-on-a-network">#9.4 If you expose it on a network</a></li>
+<li class="lvl2"><a href="#95-sharing-screenshots">#9.5 Sharing screenshots</a></li>
+<li class="lvl2"><a href="#96-reporting-a-vulnerability">#9.6 Reporting a vulnerability</a></li>
+<li class="lvl1"><a href="#99-where-is-it-running-and-where-is-my-data">#9.9 Where is it running, and where is my data?</a></li>
+<li class="lvl2"><a href="#910-keeping-the-component-catalog-current">#9.10 Keeping the component catalog current</a></li>
+<li class="lvl1"><a href="#10-command-line-reference">#10. Command-line reference</a></li>
+<li class="lvl1"><a href="#11-api-reference">#11. API reference</a></li>
+<li class="lvl1"><a href="#12-troubleshooting">#12. Troubleshooting</a></li>
+<li class="lvl1"><a href="#13-frequently-asked-questions">#13. Frequently asked questions</a></li>
+<li class="lvl1"><a href="#14-autonomous-improvement">#14. Autonomous improvement</a></li>
+<li class="lvl2"><a href="#141-the-cycle">#14.1 The cycle</a></li>
+<li class="lvl2"><a href="#142-why-the-cause-matters">#14.2 Why the cause matters</a></li>
+<li class="lvl2"><a href="#143-what-the-long-horizon-adds">#14.3 What the long horizon adds</a></li>
+<li class="lvl2"><a href="#144-guards">#14.4 Guards</a></li>
+<li class="lvl2"><a href="#145-state-files">#14.5 State files</a></li>
+<li class="lvl2"><a href="#146-turning-it-off">#14.6 Turning it off</a></li>
+<li class="lvl2"><a href="#147-what-it-has-learned">#14.7 What it has learned</a></li>
+<li class="lvl2"><a href="#148-what-it-needs-you-to-do">#14.8 What it needs you to do</a></li>
+<li class="lvl2"><a href="#149-what-it-wants-to-become">#14.9 What it wants to become</a></li>
+<li class="lvl2"><a href="#1410-its-own-tests">#14.10 Its own tests</a></li>
+<li class="lvl1"><a href="#14a-ai-self-evolution-and-autonomy-levels-40">#14a. AI self-evolution and autonomy levels (4.0)</a></li>
+<li class="lvl1"><a href="#15-uninstalling">#15. Uninstalling</a></li>
+<li class="lvl1"><a href="#16-licence-and-credits">#16. Licence and credits</a></li>
+<li class="lvl1"><a href="#appendix-a-architecture-and-data-flow">#Appendix A. Architecture and data flow</a></li>
+<li class="lvl2"><a href="#a1-module-responsibilities">#A.1 Module responsibilities</a></li>
+<li class="lvl2"><a href="#a2-sampling-tiers">#A.2 Sampling tiers</a></li>
+<li class="lvl1"><a href="#appendix-b-collected-data-reference">#Appendix B. Collected data reference</a></li>
+<li class="lvl2"><a href="#b1-fast-tier-every-sample">#B.1 Fast tier (every sample)</a></li>
+<li class="lvl2"><a href="#b2-slow-tier-full">#B.2 Slow tier (-Full)</a></li>
+<li class="lvl2"><a href="#b3-deliberate-collection-choices">#B.3 Deliberate collection choices</a></li>
+<li class="lvl1"><a href="#appendix-c-scoring-mathematics">#Appendix C. Scoring mathematics</a></li>
+<li class="lvl2"><a href="#c1-criterion-progress">#C.1 Criterion progress</a></li>
+<li class="lvl2"><a href="#c2-ceiling-criteria-wsl-memory">#C.2 Ceiling criteria (WSL memory)</a></li>
+<li class="lvl2"><a href="#c3-target-derivation">#C.3 Target derivation</a></li>
+<li class="lvl2"><a href="#c4-the-10-category-summary-score">#C.4 The 10-category Summary score</a></li>
+<li class="lvl2"><a href="#c5-adaptive-personal-best-layer">#C.5 Adaptive (personal-best) layer</a></li>
+<li class="lvl1"><a href="#appendix-d-wi-fi-and-network-analysis-internals">#Appendix D. Wi-Fi and network analysis internals</a></li>
+<li class="lvl2"><a href="#d1-why-two-data-sources">#D.1 Why two data sources</a></li>
+<li class="lvl2"><a href="#d2-channel-overlap-model">#D.2 Channel overlap model</a></li>
+<li class="lvl2"><a href="#d3-why-sysperf-cannot-fix-overlap">#D.3 Why SysPerf cannot &quot;fix&quot; overlap</a></li>
+<li class="lvl1"><a href="#appendix-e-security-and-privacy-model">#Appendix E. Security and privacy model</a></li>
+<li class="lvl2"><a href="#e1-what-the-data-contains">#E.1 What the data contains</a></li>
+<li class="lvl1"><a href="#appendix-f-performance-characteristics">#Appendix F. Performance characteristics</a></li>
+<li class="lvl1"><a href="#appendix-g-extending-sysperf">#Appendix G. Extending SysPerf</a></li></ol>
+  </nav>
+  <main>
+    <div class="inner">
+      <h2 id="1-introduction"><a class="anchor" href="#1-introduction" aria-hidden="true">#</a>1. Introduction</h2>
+<h3 id="11-what-sysperf-is"><a class="anchor" href="#11-what-sysperf-is" aria-hidden="true">#</a>1.1 What SysPerf is</h3>
+<p>SysPerf watches how your Windows 11 machine is actually behaving, compares that
+against where it started and what it is capable of, and tells you what to change
+to make it faster.</p>
+<p>It runs entirely on your machine as a small local web dashboard, plus a background
+sampler that reads Windows performance data every twenty seconds.</p>
+<h3 id="12-what-sysperf-is-not"><a class="anchor" href="#12-what-sysperf-is-not" aria-hidden="true">#</a>1.2 What SysPerf is not</h3>
+<p>It is <strong>not</strong> an optimiser that changes settings for you. SysPerf reads. It never
+writes to the registry, never disables a service, never deletes a file, never
+changes a power plan. When it finds something worth fixing it tells you what it
+measured, why that matters, and what to do — and then you decide.</p>
+<p>This is a deliberate design constraint rather than an unfinished feature. Tools
+that silently modify Windows are impossible to audit: when something breaks a week
+later, you cannot tell whether the tool did it. Because SysPerf only reads,
+uninstalling it leaves nothing to revert.</p>
+<h3 id="13-three-ideas-that-make-it-different"><a class="anchor" href="#13-three-ideas-that-make-it-different" aria-hidden="true">#</a>1.3 Three ideas that make it different</h3>
+<p><strong>Your machine sets the standard.</strong> On first run SysPerf records a baseline — the
+state of your machine right now — and derives its targets from your actual RAM,
+disk size and measured process floor. A 64 GB workstation and an 8 GB laptop get
+different targets because the same number cannot be correct for both. There are no
+constants copied from someone else's computer.</p>
+<p><strong>It admits what it cannot know.</strong> A measurement that needs more data reports
+<code>measuring</code> and is left out of the score rather than being assumed good. A fault
+that Windows itself reports as "OK" — a touchpad button that sticks, a fan that
+rattles — cannot be auto-detected at all, so there is a manual watchlist for it.</p>
+<p><strong>It scores the sustained state, not the moment.</strong> Process and connection counts
+fluctuate constantly. Scoring the latest reading would make the score collapse
+every time you opened a browser tab, so SysPerf scores a rolling median instead.
+The live gauges still show the raw value.</p>
+<h3 id="14-who-it-is-for"><a class="anchor" href="#14-who-it-is-for" aria-hidden="true">#</a>1.4 Who it is for</h3>
+<p>Anyone who wants to know why their Windows machine feels slow and what to do about
+it: developers on heavy toolchains, analysts with large spreadsheets, anyone on a
+corporate laptop weighed down by management agents, and IT staff who need evidence
+rather than an impression.</p>
+<hr>
+<h2 id="2-requirements"><a class="anchor" href="#2-requirements" aria-hidden="true">#</a>2. Requirements</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Operating system</td>
+<td>Windows 11 (build 22000 or later). Windows 10 works but is not the test target.</td>
+</tr>
+<tr>
+<td>PowerShell</td>
+<td>5.1, which ships with Windows. PowerShell 7 also works.</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>3.9 or later. The installer can fetch it via <code>winget</code> if it is missing.</td>
+</tr>
+<tr>
+<td>Privileges</td>
+<td>Standard user. Nothing requires administrator rights.</td>
+</tr>
+<tr>
+<td>Disk space</td>
+<td>About 60 MB including the private Python environment, plus up to 12 MB of history.</td>
+</tr>
+<tr>
+<td>Network</td>
+<td>Needed once, to download two Python packages. After installation SysPerf works entirely offline.</td>
+</tr>
+</tbody>
+</table></div>
+<p>Non-English installations of Windows are fully supported. SysPerf reads
+performance data from locale-independent system classes rather than from
+performance-counter names, which are translated, and identifies power plans by
+their unique identifier rather than by their display name.</p>
+<hr>
+<h2 id="3-installation"><a class="anchor" href="#3-installation" aria-hidden="true">#</a>3. Installation</h2>
+<h3 id="31-the-standard-install"><a class="anchor" href="#31-the-standard-install" aria-hidden="true">#</a>3.1 The standard install</h3>
+<p>Unpack the SysPerf folder somewhere convenient, open PowerShell in it, and run:</p>
+<pre><code class="language-powershell">powershell -ExecutionPolicy Bypass -File install.ps1
+</code></pre>
+<p><code>-ExecutionPolicy Bypass</code> applies to that one command only. It does not change the
+machine's script policy.</p>
+<p>The installer will:</p>
+<ol>
+<li>confirm your Windows and PowerShell versions;</li>
+<li>find Python 3.9+, offering to install it with <code>winget</code> if none is present;</li>
+<li>create a private virtual environment in <code>%LOCALAPPDATA%\SysPerf\venv</code>;</li>
+<li>copy the application to <code>%LOCALAPPDATA%\SysPerf\app</code>;</li>
+<li>write a starter configuration file;</li>
+<li>create Start Menu entries for the dashboard and for a one-off report;</li>
+<li>register a sign-in task so the dashboard is always running;</li>
+<li>start it and confirm it responds.</li>
+</ol>
+<p>When it finishes, the dashboard is at <strong><a href="http://127.0.0.1:5056/">http://127.0.0.1:5056/</a></strong>.</p>
+<p>Everything is written to two places: <code>%LOCALAPPDATA%\SysPerf</code> and your own Start
+Menu folder. No Windows service is created, no shared location is touched, and no
+policy or system setting is changed.</p>
+<h3 id="32-installer-options"><a class="anchor" href="#32-installer-options" aria-hidden="true">#</a>3.2 Installer options</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-Port 5100</code></td>
+<td>Serve on a different port. Use this if 5056 is taken.</td>
+</tr>
+<tr>
+<td><code>-NoAutoStart</code></td>
+<td>Do not register the sign-in task. Start SysPerf yourself when you want it.</td>
+</tr>
+<tr>
+<td><code>-NoStart</code></td>
+<td>Install without launching.</td>
+</tr>
+</tbody>
+</table></div>
+<pre><code class="language-powershell">powershell -ExecutionPolicy Bypass -File install.ps1 -Port 5100 -NoAutoStart
+</code></pre>
+<h3 id="33-running-without-installing"><a class="anchor" href="#33-running-without-installing" aria-hidden="true">#</a>3.3 Running without installing</h3>
+<p>To try SysPerf, or to get a report from a machine you would rather not install
+anything on:</p>
+<pre><code class="language-powershell">powershell -ExecutionPolicy Bypass -File run.ps1 -Report   # one-off text report
+powershell -ExecutionPolicy Bypass -File run.ps1           # dashboard
+</code></pre>
+<p>This creates a <code>.venv</code> folder inside the SysPerf directory and touches nothing
+else. Delete the folder to remove it completely.</p>
+<h3 id="34-installing-with-pip"><a class="anchor" href="#34-installing-with-pip" aria-hidden="true">#</a>3.4 Installing with pip</h3>
+<pre><code class="language-powershell">py -m pip install --user .
+sysperf --report
+sysperf
+</code></pre>
+<p>Useful for scripted deployment. You will need to arrange autostart yourself.</p>
+<h3 id="35-running-under-wsl-2-optional"><a class="anchor" href="#35-running-under-wsl-2-optional" aria-hidden="true">#</a>3.5 Running under WSL 2 (optional)</h3>
+<p>SysPerf can run inside a WSL 2 distribution and reach Windows through interop:</p>
+<pre><code class="language-bash">bash install-wsl.sh
+</code></pre>
+<p>Consider this only if you already run local services in WSL, or if you cannot
+install Python on the Windows side. The trade-offs: every sample pays the
+WSL-to-Windows interop cost of a second or two, and the dashboard is only up while
+WSL is running. In exchange, the WSL panel gains Linux-guest memory figures.</p>
+<h3 id="35a-running-in-a-container-optional-320"><a class="anchor" href="#35a-running-in-a-container-optional-320" aria-hidden="true">#</a>3.5a Running in a container (optional, 3.2.0+)</h3>
+<p>On WSL 2 with Docker, the dashboard can run in a hardened container:</p>
+<pre><code class="language-bash">bash container/install-container.sh            # add --timer for the daily catalog refresh
+</code></pre>
+<p>The container has no capabilities, a read-only root filesystem and is
+published on <code>127.0.0.1</code> only. It cannot run Windows executables itself, so
+a host-exec broker (<code>sysperf-hostexec.service</code>, running as you) executes the
+PowerShell sample and remediations on its behalf. Only allowlisted programs
+run, <code>-File</code> scripts must live inside the distribution or the data
+directory, and every call is logged to <code>container/broker/broker.log</code>. Set
+<code>allow_arbitrary_pwsh</code> to <code>false</code> in <code>container/broker/policy.json</code> for a
+strictly read-only dashboard.</p>
+<p>State is the same directory <code>install-wsl.sh</code> uses, so you can switch between
+the two without losing history. Full notes: <code>container/README.md</code>.</p>
+<h3 id="36-if-installation-fails"><a class="anchor" href="#36-if-installation-fails" aria-hidden="true">#</a>3.6 If installation fails</h3>
+<p><strong>"Python 3.9 or later is required and winget is unavailable."</strong> Install Python
+from <a href="https://www.python.org/downloads/windows/">https://www.python.org/downloads/windows/</a>, ticking <em>Add python.exe to
+PATH</em>, then run the installer again.</p>
+<p><strong>"Python was installed but could not be located."</strong> The new <code>PATH</code> is not visible
+to the current console. Open a new PowerShell window and re-run the installer.</p>
+<p><strong>"Dependency installation failed."</strong> Usually a corporate proxy. Set it and retry:</p>
+<pre><code class="language-powershell">$env:HTTPS_PROXY = 'http://proxy.example.com:8080'
+powershell -ExecutionPolicy Bypass -File install.ps1
+</code></pre>
+<p><strong>"Task Scheduler registration failed."</strong> Some managed machines block task
+creation. The installer detects this and falls back to a shortcut in your Startup
+folder, which achieves the same thing. No action needed.</p>
+<hr>
+<h2 id="4-first-run"><a class="anchor" href="#4-first-run" aria-hidden="true">#</a>4. First run</h2>
+<h3 id="41-what-happens-in-the-first-minute"><a class="anchor" href="#41-what-happens-in-the-first-minute" aria-hidden="true">#</a>4.1 What happens in the first minute</h3>
+<p>The first sample is a <em>fast</em> one — memory, processes, handles, disk, CPU — so the
+dashboard has something to show within a few seconds.</p>
+<p>The second sample is a <strong>full sweep</strong>: it additionally enumerates services,
+startup entries, network connections, hardware and drivers. That takes up to a
+minute on a busy machine, which is why it is not what you wait for on arrival.
+From it SysPerf writes <code>baseline.json</code> — your starting point — and derives the
+targets for every criterion.</p>
+<p>Until the sweep finishes the dashboard says so, and shows live values without
+scores. Scores and recommendations appear as soon as the baseline exists.
+Afterwards the full sweep runs every fifteenth sample (about every five minutes).</p>
+<h3 id="42-why-everything-reads-0"><a class="anchor" href="#42-why-everything-reads-0" aria-hidden="true">#</a>4.2 Why everything reads 0%</h3>
+<p>Because the baseline <em>is</em> the current state, no distance has been travelled yet.
+That is correct, not a bug. The numbers move when you act on the recommendations.</p>
+<p>If you would rather measure from a machine you have already tuned, act on the
+recommendations first, then run:</p>
+<pre><code class="language-powershell">sysperf --recalibrate
+</code></pre>
+<h3 id="43-the-first-ten-minutes"><a class="anchor" href="#43-the-first-ten-minutes" aria-hidden="true">#</a>4.3 The first ten minutes</h3>
+<p>Two things need history before they can say anything useful:</p>
+<ul>
+<li>the <strong>WSL memory trend</strong>, which needs at least six samples over ten minutes;</li>
+<li>the <strong>adaptive layer</strong>, which needs about twenty samples before it stops saying
+  "learning your pattern".</li>
+</ul>
+<p>Leave the dashboard running and check back later.</p>
+<hr>
+<h2 id="5-reading-the-dashboard"><a class="anchor" href="#5-reading-the-dashboard" aria-hidden="true">#</a>5. Reading the dashboard</h2>
+<p>The page is laid out top to bottom in order of usefulness: what to do, then how
+you are doing, then the evidence.</p>
+<h3 id="50-summary-and-details-tabs"><a class="anchor" href="#50-summary-and-details-tabs" aria-hidden="true">#</a>5.0 Summary and Details tabs</h3>
+<p>Two tabs sit at the top-left, above the title.</p>
+<ul>
+<li><strong>Summary</strong> (default) is the whole dashboard distilled into a <strong>10-category
+  scorecard</strong>: memory pressure, WSL 2, browser footprint, application handles,
+  CPU &amp; processes, storage, network optimisation, Wi-Fi connectivity, hardware &amp;
+  drivers, and component currency. Each row shows a score out of 100 and the
+  remaining <strong>room for improvement</strong> (100 − score), with one overall system
+  score. Categories that cannot be evaluated yet show "measuring".</li>
+<li><strong>Details</strong> is the full dashboard: charts, scorecard, browser ownership, WSL,
+  Wi-Fi, network optimisation, hardware, drivers and component upgrades.</li>
+</ul>
+<p>The tab you last used is remembered. The overall score shown on the Details
+header is the <em>same</em> number as the Summary's overall score — both come from one
+computation, so they never disagree.</p>
+<h3 id="501-wi-fi-network-optimisation-and-component-upgrades-new-in-20"><a class="anchor" href="#501-wi-fi-network-optimisation-and-component-upgrades-new-in-20" aria-hidden="true">#</a>5.0.1 Wi-Fi, network optimisation and component upgrades (new in 2.0)</h3>
+<ul>
+<li><strong>Wi-Fi connection</strong> — SSID, negotiated link rate, radio generation, and
+  band/channel. Signal strength, band, channel and Rx/Tx rates require Windows
+  <strong>Location</strong> permission for the WLAN service (Settings → Privacy &amp; security →
+  Location). Without it SysPerf still reports the adapter-level link speed and
+  tells you what to enable.</li>
+<li><strong>Band &amp; channel overlap</strong> — scans neighbouring access points and recommends
+  the clearest 2.4 GHz channel (only 1, 6 and 11 do not overlap) and the least
+  used 5 GHz channel. Channel and width are <strong>access-point settings</strong>: SysPerf
+  tells you what to change on the router, it cannot change them for you.</li>
+<li><strong>Network optimisation</strong> — the TCP connection footprint, active adapters and a
+  prioritised fix plan. Each action is tagged <strong>client</strong>, <strong>router</strong> or
+  <strong>windows</strong> so it is clear where it applies.</li>
+<li><strong>Component upgrades</strong> — a version-currency table for the components actually
+  present on the machine (Windows build, PowerShell 5.1/7, Edge, WebView2,
+  graphics and network drivers, BIOS/UEFI, and Python/Node/Git/WSL when
+  installed), each with an estimated performance benefit. Components that are
+  not installed are simply not listed. <code>latest</code> is a reviewed reference target
+  dated in the table, not a live query — treat it as guidance, and confirm driver
+  and firmware versions with your OEM's support tool.</li>
+</ul>
+<h3 id="51-header"><a class="anchor" href="#51-header" aria-hidden="true">#</a>5.1 Header</h3>
+<p>Live machine facts — uptime, RAM, current CPU, process and service counts, samples
+collected, SysPerf version. The dot on the right is green when data is fresh, amber
+when the last sample is stale, red when the collector reported an error.</p>
+<p><strong>Hide descriptions</strong> collapses the long explanatory notes for a denser view. The
+setting is remembered. Recommendations are never hidden by it.</p>
+<h3 id="52-alerts"><a class="anchor" href="#52-alerts" aria-hidden="true">#</a>5.2 Alerts</h3>
+<p>Only appears when something needs saying: a WSL memory ceiling under threat, a
+kernel pool well above your baseline, or a collector error.</p>
+<h3 id="53-overview-cards"><a class="anchor" href="#53-overview-cards" aria-hidden="true">#</a>5.3 Overview cards</h3>
+<ul>
+<li><strong>System score</strong> — the mean of the ten Summary categories; the same number the
+  Summary tab shows. Categories still measuring are excluded rather than counted
+  as good. <strong>Room for improvement</strong> is 100 − system score.</li>
+<li><strong>Room for improvement</strong> — the remaining distance to target.</li>
+<li><strong>Criteria status</strong> — how many are met, partial, regressed or measuring.</li>
+<li><strong>Memory pressure right now</strong> — commit charge against physical RAM. When commit
+  charge exceeds RAM, compression and paging are on the hot path and everything
+  feels slower.</li>
+</ul>
+<h3 id="54-recommendations"><a class="anchor" href="#54-recommendations" aria-hidden="true">#</a>5.4 Recommendations</h3>
+<p>The actionable part of the tool. Each card gives:</p>
+<ul>
+<li>a <strong>severity</strong> (critical, high, medium, low) and a <strong>category</strong>;</li>
+<li><strong>needs admin</strong>, when the fix requires elevation;</li>
+<li>the <strong>finding</strong> — what was measured;</li>
+<li><strong>why it matters</strong>, in terms of what you experience;</li>
+<li><strong>numbered steps</strong> to take;</li>
+<li>an optional <strong>command</strong> you can run yourself;</li>
+<li>the <strong>expected effect</strong>.</li>
+</ul>
+<p>Work top down. Severity reflects the size of the effect on responsiveness, not how
+easy the change is.</p>
+<h3 id="55-key-metrics"><a class="anchor" href="#55-key-metrics" aria-hidden="true">#</a>5.5 Key metrics</h3>
+<p>Six headline gauges — commit charge, Memory Compression, available memory, WSL
+memory, browser processes, handles — each with its live value, its change against
+baseline, its target, and a sparkline. Baselines and targets come from the server,
+so they always agree with the scorecard.</p>
+<h3 id="56-self-improving-scorecard"><a class="anchor" href="#56-self-improving-scorecard" aria-hidden="true">#</a>5.6 Self-improving scorecard</h3>
+<p>Your personal-best layer. For each tracked metric it shows the best daily typical
+you have ever recorded, a stretch target just beyond it, and today's typical. The
+bar only ever moves in the improving direction, so it tightens as your habits
+improve and never rewards a regression. A star marks a new personal best today.</p>
+<h3 id="57-success-criteria-scorecard"><a class="anchor" href="#57-success-criteria-scorecard" aria-hidden="true">#</a>5.7 Success-criteria scorecard</h3>
+<p>One row per criterion: baseline, live value, target, change, progress bar, room
+remaining and status.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>met</strong></td>
+<td>At or better than target.</td>
+</tr>
+<tr>
+<td><strong>partial</strong></td>
+<td>Between baseline and target, or within the noise band.</td>
+</tr>
+<tr>
+<td><strong>regress</strong></td>
+<td>Meaningfully worse than baseline (beyond the 2% dead-band).</td>
+</tr>
+<tr>
+<td><strong>measuring</strong></td>
+<td>Not enough data yet. Excluded from the overall score.</td>
+</tr>
+</tbody>
+</table></div>
+<p>The <strong>Live</strong> column is the raw latest reading; <strong>Progress</strong> is computed from the
+smoothed value. They can disagree briefly, and that is intentional — see
+<a href="#6-how-scoring-works">section 6</a>.</p>
+<h3 id="58-trends"><a class="anchor" href="#58-trends" aria-hidden="true">#</a>5.8 Trends</h3>
+<p>Rolling history for memory, WSL memory, handles, kernel pools, browser processes,
+CPU, network connections and startup entries. Dashed lines mark targets. All
+charts are hand-drawn SVG: the page loads no external scripts and works offline.</p>
+<h3 id="59-browser-processes"><a class="anchor" href="#59-browser-processes" aria-hidden="true">#</a>5.9 Browser processes</h3>
+<p>Usually the biggest single lever on an office machine, and the most misunderstood.</p>
+<p>Windows runs two kinds of browser process: the browser you opened, and <em>embedded</em>
+browser processes (WebView2) started by other applications — file sync, Start menu
+search, chat clients, VPN portals. Task Manager shows them all as browser engines,
+but only some are yours to close.</p>
+<ul>
+<li><strong>Embedded browser by host application</strong> — which app owns each group.</li>
+<li><strong>Closability</strong> — mandatory (cannot be closed) versus in use versus
+  discretionary, with the floor arithmetic. Anything above the realistic floor is
+  discretionary: tabs and extensions you can close.</li>
+<li><strong>Edge composition</strong> — extension, renderer, utility and main processes, plus the
+  memory extensions are holding. Extensions are the biggest lever, because one
+  with a persistent background page never releases its process.</li>
+</ul>
+<p>If an application of yours is being counted as discretionary when it should not
+be, add it to <code>browser_hosts</code> in the configuration — see
+<a href="#84-browser-ownership">section 8.4</a>.</p>
+<h3 id="510-wsl-2-and-kernel-pools"><a class="anchor" href="#510-wsl-2-and-kernel-pools" aria-hidden="true">#</a>5.10 WSL 2 and kernel pools</h3>
+<p>The WSL card only appears when WSL is present.</p>
+<ul>
+<li><strong>WSL 2 memory</strong> — the working set against the configured cap, whether a
+  <code>.wslconfig</code> exists, and whether automatic reclaim is enabled.</li>
+<li><strong>Kernel pool versus baseline</strong> — memory allocated by drivers: antivirus and EDR
+  filters, virtual disks, network filters. Applications cannot reach it, so
+  closing programs will not reduce it. It is shown because unexplained pool growth
+  is worth knowing about, not because you can fix it directly.</li>
+<li><strong>Disk and background churn</strong> — free space against target, <code>svchost</code> count, and
+  Windows Search host processes. Search hosts at zero means the index is down and
+  searches are scanning the disk.</li>
+</ul>
+<h3 id="511-hardware-health"><a class="anchor" href="#511-hardware-health" aria-hidden="true">#</a>5.11 Hardware health</h3>
+<p>Device Manager fault codes, storage health, battery charge and wear against design
+capacity, and input devices. Plus your <strong>known-issue watchlist</strong> — see
+<a href="#85-hardware-watchlist">section 8.5</a>.</p>
+<h3 id="512-drivers-health"><a class="anchor" href="#512-drivers-health" aria-hidden="true">#</a>5.12 Drivers health</h3>
+<p>Third-party driver inventory, unsigned packages, packages older than four years,
+and driver-specific fault codes. Stale storage, chipset, graphics and network
+drivers are the ones that measurably affect performance; a stale driver for a
+printer you no longer own does not matter.</p>
+<hr>
+<h3 id="56-auto-improve-tab"><a class="anchor" href="#56-auto-improve-tab" aria-hidden="true">#</a>5.6 Auto-Improve tab</h3>
+<p>The fourth tab is the autonomous loop's own view. Six blocks, top to bottom:</p>
+<ul>
+<li><strong>Status chips</strong> — current score against the threshold, the standing mode, the
+  scan cadence and time to the next scan, cycles completed, the current usage
+  load, the long-term score trend, how many days of history exist, and which risk
+  classes may run unattended.</li>
+<li><strong>Controls</strong> — switch mode (<code>auto</code> / <code>observe</code> / <code>off</code>), <em>Scan &amp; analyse now</em>,
+  and <em>Scan, RCA &amp; fix now</em>. Both buttons are CSRF-protected; the mode you choose
+  persists across restarts.</li>
+<li><strong>Root-cause analysis</strong> — one row per criterion that is under target, ordered by
+  its share of the scoring gap. Each row shows the sustained value, the target,
+  that share, the attributed cause with a confidence, the reasoning (including the
+  long-term direction and how many days the criterion was met), and the
+  remediation that maps to it. Evidence from the same sample sits under the
+  criterion name, so a handle count is shown next to the process count that
+  explains it.</li>
+<li><strong>Last cycle</strong> — what was applied, what was deliberately <em>not</em> applied and why,
+  and — once the next scan has landed — the measured before/after of every metric
+  the action targeted.</li>
+<li><strong>Long-term usage trends</strong> — the daily typical of each criterion over the trend
+  window, with its drift in percent per day, direction, how many settled days it
+  was met, and a plain verdict.</li>
+<li><strong>Learned fix effectiveness</strong> and <strong>Open proposals</strong> — the ledger of what
+  actually worked, and the structural changes left for a human.</li>
+</ul>
+<p>A row with no remediation is not an oversight: browser process count and CPU
+utilisation are yours to change, and the dashboard says so rather than pretending
+a cache flush would help.</p>
+<hr>
+<h2 id="6-how-scoring-works"><a class="anchor" href="#6-how-scoring-works" aria-hidden="true">#</a>6. How scoring works</h2>
+<h3 id="61-progress"><a class="anchor" href="#61-progress" aria-hidden="true">#</a>6.1 Progress</h3>
+<p>For each criterion:</p>
+<pre><code>progress = (current − baseline) ÷ (target − baseline)     clamped to 0–100
+</code></pre>
+<p>Reaching the target always scores 100%, even in the unusual case where your
+starting value was already better than the achievable floor.</p>
+<h3 id="62-where-targets-come-from"><a class="anchor" href="#62-where-targets-come-from" aria-hidden="true">#</a>6.2 Where targets come from</h3>
+<p>Targets are derived once, when the baseline is captured, from your machine's own
+capacity. The exact fractions are configurable; the defaults are:</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Criterion</th>
+<th>Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Commit charge</td>
+<td>The lower of 75% of RAM, or 15% better than baseline</td>
+</tr>
+<tr>
+<td>Memory Compression</td>
+<td>The lower of 5% of RAM, or half of baseline</td>
+</tr>
+<tr>
+<td>Available memory</td>
+<td>The higher of 30% of RAM, or 25% better than baseline</td>
+</tr>
+<tr>
+<td>Total handles</td>
+<td>15% better than baseline</td>
+</tr>
+<tr>
+<td>WSL 2 memory</td>
+<td>The <code>.wslconfig</code> cap, or 35% of RAM if there is none</td>
+</tr>
+<tr>
+<td>Browser processes</td>
+<td>The measured floor plus a little headroom</td>
+</tr>
+<tr>
+<td>System volume free</td>
+<td>The higher of 15% of the volume, or 10% better than baseline</td>
+</tr>
+<tr>
+<td>Remote connections</td>
+<td>The higher of 25, or 30% fewer than baseline</td>
+</tr>
+<tr>
+<td>Startup programs</td>
+<td>The lower of 10, or 45% fewer than baseline</td>
+</tr>
+<tr>
+<td>Hardware faults</td>
+<td>Zero</td>
+</tr>
+</tbody>
+</table></div>
+<p>Every target is then clamped so it is an improvement on your baseline but never
+below a physical floor. That clamping is what stops a criterion from being
+permanently red for reasons you cannot influence — asking for fewer browser
+processes than the non-closable ones your employer's software requires, for
+instance.</p>
+<h3 id="63-smoothing"><a class="anchor" href="#63-smoothing" aria-hidden="true">#</a>6.3 Smoothing</h3>
+<p>Counts breathe. Opening a document, a background sync, an antivirus scan — each
+moves process, handle and connection counts for a few seconds. Scoring the latest
+sample would make the score collapse and recover constantly and mean nothing.</p>
+<p>So the score uses the <strong>median of the last fifteen samples</strong> (about five minutes).
+A genuine, sustained change moves the median within one window; a spike does not
+move it at all. Live gauges and charts still show the raw value.</p>
+<p>Two metrics are both bursty <em>and</em> sampled sparsely, so they get a longer window:
+remote TCP connections use sixty minutes, because sync and scan activity can
+triple the count for several minutes before it settles.</p>
+<h3 id="64-the-noise-dead-band"><a class="anchor" href="#64-the-noise-dead-band" aria-hidden="true">#</a>6.4 The noise dead-band</h3>
+<p>On day one your baseline equals your current value, so any upward tick of noise
+would cross it and read as a regression. A metric within <strong>2%</strong> of its baseline
+counts as unchanged. Configurable as <code>regress_band_pct</code>.</p>
+<h3 id="65-ceiling-criteria"><a class="anchor" href="#65-ceiling-criteria" aria-hidden="true">#</a>6.5 Ceiling criteria</h3>
+<p>WSL memory is not a reduction target. It is a ceiling: <em>at or below the cap and
+not growing</em>. The generic formula does not apply, because the cap normally sits
+above the starting value, so improving would score negative.</p>
+<p>Instead it is scored on being under the cap and not trending toward it, with three
+guards:</p>
+<ul>
+<li><strong>A minimum window.</strong> Windows trims working sets opportunistically. A
+  multi-gigabyte trim over four minutes extrapolates to a meaningless five-figure
+  rate, so at least six samples over ten minutes are required.</li>
+<li><strong>Re-anchoring.</strong> If the VM restarts, or the working set collapses from a high
+  steady state, the window restarts. Otherwise the recovery ramp afterwards would
+  read as a leak.</li>
+<li><strong>Runway, not slope.</strong> A slow rise from a low base is normal churn. The
+  criterion only complains when the cap is genuinely threatened — close to it, or
+  projected to reach it within a few hours.</li>
+</ul>
+<p>Until the window is long enough the criterion reads <code>measuring</code> and is left out of
+the overall score. The dashboard says "<em>n</em> of <em>m</em> criteria scored" so you can see
+that it abstained rather than assumed.</p>
+<h3 id="66-adaptive-scoring"><a class="anchor" href="#66-adaptive-scoring" aria-hidden="true">#</a>6.6 Adaptive scoring</h3>
+<p>The plan scorecard answers "how far through the plan am I". The adaptive layer
+answers a different and often more useful question: "is today better than my
+normal".</p>
+<p>For each behaviour-driven metric it tracks:</p>
+<ul>
+<li><strong>personal best</strong> — your best <em>daily typical</em>, so one lucky reading right after
+  a reboot does not set an unreachable bar;</li>
+<li><strong>adaptive target</strong> — 5% beyond that best, always in the improving direction;</li>
+<li><strong>adaptive baseline</strong> — your worst daily typical;</li>
+<li><strong>today's typical</strong> — the mean of today's samples.</li>
+</ul>
+<p>Structural metrics — disk free space, startup entries, hardware faults — are
+deliberately excluded. Adapting them would add noise, not signal.</p>
+<hr>
+<h2 id="7-recommendations-reference"><a class="anchor" href="#7-recommendations-reference" aria-hidden="true">#</a>7. Recommendations reference</h2>
+<p>Twenty rules. Each fires only when the evidence is present, because a dashboard of
+unconditional advice trains people to ignore it.</p>
+<h3 id="71-memory"><a class="anchor" href="#71-memory" aria-hidden="true">#</a>7.1 Memory</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Recommendation</th>
+<th>Fires when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Commit charge exceeds physical RAM</td>
+<td>Commitments are larger than RAM, so compression or paging must satisfy them. Critical above 85% of the commit limit.</td>
+</tr>
+<tr>
+<td>Memory Compression is holding a large working set</td>
+<td>The compression store exceeds 4% of RAM. It only grows when RAM is oversubscribed, and every hit costs CPU to decompress.</td>
+</tr>
+<tr>
+<td>Available physical memory is low</td>
+<td>Below 15% of RAM. Below roughly 10% the memory manager spends its time reclaiming instead of serving.</td>
+</tr>
+<tr>
+<td>A single process dominates memory use</td>
+<td>One application holds more than 12% of RAM. Usually the cheapest fix available: restart that one app.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="72-startup-and-maintenance"><a class="anchor" href="#72-startup-and-maintenance" aria-hidden="true">#</a>7.2 Startup and maintenance</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Recommendation</th>
+<th>Fires when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Too many programs start automatically</td>
+<td>Enabled auto-start entries exceed target. Lists the actual entries. Disabling is reversible and does not uninstall anything.</td>
+</tr>
+<tr>
+<td>The machine has not been restarted in a long time</td>
+<td>Uptime over seven days. A restart clears leaked handles, pool growth and pending updates.</td>
+</tr>
+<tr>
+<td>A restart is pending</td>
+<td>Windows has set a reboot flag from servicing. Until you restart, components run in a mixed state.</td>
+</tr>
+<tr>
+<td>Open handle count is above your baseline</td>
+<td>A steady climb that never falls back points at a process that opens resources without releasing them.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="73-browser"><a class="anchor" href="#73-browser" aria-hidden="true">#</a>7.3 Browser</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Recommendation</th>
+<th>Fires when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Browser-engine processes are above target</td>
+<td>Above the floor-derived target. Names the resident extension processes and how much memory they hold, since extensions are the biggest lever.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="74-storage"><a class="anchor" href="#74-storage" aria-hidden="true">#</a>7.4 Storage</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Recommendation</th>
+<th>Fires when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>System volume is running out of free space</td>
+<td>Below 15% free; critical below 7%. Windows needs free space for the pagefile, servicing, temp files and the search index.</td>
+</tr>
+<tr>
+<td>Pagefile usage has approached its allocated size</td>
+<td>Peak usage within 20% of the allocation. With a fixed-size pagefile the next spike fails outright and applications crash.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="75-network"><a class="anchor" href="#75-network" aria-hidden="true">#</a>7.5 Network</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Recommendation</th>
+<th>Fires when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>More background network connections than necessary</td>
+<td>Remote connections above target. Includes a command that groups connections by owning process so you can see who is talking.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="76-drivers-and-hardware"><a class="anchor" href="#76-drivers-and-hardware" aria-hidden="true">#</a>7.6 Drivers and hardware</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Recommendation</th>
+<th>Fires when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Devices are reporting driver fault codes</td>
+<td>Any device with a driver-specific Device Manager error. Graphics, storage and network fallbacks are a common cause of unexplained slowness.</td>
+</tr>
+<tr>
+<td>Third-party drivers older than four years are installed</td>
+<td>Old drivers miss later power-management and stability fixes. Prioritise storage, chipset, graphics and network.</td>
+</tr>
+<tr>
+<td>Hardware faults detected</td>
+<td>Device Manager errors or a disk not reporting Healthy. An unhealthy disk is a data-loss risk before it is a performance problem.</td>
+</tr>
+<tr>
+<td>Battery capacity has degraded significantly</td>
+<td>Full-charge capacity below 70% of design. Firmware caps processor power on a worn battery, which reads as sudden slowness when unplugged.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="77-power-and-platform"><a class="anchor" href="#77-power-and-platform" aria-hidden="true">#</a>7.7 Power and platform</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Recommendation</th>
+<th>Fires when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A power-saving plan is active</td>
+<td>Power saver caps processor frequency and delays turbo — the most common cause of a machine that is slow for no visible reason.</td>
+</tr>
+<tr>
+<td>Real-time protection is reported as disabled</td>
+<td>Reported for completeness, not as a performance tip. <strong>Never disable protection to gain performance.</strong></td>
+</tr>
+<tr>
+<td>Windows Search is not running</td>
+<td>With the index down, searches fall back to scanning the filesystem.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="78-wsl-2"><a class="anchor" href="#78-wsl-2" aria-hidden="true">#</a>7.8 WSL 2</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Recommendation</th>
+<th>Fires when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WSL 2 is running without a memory cap</td>
+<td>No <code>.wslconfig</code> exists. WSL may claim up to half of RAM and not return it. Includes a ready-made file sized for your machine.</td>
+</tr>
+<tr>
+<td>Automatic memory reclaim is not enabled</td>
+<td><code>.wslconfig</code> exists without <code>autoMemoryReclaim</code>, so a single build can hold gigabytes for the rest of the day.</td>
+</tr>
+</tbody>
+</table></div>
+<hr>
+<h2 id="8-configuration"><a class="anchor" href="#8-configuration" aria-hidden="true">#</a>8. Configuration</h2>
+<h3 id="81-where-the-file-is"><a class="anchor" href="#81-where-the-file-is" aria-hidden="true">#</a>8.1 Where the file is</h3>
+<pre><code class="language-powershell">sysperf --where
+</code></pre>
+<p>Typically <code>%LOCALAPPDATA%\SysPerf\sysperf.config.json</code>. Every key is optional;
+anything omitted keeps its default. Restart SysPerf after editing.
+<code>sysperf.config.example.json</code> in the source folder is a fully annotated copy.</p>
+<h3 id="82-server-and-sampling"><a class="anchor" href="#82-server-and-sampling" aria-hidden="true">#</a>8.2 Server and sampling</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>host</code></td>
+<td><code>127.0.0.1</code></td>
+<td>Bind address. Anything other than loopback requires a token — see <a href="#9-privacy-and-security">section 9</a>.</td>
+</tr>
+<tr>
+<td><code>port</code></td>
+<td><code>5056</code></td>
+<td>Listening port.</td>
+</tr>
+<tr>
+<td><code>auth_token</code></td>
+<td><em>(empty)</em></td>
+<td>Shared secret. Generated automatically if you set a non-loopback host.</td>
+</tr>
+<tr>
+<td><code>open_browser</code></td>
+<td><code>false</code></td>
+<td>Open the dashboard on start.</td>
+</tr>
+<tr>
+<td><code>sample_seconds</code></td>
+<td><code>20</code></td>
+<td>Fast-tier cadence. Minimum 5.</td>
+</tr>
+<tr>
+<td><code>full_every</code></td>
+<td><code>15</code></td>
+<td>Run the slow tier every Nth sample. Raise it if samples feel expensive.</td>
+</tr>
+<tr>
+<td><code>max_samples</code></td>
+<td><code>720</code></td>
+<td>Samples kept in memory (720 × 20 s = 4 hours).</td>
+</tr>
+<tr>
+<td><code>history_max_bytes</code></td>
+<td><code>12000000</code></td>
+<td>History file is trimmed above this size.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="83-scoring"><a class="anchor" href="#83-scoring" aria-hidden="true">#</a>8.3 Scoring</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>score_smooth_window</code></td>
+<td><code>15</code></td>
+<td>Samples in the rolling median. <code>1</code> scores the raw latest value.</td>
+</tr>
+<tr>
+<td><code>smooth_window_overrides</code></td>
+<td><code>{"net_remote": 180}</code></td>
+<td>Per-metric windows for bursty metrics.</td>
+</tr>
+<tr>
+<td><code>regress_band_pct</code></td>
+<td><code>2.0</code></td>
+<td>Noise dead-band before a metric counts as regressed.</td>
+</tr>
+<tr>
+<td><code>targets.*</code></td>
+<td>see table in <a href="#62-where-targets-come-from">6.2</a></td>
+<td>Fractions of your capacity used to derive targets. Raise to loosen, lower to tighten.</td>
+</tr>
+</tbody>
+</table></div>
+<p>Editing <code>targets</code> only affects newly derived targets. Run <code>sysperf --recalibrate</code>
+to apply changes to an existing baseline.</p>
+<h3 id="84-browser-ownership"><a class="anchor" href="#84-browser-ownership" aria-hidden="true">#</a>8.4 Browser ownership</h3>
+<p>The setting most worth editing. It tells SysPerf which applications' embedded
+browser processes you cannot close:</p>
+<pre><code class="language-json">{
+  &quot;browser_hosts&quot;: {
+    &quot;mandatory&quot;: {
+      &quot;OneDrive&quot;: &quot;File sync&quot;,
+      &quot;SearchHost&quot;: &quot;Windows Start / Search&quot;,
+      &quot;PanGPA&quot;: &quot;Enterprise VPN client&quot;,
+      &quot;MyCorpAgent&quot;: &quot;Required by IT&quot;
+    },
+    &quot;in_use&quot;: {
+      &quot;ms-teams&quot;: &quot;Microsoft Teams&quot;,
+      &quot;Code&quot;: &quot;Visual Studio Code&quot;
+    }
+  }
+}
+</code></pre>
+<p>Keys are host process names without <code>.exe</code>, matched case-insensitively. Anything
+unlisted counts as discretionary, which inflates the number SysPerf expects you to
+reduce — so if a mandated corporate agent shows up in the discretionary group, add
+it here.</p>
+<h3 id="85-hardware-watchlist"><a class="anchor" href="#85-hardware-watchlist" aria-hidden="true">#</a>8.5 Hardware watchlist</h3>
+<p>Windows cannot detect a fault it does not consider a fault. Record those yourself
+in <code>hw_watchlist.json</code> in the data directory:</p>
+<pre><code class="language-json">[
+  {
+    &quot;component&quot;: &quot;Touchpad — left button&quot;,
+    &quot;issue&quot;: &quot;Click registers twice under moderate pressure&quot;,
+    &quot;severity&quot;: &quot;minor&quot;,
+    &quot;status&quot;: &quot;open&quot;,
+    &quot;note&quot;: &quot;Started after the March firmware update.&quot;
+  }
+]
+</code></pre>
+<p><code>severity</code> is <code>critical</code>, <code>major</code>, <code>minor</code> or <code>low</code>. Set <code>status</code> to <code>resolved</code> to
+keep the record without counting it as open. The file is re-read on every request,
+so edits appear immediately.</p>
+<h3 id="86-advisor-and-privacy"><a class="anchor" href="#86-advisor-and-privacy" aria-hidden="true">#</a>8.6 Advisor and privacy</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>advisor.enabled</code></td>
+<td><code>true</code></td>
+<td>Turn recommendations off.</td>
+</tr>
+<tr>
+<td><code>advisor.stale_driver_years</code></td>
+<td><code>4</code></td>
+<td>Age at which a third-party driver counts as stale.</td>
+</tr>
+<tr>
+<td><code>advisor.reboot_after_hours</code></td>
+<td><code>168</code></td>
+<td>Uptime at which a restart is suggested.</td>
+</tr>
+<tr>
+<td><code>advisor.max_recommendations</code></td>
+<td><code>20</code></td>
+<td>Cap on recommendations shown.</td>
+</tr>
+<tr>
+<td><code>anonymize</code></td>
+<td><code>false</code></td>
+<td>Replace application and device names with stable hashes.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="87-trends-and-autonomous-improvement"><a class="anchor" href="#87-trends-and-autonomous-improvement" aria-hidden="true">#</a>8.7 Trends and autonomous improvement</h3>
+<pre><code class="language-json">{
+  &quot;trends&quot;: { &quot;retain_days&quot;: 180, &quot;window_days&quot;: 14, &quot;chronic_days&quot;: 5 },
+  &quot;autoimprove&quot;: {
+    &quot;enabled&quot;: true, &quot;mode&quot;: &quot;auto&quot;, &quot;interval_seconds&quot;: 300,
+    &quot;threshold&quot;: 80.0, &quot;allow_caution&quot;: false, &quot;max_actions&quot;: 2,
+    &quot;cooldown_seconds&quot;: 1800, &quot;settle_seconds&quot;: 120
+  }
+}
+</code></pre>
+<p><code>trends</code> shapes the long-term horizon: how much history to keep, how many days the
+drift is measured over, and how many settled days without a single pass count as
+chronic. <code>autoimprove</code> governs the loop itself — see chapter 14, and note that
+<code>mode</code> is the <em>initial</em> mode because the value chosen in the dashboard is
+persisted. Execution additionally requires <code>fixes.enabled</code>.</p>
+<h3 id="88-environment-variables"><a class="anchor" href="#88-environment-variables" aria-hidden="true">#</a>8.8 Environment variables</h3>
+<p>Override the config file without editing it — useful for scripts and testing.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SYSPERF_DATA_DIR</code></td>
+<td>Where state is stored.</td>
+</tr>
+<tr>
+<td><code>SYSPERF_CONFIG</code></td>
+<td>Path to the configuration file.</td>
+</tr>
+<tr>
+<td><code>SYSPERF_HOST</code>, <code>SYSPERF_PORT</code></td>
+<td>Bind address and port.</td>
+</tr>
+<tr>
+<td><code>SYSPERF_TOKEN</code></td>
+<td>Authentication token.</td>
+</tr>
+<tr>
+<td><code>SYSPERF_SAMPLE_SECONDS</code></td>
+<td>Sampling cadence.</td>
+</tr>
+<tr>
+<td><code>SYSPERF_ANONYMIZE</code></td>
+<td><code>1</code> to anonymise names.</td>
+</tr>
+<tr>
+<td><code>SYSPERF_PS_EXE</code></td>
+<td>Full path to <code>powershell.exe</code> if it is somewhere unusual.</td>
+</tr>
+</tbody>
+</table></div>
+<hr>
+<h2 id="9-privacy-and-security"><a class="anchor" href="#9-privacy-and-security" aria-hidden="true">#</a>9. Privacy and security</h2>
+<h3 id="91-nothing-leaves-your-machine"><a class="anchor" href="#91-nothing-leaves-your-machine" aria-hidden="true">#</a>9.1 Nothing leaves your machine</h3>
+<p>SysPerf has no outbound network code beyond the local HTTP server. Nothing is
+uploaded, no telemetry is sent, and there are no accounts. The dashboard loads no
+third-party scripts, fonts or images — after installation the whole tool works
+with networking switched off.</p>
+<h3 id="92-read-only"><a class="anchor" href="#92-read-only" aria-hidden="true">#</a>9.2 Read-only</h3>
+<p>Every system call the collector makes is a query: <code>Get-CimInstance</code>,
+<code>Get-Process</code>, <code>Get-ItemProperty</code>, <code>pnputil /enum-drivers</code>,
+<code>powercfg /getactivescheme</code>. The collector is a single readable PowerShell file —
+<code>src\sysperf\scripts\collect_win.ps1</code> — and you are encouraged to read it.</p>
+<p>The only thing SysPerf writes is its own state, in its own data directory:
+<code>baseline.json</code>, <code>history.jsonl</code>, <code>adaptive_state.json</code>, <code>sysperf.config.json</code> and
+<code>hw_watchlist.json</code>.</p>
+<h3 id="93-treat-the-api-as-sensitive"><a class="anchor" href="#93-treat-the-api-as-sensitive" aria-hidden="true">#</a>9.3 Treat the API as sensitive</h3>
+<p><code>/api/metrics</code> describes your machine in detail: running process names, top memory
+consumers, installed drivers, enabled startup entries, connection counts, hostname
+and model. That is a useful reconnaissance picture, which is exactly why the
+server binds to loopback by default.</p>
+<h3 id="94-if-you-expose-it-on-a-network"><a class="anchor" href="#94-if-you-expose-it-on-a-network" aria-hidden="true">#</a>9.4 If you expose it on a network</h3>
+<p>Setting <code>host</code> to anything other than loopback makes SysPerf generate an
+authentication token, store it in the configuration file, and require it on every
+request — as an <code>X-SysPerf-Token</code> header or a <code>?token=</code> parameter. It will not
+serve unauthenticated telemetry to a network.</p>
+<p>There is <strong>no TLS</strong>. For anything beyond a trusted LAN, put a reverse proxy in
+front of it that terminates TLS. An internet-facing deployment is not a supported
+configuration.</p>
+<h3 id="95-sharing-screenshots"><a class="anchor" href="#95-sharing-screenshots" aria-hidden="true">#</a>9.5 Sharing screenshots</h3>
+<p>Set <code>"anonymize": true</code> and restart. Application, device and machine names are
+replaced with stable hashes; the numbers are untouched, so the dashboard still
+renders and a bug report is still useful.</p>
+<h3 id="96-reporting-a-vulnerability"><a class="anchor" href="#96-reporting-a-vulnerability" aria-hidden="true">#</a>9.6 Reporting a vulnerability</h3>
+<p>See <code>SECURITY.md</code>. Please use a private security advisory rather than a public
+issue.</p>
+<hr>
+<h2 id="99-where-is-it-running-and-where-is-my-data"><a class="anchor" href="#99-where-is-it-running-and-where-is-my-data" aria-hidden="true">#</a>9.9 Where is it running, and where is my data?</h2>
+<p>SysPerf measures a Windows host and can run natively on Windows, inside WSL 2, or
+(uselessly, but without crashing) on plain Linux. The tools and paths differ, so
+when anything looks wrong the first command to run is:</p>
+<pre><code>sysperf --where
+</code></pre>
+<p>It prints the detected platform, the PowerShell it resolved, whether collection is
+possible and why not if it is not, the code and data directories, the settings file
+in effect, the bind address and the remediation policy. <code>/api/health</code> reports the
+same facts as JSON.</p>
+<p>Data never lives inside the installed package — once pip-installed that is
+<code>site-packages</code>, which may be read-only and is wiped on upgrade. The location is,
+in order: <code>SYSPERF_DATA_DIR</code>; else the directory an existing installation already
+uses, so upgrading never orphans your history; else
+<code>%LOCALAPPDATA%\SysPerf\data</code> on Windows or <code>$XDG_DATA_HOME/sysperf</code> (default
+<code>~/.local/share/sysperf</code>) elsewhere.</p>
+<p>If <code>sysperf --where</code> reports <strong>can collect: no</strong>, the dashboard has no Windows host
+to query. Inside WSL, enable interop in <code>/etc/wsl.conf</code> and make sure <code>C:</code> is
+mounted; anywhere else, point <code>SYSPERF_PS_EXE</code> at <code>pwsh.exe</code> or
+<code>powershell.exe</code>.</p>
+<hr>
+<h3 id="910-keeping-the-component-catalog-current"><a class="anchor" href="#910-keeping-the-component-catalog-current" aria-hidden="true">#</a>9.10 Keeping the component catalog current</h3>
+<p>The <em>Components</em> view compares each measured version against a <code>latest</code>
+target from <code>components.json</code>. <code>refresh_components.py</code> re-assesses those
+targets from each component's supported channel (apt, PyPI, nodejs.org,
+GitHub releases for PowerShell) and stamps the assessment date. It is the
+only part of SysPerf that makes outbound requests, and it runs only if you
+schedule it — <code>install-container.sh --timer</code> installs a daily systemd timer.
+<code>SYSPERF_COMPONENTS_DIR</code> chooses which <code>components.json</code> it updates.</p>
+<hr>
+<h2 id="10-command-line-reference"><a class="anchor" href="#10-command-line-reference" aria-hidden="true">#</a>10. Command-line reference</h2>
+<pre><code>sysperf                     Start the dashboard.
+sysperf --port 5100         Serve on another port.
+sysperf --host 0.0.0.0      Bind to all interfaces (generates and requires a token).
+sysperf --open              Open the dashboard in your browser once it is up.
+sysperf --report            Print a text report with recommendations, then exit.
+sysperf --once              Take one sample, print the raw JSON, then exit.
+sysperf --recalibrate       Reset the baseline to the current state.
+sysperf --where             Show the data directory, config path and runtime.
+sysperf --verbose           Debug logging.
+sysperf --version           Print the version.
+</code></pre>
+<p><code>--report</code> needs no browser and is ideal for a quick check, for a support ticket,
+or for a scheduled snapshot:</p>
+<pre><code class="language-powershell">sysperf --report | Out-File &quot;$env:USERPROFILE\Desktop\sysperf-report.txt&quot;
+</code></pre>
+<p><code>--once</code> prints everything the collector gathered, which is what to attach to a
+bug report about collection. Set <code>"anonymize": true</code> first if it contains
+application names you would rather not share.</p>
+<hr>
+<h2 id="11-api-reference"><a class="anchor" href="#11-api-reference" aria-hidden="true">#</a>11. API reference</h2>
+<p>Every endpoint is <code>GET</code> and returns JSON, on <code>http://127.0.0.1:5056</code> by default.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Returns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/api/metrics</code></td>
+<td>Everything: latest sample, chart series, scorecard, browser breakdown, hardware, recommendations, profile, baseline, metadata.</td>
+</tr>
+<tr>
+<td><code>/api/advice</code></td>
+<td>Just the prioritised recommendations.</td>
+</tr>
+<tr>
+<td><code>/api/profile</code></td>
+<td>Machine identity, the stored baseline, and the derived criteria.</td>
+</tr>
+<tr>
+<td><code>/api/health</code></td>
+<td>Liveness, sample count, whether a baseline exists, last collector error.</td>
+</tr>
+<tr>
+<td><code>/api/config</code></td>
+<td>Effective configuration with the token removed.</td>
+</tr>
+<tr>
+<td><code>POST /api/recalibrate</code></td>
+<td>Resets the baseline. Writes only SysPerf's own file.</td>
+</tr>
+<tr>
+<td><code>/api/trends</code></td>
+<td>Long-term daily/hourly trends per criterion, usage profile, current load regime.</td>
+</tr>
+<tr>
+<td><code>/api/rca</code></td>
+<td>Root-cause analysis of the current score: weighted findings, causes, evidence, proposals.</td>
+</tr>
+<tr>
+<td><code>/api/autoimprove</code></td>
+<td>Loop status, cooldowns, effectiveness ledger, open proposals, recent cycles.</td>
+</tr>
+<tr>
+<td><code>POST /api/autoimprove/run</code></td>
+<td>Runs one scan/RCA cycle now (<code>force</code> also overrides mode). CSRF token required.</td>
+</tr>
+<tr>
+<td><code>POST /api/autoimprove/mode</code></td>
+<td>Sets the standing mode: <code>off</code>, <code>observe</code>, <code>auto</code>. CSRF token required.</td>
+</tr>
+</tbody>
+</table></div>
+<p>A snapshot is cached for three seconds, so polling is cheap.</p>
+<pre><code class="language-powershell"># Current overall score
+(Invoke-RestMethod http://127.0.0.1:5056/api/metrics).scorecard.overall_improvement
+
+# Just the critical and high recommendations
+(Invoke-RestMethod http://127.0.0.1:5056/api/advice).items |
+  Where-Object severity -in 'critical','high' |
+  Select-Object severity, title
+</code></pre>
+<hr>
+<h2 id="12-troubleshooting"><a class="anchor" href="#12-troubleshooting" aria-hidden="true">#</a>12. Troubleshooting</h2>
+<p><strong>The dashboard does not load.</strong></p>
+<pre><code class="language-powershell">Get-ScheduledTask -TaskName 'SysPerf Dashboard'
+&amp; &quot;$env:LOCALAPPDATA\SysPerf\sysperf.cmd&quot;     # run in the foreground to see errors
+</code></pre>
+<p><strong>"collector produced no output".</strong> PowerShell could not run the collector. Try it
+directly — the error it prints is the real cause:</p>
+<pre><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass `
+  -File &quot;$env:LOCALAPPDATA\SysPerf\app\src\sysperf\scripts\collect_win.ps1&quot; -Full
+</code></pre>
+<p><strong>Everything reads 0%.</strong> Expected on the first day. See
+<a href="#42-why-everything-reads-0">section 4.2</a>.</p>
+<p><strong>Progress looks worse than the live value.</strong> Progress is computed from the
+smoothed value, not the latest sample. See <a href="#63-smoothing">section 6.3</a>.</p>
+<p><strong>A criterion is stuck on "measuring".</strong> The WSL trend needs six samples over ten
+minutes. Leave it running.</p>
+<p><strong>Samples take several seconds.</strong> The full sweep enumerates services and drivers.
+Raise <code>full_every</code> to run it less often.</p>
+<p><strong>A target looks unreachable.</strong> Check whether the criterion is bounded by a
+physical floor — the browser panel shows its floor arithmetic explicitly. If a
+mandated corporate application is being counted as discretionary, add it to
+<code>browser_hosts</code> (<a href="#84-browser-ownership">section 8.4</a>). Otherwise loosen the
+relevant fraction under <code>targets</code> and recalibrate.</p>
+<p><strong>Port already in use.</strong> Reinstall with <code>-Port 5100</code>, or set <code>port</code> in the config
+file and restart.</p>
+<p><strong>Battery wear shows nothing.</strong> Design and full-charge capacity come from a WMI
+namespace some firmware does not expose. Charge and status still work.</p>
+<p><strong>High CPU from SysPerf itself.</strong> The sampler should be idle between samples. If it
+is not, run with <code>--verbose</code> and check for a collector that is timing out and
+retrying; raising <code>sample_seconds</code> is the quick mitigation.</p>
+<hr>
+<h2 id="13-frequently-asked-questions"><a class="anchor" href="#13-frequently-asked-questions" aria-hidden="true">#</a>13. Frequently asked questions</h2>
+<p><strong>Does SysPerf slow my machine down?</strong> A fast sample is a few hundred milliseconds
+of PowerShell every twenty seconds. The full sweep costs a few seconds every
+fifteenth sample. The API caches its snapshot, so an open dashboard is nearly free.</p>
+<p><strong>Why does it not just fix things?</strong> Because then you would not know what changed.
+Silent registry and service edits are exactly why "optimiser" tools have the
+reputation they do. Recommendations tell you what to do, what it affects, and
+whether it can be undone.</p>
+<p><strong>Can I trust the recommendations?</strong> Each one states what it measured, so you can
+check the reasoning rather than take it on faith. None of them are secret tweaks:
+they are the changes a competent administrator would make, driven by measurements
+from your machine.</p>
+<p><strong>Will it work on a managed corporate laptop?</strong> Yes — that is a design target. No
+elevation is needed, and if policy blocks scheduled-task creation the installer
+falls back to your Startup folder. Note that some recommendations, such as
+disabling a security agent's startup entry, are not yours to act on; SysPerf says
+so where it can.</p>
+<p><strong>Why is my browser-process target so high?</strong> Because it is derived from what your
+machine actually requires. If file sync, Start menu search, a VPN client and a
+chat app each run embedded browser processes, the floor is genuinely high and
+pretending otherwise would just make the row permanently red.</p>
+<p><strong>Can I run it on several machines?</strong> Yes, independently. There is no aggregation
+layer, but the JSON API is stable enough to scrape into one if you want to build it.</p>
+<p><strong>Does the dashboard need to be open?</strong> No. Collection happens in the background
+service; the dashboard is only a view of it. <code>sysperf --report</code> needs no browser.</p>
+<p><strong>How much disk does the history use?</strong> Up to about 12 MB, trimmed automatically.</p>
+<p><strong>Can I delete the history and start over?</strong> Yes. Stop SysPerf, delete
+<code>history.jsonl</code>, <code>baseline.json</code> and <code>adaptive_state.json</code> from the data
+directory, and start it again.</p>
+<hr>
+<h2 id="14-autonomous-improvement"><a class="anchor" href="#14-autonomous-improvement" aria-hidden="true">#</a>14. Autonomous improvement</h2>
+<p>SysPerf can close its own loop. Every five minutes it scans, and when the overall
+score is below the threshold it works out <em>why</em> and applies the remediations that
+address the cause — then measures whether that actually helped and remembers the
+answer.</p>
+<p>Nothing in this chapter changes how the machine is measured, and nothing here can
+run a disruptive fix. It is the Common-Fix engine (chapter 7) driven by evidence
+instead of by a human clicking.</p>
+<h3 id="141-the-cycle"><a class="anchor" href="#141-the-cycle" aria-hidden="true">#</a>14.1 The cycle</h3>
+<ol>
+<li><strong>Scan</strong> — take a snapshot and fold it into the long-term record
+   (<code>trends_daily.json</code>): per-criterion daily rollups, an hour-of-day usage
+   profile, and the overall score per day, retained for six months.</li>
+<li><strong>Judge</strong> — compare the score to <code>autoimprove.threshold</code> (80% by default).</li>
+<li><strong>Diagnose</strong> — rank every criterion under target by its share of the scoring
+   gap, then attribute a cause using both the short horizon (rolling median
+   against target) and the long one (drift of the daily typical, chronic misses,
+   current usage load).</li>
+<li><strong>Act</strong> — apply the remediations that address those causes, subject to every
+   guard in 14.4.</li>
+<li><strong>Verify</strong> — on the next scan, measure what changed for the metrics the action
+   targeted and record it.</li>
+<li><strong>Learn</strong> — after three verified attempts with no net benefit, stop choosing
+   that fix for that metric and say so.</li>
+</ol>
+<h3 id="142-why-the-cause-matters"><a class="anchor" href="#142-why-the-cause-matters" aria-hidden="true">#</a>14.2 Why the cause matters</h3>
+<p>The same low number means different things, and the response differs:</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Cause</th>
+<th>What the evidence shows</th>
+<th>Response</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>transient_spike</code></td>
+<td>worse than its <em>own</em> recent daily typical while the long-term trend is flat or improving</td>
+<td>a burst (sync, scan, build) — cheap reclaim at most</td>
+</tr>
+<tr>
+<td><code>usage_driven</code></td>
+<td>machine load above its own norm, metric inside its usual band</td>
+<td>the measured cost of the work; not a fault</td>
+</tr>
+<tr>
+<td><code>long_term_regression</code></td>
+<td>daily typical drifting the wrong way for days</td>
+<td>remediate, and escalate if the fix is proven useless</td>
+</tr>
+<tr>
+<td><code>chronic_unreachable</code></td>
+<td>never met across five or more settled days</td>
+<td>the <em>target</em> is the problem — a retune is proposed, no fix is attempted</td>
+</tr>
+<tr>
+<td><code>near_target</code></td>
+<td>within 5% of target</td>
+<td>nothing worth its disruption</td>
+</tr>
+<tr>
+<td><code>steady_shortfall</code></td>
+<td>stable gap under normal load</td>
+<td>needs a structural change, not a reclaim</td>
+</tr>
+</tbody>
+</table></div>
+<p>Two of these deliberately produce no action. Chasing a target that sits below the
+machine's floor is how a dashboard trains you to ignore it.</p>
+<h3 id="143-what-the-long-horizon-adds"><a class="anchor" href="#143-what-the-long-horizon-adds" aria-hidden="true">#</a>14.3 What the long horizon adds</h3>
+<p>The multi-week record is not decoration; four behaviours depend on it:</p>
+<ul>
+<li><strong>Cause attribution</strong> — distinguishing a burst from a real regression requires
+  knowing what a normal day looks like for <em>this</em> machine.</li>
+<li><strong>Preventive action</strong> — a criterion that is met today but has drifted the wrong
+  way for days is remediated before the score breaches, with a projection of how
+  many days remain.</li>
+<li><strong>Escalation</strong> — a long-term regression whose only safe remediation has been
+  measured ineffective becomes a proposal for a human instead of a fix repeated
+  forever.</li>
+<li><strong>Peak-hour awareness</strong> — user-visible fixes are held back during the hours the
+  hourly profile shows as this machine's busiest.</li>
+</ul>
+<p>On first run the store is seeded from the adaptive layer's own per-day aggregates,
+so the long view is available immediately rather than a fortnight later.</p>
+<h3 id="144-guards"><a class="anchor" href="#144-guards" aria-hidden="true">#</a>14.4 Guards</h3>
+<ul>
+<li><strong>Mode</strong> — <code>off</code> (scan, trend and RCA only), <code>observe</code> (also plan, execute
+  nothing), <code>auto</code> (execute). Settable live from the dashboard and persisted.</li>
+<li><strong>Risk</strong> — only <code>safe</code> fixes run unattended. <code>caution</code> fixes require
+  <code>autoimprove.allow_caution</code> and are additionally deferred out of peak hours.
+  <code>manual</code> and session-killing fixes are never executed, in any mode.</li>
+<li><strong><code>fixes.enabled</code></strong> — with fixes off, the loop is a pure analyst.</li>
+<li><strong>Budget</strong> — at most <code>max_actions</code> per cycle (plus one when the long-term score
+  trend is declining), and each action has a 30-minute cooldown.</li>
+<li><strong>Learned suppression</strong> — an action with no measured benefit over three verified
+  attempts is skipped, with the reason shown.</li>
+<li><strong>No self-modification</strong> — the loop never edits targets, criteria or scoring.
+  Structural changes are written to <code>autoimprove_state.json</code> as proposals.</li>
+</ul>
+<h3 id="145-state-files"><a class="anchor" href="#145-state-files" aria-hidden="true">#</a>14.5 State files</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>File</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>trends_daily.json</code></td>
+<td>daily and hourly rollups per criterion, plus the score per day</td>
+</tr>
+<tr>
+<td><code>autoimprove_state.json</code></td>
+<td>mode, cooldowns, the effectiveness ledger, open proposals, last cycle</td>
+</tr>
+<tr>
+<td><code>autoimprove_log.jsonl</code></td>
+<td>one record per cycle, capped at 500 lines</td>
+</tr>
+<tr>
+<td><code>evolve_state.json</code></td>
+<td>the evolution generation, candidate recipes, generated shards, learned pairings, clusters, proposals and audit log</td>
+</tr>
+<tr>
+<td><code>evolutions/*.md</code></td>
+<td>the rule documents the evolution layer has generated</td>
+</tr>
+<tr>
+<td><code>actions_state.json</code></td>
+<td>which action items you have recorded as done, and when</td>
+</tr>
+<tr>
+<td><code>selftest_report.json</code></td>
+<td>the verdict of the last quality-gate run</td>
+</tr>
+</tbody>
+</table></div>
+<p>All three live in the data directory (chapter 8.1) and contain only numbers and
+criterion names.</p>
+<h3 id="146-turning-it-off"><a class="anchor" href="#146-turning-it-off" aria-hidden="true">#</a>14.6 Turning it off</h3>
+<p>Set <code>autoimprove.enabled</code> to <code>false</code>, or choose <code>off</code> in the dashboard, or simply
+leave <code>fixes.enabled</code> at its default of <code>false</code> — then the loop still explains the
+score and the trend, but never touches the machine.</p>
+<h3 id="147-what-it-has-learned"><a class="anchor" href="#147-what-it-has-learned" aria-hidden="true">#</a>14.7 What it has learned</h3>
+<p>The loop scores a <em>(fix, metric)</em> pair, not a fix. The same action can help one
+criterion and do nothing for another, and conflating the two is how a dashboard
+ends up recommending something that has never worked.</p>
+<p>For each pair the Auto-Improve tab shows the number of attempts, an exponential
+moving average of the measured normalised change, a win/loss count where the
+outcome was decisive, and a verdict:</p>
+<p>Not every criterion can be closed automatically. A remediation that needs
+administrator rights cannot run, because the service is unprivileged by design —
+those appear as action items with the exact command instead. Two remediations added
+in 3.0.0 deliberately avoid elevation and so cover the metrics that previously had
+nothing: <code>background_cpu_hog</code> (CPU, run queue, disk) and <code>trim_working_sets</code>
+(commit, available memory, compression). Both refuse to touch kernel or VM
+pseudo-processes, security agents, or the shell taking the measurement.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Verdict</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>effective</code></td>
+<td>the measured average is positive — the loop prefers it</td>
+</tr>
+<tr>
+<td><code>learning</code></td>
+<td>too few measurements to say</td>
+</tr>
+<tr>
+<td><code>suppressed</code></td>
+<td>three or more measured attempts produced no gain, so the loop has stopped choosing it</td>
+</tr>
+</tbody>
+</table></div>
+<p>Alongside that: learning events per day, a breakdown of what the cycles were spent
+doing, a newest-first feed of what each substantive cycle actually taught
+(including the before/after numbers), and per-metric <em>knowledge sets</em> showing the
+long-term shape of each criterion and which remediations are mapped to it. A
+criterion is <code>learned</code>, <code>observed</code>, <code>mapped</code> or <code>unmapped</code>; the last means nothing
+in the catalogue addresses it, so a shortfall there can only be escalated.</p>
+<p>The tab also audits the loop against its own seven operating rules — unattended
+risk class, per-cycle action budget, cooldown, measure-before-repeat, the
+suppression threshold, manual actions never executed, and the bounded cycle log —
+over the retained window, and reports a violation rather than asserting compliance.</p>
+<h3 id="148-what-it-needs-you-to-do"><a class="anchor" href="#148-what-it-needs-you-to-do" aria-hidden="true">#</a>14.8 What it needs you to do</h3>
+<p>Anything the loop may not do itself becomes an action item, with ordered steps,
+the exact command, how to confirm it worked, what should change, and any caveat
+worth knowing first. Each states <em>specifically</em> why automation is barred:</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Reason</th>
+<th>Why it cannot be automated</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Needs administrator rights</td>
+<td>the service runs unprivileged by design; only you can answer a UAC prompt</td>
+</tr>
+<tr>
+<td>Would terminate this dashboard</td>
+<td>the action restarts the WSL VM that hosts the collector mid-measurement</td>
+</tr>
+<tr>
+<td>Requires knowing what matters to you</td>
+<td>which start-up items or add-ins are essential is specific to how you work</td>
+</tr>
+<tr>
+<td>No safe scriptable equivalent</td>
+<td>the setting lives behind a GUI or a per-application profile</td>
+</tr>
+<tr>
+<td>Changes persistent configuration</td>
+<td>it keeps applying long after the shortfall has gone, so you should know</td>
+</tr>
+<tr>
+<td>Target below what this machine delivers</td>
+<td>every available remediation has been measured and none closes it — a decision, not an action</td>
+</tr>
+<tr>
+<td>Only you may grant new capability</td>
+<td>an evolution-generated candidate is inert until you accept it</td>
+</tr>
+<tr>
+<td>Missing a measured value</td>
+<td>a recipe parameter has no evidence yet; inventing one would be worse</td>
+</tr>
+</tbody>
+</table></div>
+<p>Items are <code>open</code> until either you press <strong>I did this</strong> — recorded as <code>action
+taken</code>, with your note and a timestamp — or the evidence closes them
+(<code>resolved automatically</code>). Every item has a stable identity, so the same work is
+never listed twice however many sources mention it, and an item you closed reopens
+itself, flagged <code>recurred</code>, if its trigger is raised again.</p>
+<h3 id="149-what-it-wants-to-become"><a class="anchor" href="#149-what-it-wants-to-become" aria-hidden="true">#</a>14.9 What it wants to become</h3>
+<p>Every eight cycles an evolution pass turns accumulated evidence into capability
+the loop was not shipped with:</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Trigger</th>
+<th>Applied</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>learned pairing</td>
+<td>a fix measurably improved a metric it was not mapped to, twice</td>
+<td>automatically</td>
+</tr>
+<tr>
+<td>candidate remediation</td>
+<td>a metric fell short eight times with nothing mapped to it</td>
+<td>only when you promote it</td>
+</tr>
+<tr>
+<td>knowledge shard</td>
+<td>a metric accumulated eight shortfalls and has no rules</td>
+<td>automatically</td>
+</tr>
+<tr>
+<td>cause cluster</td>
+<td>verification outcomes show which family of fix resolves which cause</td>
+<td>automatically</td>
+</tr>
+<tr>
+<td>structural proposal</td>
+<td>the target is unreachable, so no action can help</td>
+<td>human decision</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>It cannot write commands.</strong> A candidate is always a parameterised entry from a
+fixed, reviewed recipe library, filled in from measured evidence — never composed
+from log content or model output. A candidate is inert; promoting it registers the
+recipe as a <code>manual</code> recommendation carrying the exact command, which the loop
+surfaces in the root-cause analysis and then skips. Giving a recipe a command the
+loop can execute is a deliberate change to the source.</p>
+<p>Hard caps bound each pass and each registry. Writes go only to
+<code>evolve_state.json</code> and <code>evolutions/</code> — the program's own modules are never
+modified — and every evolution records the files and registry keys it created, so
+<strong>Roll back the last evolution</strong> fully reverses it.</p>
+<h3 id="1410-its-own-tests"><a class="anchor" href="#1410-its-own-tests" aria-hidden="true">#</a>14.10 Its own tests</h3>
+<p>The tab shows this project's eight quality gates as last run, and can run them:</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Gate</th>
+<th>Checks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>discover</td>
+<td>every module is registered with the coverage gate, so none can dodge it</td>
+</tr>
+<tr>
+<td>compile</td>
+<td>every module byte-compiles and carries a docstring</td>
+</tr>
+<tr>
+<td>lint</td>
+<td>AST checks: dead imports, bare <code>except</code>, mutable defaults, stray prints</td>
+</tr>
+<tr>
+<td>unit</td>
+<td>the pytest suite</td>
+</tr>
+<tr>
+<td>coverage</td>
+<td>100% line coverage on every module</td>
+</tr>
+<tr>
+<td>frontend</td>
+<td>the page's JavaScript parses, every element id it reads exists, and every interpolation of a server-provided string is escaped</td>
+</tr>
+<tr>
+<td>browser</td>
+<td>a real Chromium drives every tab, detail section and control; <code>tests/uicov.py</code> requires 100% of the interface to be exercised</td>
+</tr>
+<tr>
+<td>live</td>
+<td>the running service: status codes, security headers, JSON contracts, CSRF enforcement, GET purity, bounded state files</td>
+</tr>
+</tbody>
+</table></div>
+<p>The <code>browser</code> gate is what stops the others being complacent about the page: a
+static check can prove the JavaScript parses, but only a browser can prove a panel
+renders. It is skipped cleanly when Playwright is not installed, so the suite stays
+green on a machine without browsers.</p>
+<p>A result older than six hours is reported as stale rather than presented as
+current. If your installation does not ship the gate runner the card says so
+instead of offering a button that cannot work.</p>
+<hr>
+<h2 id="14a-ai-self-evolution-and-autonomy-levels-40"><a class="anchor" href="#14a-ai-self-evolution-and-autonomy-levels-40" aria-hidden="true">#</a>14a. AI self-evolution and autonomy levels (4.0)</h2>
+<p>The <strong>AI Self-Evolution</strong> tab controls everything that acts on its own.</p>
+<p><strong>Autonomy level:</strong></p>
+<ul>
+<li><code>off</code> — nothing autonomous;</li>
+<li><code>observe</code> — the default: recommend only;</li>
+<li><code>safe_auto</code> — runs only the low-risk, reversible actions you tick;</li>
+<li><code>self_evolve</code> — additionally runs source-code evolution cycles.</li>
+</ul>
+<p><strong>What the tab shows:</strong></p>
+<ul>
+<li>the current evolution state, and the last and next attempt;</li>
+<li>candidate counts, AI usage and estimated cost;</li>
+<li>every attempt with its trigger, problem, model, proposal, files, test,
+  security and benchmark results and final decision;</li>
+<li>the diff of any candidate, with Approve/Reject;</li>
+<li>the measured before/after effect of every unattended action.</li>
+</ul>
+<p><strong>What evolution needs:</strong> a git checkout of the source, an <code>evo_bench.py</code>
+defining benchmarks, an AI provider, and an isolation backend (bubblewrap on
+Linux/WSL, or Docker). If something is missing, the tab says exactly what.</p>
+<p><strong>Approving a candidate records your decision and shows the <code>git merge</code>
+command.</strong> SysPerf never merges or deploys a change itself.</p>
+<p>The configuration reference, security architecture and Windows validation steps
+are in <code>docs/AI_EVOLUTION.md</code>.</p>
+<hr>
+<h2 id="15-uninstalling"><a class="anchor" href="#15-uninstalling" aria-hidden="true">#</a>15. Uninstalling</h2>
+<pre><code class="language-powershell">powershell -ExecutionPolicy Bypass -File uninstall.ps1
+</code></pre>
+<p>Stops the dashboard, removes the sign-in task, Start Menu entries, the virtual
+environment and the application files. Your collected data is <strong>kept</strong> so a later
+reinstall still knows your baseline.</p>
+<p>To remove everything including the data:</p>
+<pre><code class="language-powershell">powershell -ExecutionPolicy Bypass -File uninstall.ps1 -Purge
+</code></pre>
+<p>Because SysPerf never changed a Windows setting, there is nothing to revert. Any
+improvement you made by acting on its recommendations stays in place.</p>
+<hr>
+<h2 id="16-licence-and-credits"><a class="anchor" href="#16-licence-and-credits" aria-hidden="true">#</a>16. Licence and credits</h2>
+<p>SysPerf is free and open-source software under the <strong>Apache License 2.0</strong>. You may
+use, modify and redistribute it, including commercially, provided you retain the
+copyright and licence notices. See <code>LICENSE</code> and <code>NOTICE</code>.</p>
+<p>Runtime dependencies: <strong>Flask</strong> (BSD-3-Clause) and <strong>Waitress</strong> (ZPL-2.1), both
+installed from PyPI. The dashboard uses no third-party JavaScript or CSS.</p>
+<p>Windows, Microsoft Edge, WebView2, OneDrive, Teams and Outlook are trademarks of
+Microsoft Corporation. Other product names appear only as process names to be
+recognised and imply no affiliation or endorsement.</p>
+<p>Contributions are welcome — see <code>CONTRIBUTING.md</code>. The one rule that is not
+negotiable: SysPerf does not write to the system.</p>
+<hr>
+<h2 id="appendix-a-architecture-and-data-flow"><a class="anchor" href="#appendix-a-architecture-and-data-flow" aria-hidden="true">#</a>Appendix A. Architecture and data flow</h2>
+<p>SysPerf is a small Flask application wrapped around one PowerShell collector.
+Everything platform-specific is isolated in a single module, which is what lets
+the same code run natively on Windows or inside WSL 2.</p>
+<pre><code>                      ┌────────────────────────────────┐
+   Windows APIs  ───► │  scripts/collect_win.ps1       │  one JSON object
+   (CIM / WMI,        │  read-only queries only        │  on stdout
+    pnputil, netsh)   └───────────────┬────────────────┘
+                                      │
+                        platform_win.py (interpreter
+                        discovery, path translation)
+                                      │
+   ┌──────────────────────────────────▼──────────────────────────────────┐
+   │ collector.py — sampler thread, rolling history, baseline capture,   │
+   │                snapshot assembly (cached for snapshot_ttl)          │
+   └───┬───────────┬───────────┬───────────┬───────────┬────────────┬────┘
+       │           │           │           │           │            │
+   profile.py  scoring.py  browser.py  hardware.py  advisor.py  components.py
+   (baseline,  (progress,  (WebView2   (faults,     (rules →    (version
+    targets,    ceiling,    ownership)  disks,       advice)     currency)
+    criteria)   scorecard)              drivers)                netopt.py
+                                                               (Wi-Fi overlap,
+                                                                fix plan)
+       │
+   ┌───▼──────────────────────────────────────────────────────────────┐
+   │ app.py — Flask routes, token auth, security headers              │
+   │ static/index.html — Summary / Details tabs, charts (no JS deps)  │
+   └──────────────────────────────────────────────────────────────────┘
+</code></pre>
+<h3 id="a1-module-responsibilities"><a class="anchor" href="#a1-module-responsibilities" aria-hidden="true">#</a>A.1 Module responsibilities</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>platform_win.py</code></td>
+<td>Detects native Windows vs WSL 2, locates the PowerShell interpreter, translates paths with <code>wslpath</code>, runs the collector.</td>
+</tr>
+<tr>
+<td><code>config.py</code></td>
+<td>Defaults, JSON overrides, <code>SYSPERF_*</code> environment overrides, data-directory resolution, carry-forward and series key lists.</td>
+</tr>
+<tr>
+<td><code>collector.py</code></td>
+<td>Background sampler, JSONL history, first-run baseline capture, snapshot assembly and caching.</td>
+</tr>
+<tr>
+<td><code>profile.py</code></td>
+<td>Machine profile, baseline persistence, target derivation from capacity, criteria assembly.</td>
+</tr>
+<tr>
+<td><code>scoring.py</code></td>
+<td>Progress maths, rolling-median smoothing, the WSL ceiling score, scorecard assembly.</td>
+</tr>
+<tr>
+<td><code>browser.py</code></td>
+<td>Attributes embedded-browser processes to host applications; computes the closability floor.</td>
+</tr>
+<tr>
+<td><code>hardware.py</code></td>
+<td>Device faults, disks, battery health, driver inventory, manual watchlist.</td>
+</tr>
+<tr>
+<td><code>adaptive.py</code></td>
+<td>Personal-best tracking and adaptive stretch targets.</td>
+</tr>
+<tr>
+<td><code>advisor.py</code></td>
+<td>Rule engine turning measurements into prioritised recommendations.</td>
+</tr>
+<tr>
+<td><code>components.py</code></td>
+<td>Version-currency advisory for components present on the machine.</td>
+</tr>
+<tr>
+<td><code>netopt.py</code></td>
+<td>Wi-Fi band/channel overlap analysis and the network optimisation plan.</td>
+</tr>
+<tr>
+<td><code>app.py</code></td>
+<td>HTTP layer: routes, authentication, hardening headers.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="a2-sampling-tiers"><a class="anchor" href="#a2-sampling-tiers" aria-hidden="true">#</a>A.2 Sampling tiers</h3>
+<p>Two tiers keep the cost low. The <strong>fast tier</strong> runs every <code>sample_seconds</code>
+(default 20 s) and gathers memory, CPU, process and Wi-Fi link data. The <strong>slow
+tier</strong> (<code>-Full</code>) runs every <code>full_every</code>-th sample (default every 15th ≈ 5 min)
+and adds services, startup entries, network, hardware, drivers, component
+versions and the Wi-Fi neighbour scan.</p>
+<p>Slow-tier values are <strong>carried forward</strong> between full sweeps (see
+<code>CARRY_FORWARD_KEYS</code>) so the dashboard shows the last known value instead of a
+gap. The first sample is deliberately fast so the dashboard is not blank while a
+full sweep runs; the second sample is full, which is when the baseline is
+captured.</p>
+<hr>
+<h2 id="appendix-b-collected-data-reference"><a class="anchor" href="#appendix-b-collected-data-reference" aria-hidden="true">#</a>Appendix B. Collected data reference</h2>
+<p>Every field below is produced by read-only queries. Nothing is written.</p>
+<h3 id="b1-fast-tier-every-sample"><a class="anchor" href="#b1-fast-tier-every-sample" aria-hidden="true">#</a>B.1 Fast tier (every sample)</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>committed_mb</code>, <code>commit_limit_mb</code></td>
+<td>Commit charge and its limit</td>
+<td><code>Win32_PerfFormattedData_PerfOS_Memory</code></td>
+</tr>
+<tr>
+<td><code>available_mb</code>, <code>total_ram_mb</code></td>
+<td>Free and total physical memory</td>
+<td><code>Win32_OperatingSystem</code></td>
+</tr>
+<tr>
+<td><code>compression_mb</code></td>
+<td>Memory Compression working set</td>
+<td><code>Get-Process</code></td>
+</tr>
+<tr>
+<td><code>vmmem_mb</code></td>
+<td>WSL 2 VM working set</td>
+<td><code>Get-Process vmmemWSL</code>/<code>vmmem</code></td>
+</tr>
+<tr>
+<td><code>pool_paged_mb</code>, <code>pool_nonpaged_mb</code></td>
+<td>Kernel pools</td>
+<td>Perf CIM class</td>
+</tr>
+<tr>
+<td><code>cache_faults_s</code>, <code>page_faults_s</code></td>
+<td>Fault rates</td>
+<td>Perf CIM class</td>
+</tr>
+<tr>
+<td><code>handles</code>, <code>threads</code>, <code>processes</code></td>
+<td>System-wide counts</td>
+<td><code>Get-Process</code>, <code>Win32_OperatingSystem</code></td>
+</tr>
+<tr>
+<td><code>cpu_pct</code>, <code>cpu_queue</code></td>
+<td>Utilisation and run-queue depth</td>
+<td>Perf CIM classes</td>
+</tr>
+<tr>
+<td><code>edge_procs</code>, <code>wv2_procs</code>, <code>browser_procs</code></td>
+<td>Browser-engine process counts</td>
+<td><code>Win32_Process</code></td>
+</tr>
+<tr>
+<td><code>edge_main/renderer/extension/utility</code>, <code>edge_ext_mb</code></td>
+<td>Browser composition</td>
+<td>Command-line inspection</td>
+</tr>
+<tr>
+<td><code>wv2_hosts</code></td>
+<td>Embedded-browser processes per host app</td>
+<td>Parent-chain walk</td>
+</tr>
+<tr>
+<td><code>svchost_procs</code>, <code>search_procs</code></td>
+<td>Service-host and indexer counts</td>
+<td><code>Get-Process</code></td>
+</tr>
+<tr>
+<td><code>system_drive</code>, <code>c_free_gb</code>, <code>c_size_gb</code></td>
+<td>System volume (never assumes <code>C:</code>)</td>
+<td><code>Win32_LogicalDisk</code></td>
+</tr>
+<tr>
+<td><code>top_mem</code>, <code>top_handles</code></td>
+<td>Largest consumers by memory and handles</td>
+<td><code>Get-Process</code> grouped</td>
+</tr>
+<tr>
+<td><code>wifi</code></td>
+<td>SSID, link rate, radio, band/channel, signal, category</td>
+<td><code>Get-NetAdapter</code>, <code>Get-NetConnectionProfile</code>, <code>netsh wlan</code></td>
+</tr>
+<tr>
+<td><code>wifi_signal</code></td>
+<td>Signal percentage, for the trend chart</td>
+<td><code>netsh wlan</code> (Location permitting)</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="b2-slow-tier-full"><a class="anchor" href="#b2-slow-tier-full" aria-hidden="true">#</a>B.2 Slow tier (<code>-Full</code>)</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hostname</code>, <code>machine_vendor</code>, <code>machine_model</code>, <code>cpu_name</code>, <code>cpu_cores</code>, <code>cpu_threads</code>, <code>os_caption</code>, <code>os_build</code>, <code>os_version</code></td>
+<td>Machine profile</td>
+</tr>
+<tr>
+<td><code>services_running</code>, <code>services_total</code></td>
+<td>Service inventory</td>
+</tr>
+<tr>
+<td><code>startup_apps</code>, <code>startup_apps_total</code>, <code>startup_list</code></td>
+<td>Enabled auto-start entries (disabled ones excluded via <code>StartupApproved</code>)</td>
+</tr>
+<tr>
+<td><code>net_remote</code>, <code>net_loopback</code>, <code>net_established</code>, <code>net_listen</code>, <code>net_tcp_total</code></td>
+<td>TCP footprint (loopback excluded from scoring)</td>
+</tr>
+<tr>
+<td><code>net_adapters</code>, <code>net_category</code>, <code>net_ipv4_conn</code>, <code>net_ipv6_conn</code></td>
+<td>Active adapters and connection profile</td>
+</tr>
+<tr>
+<td><code>wifi_scan</code></td>
+<td>Neighbouring access points (band, channel, signal) for overlap analysis</td>
+</tr>
+<tr>
+<td><code>gpu_name</code>, <code>gpu_driver</code>, <code>gpu_driver_date</code></td>
+<td>Graphics driver</td>
+</tr>
+<tr>
+<td><code>net_driver_name</code>, <code>net_driver_ver</code>, <code>net_driver_date</code>, <code>net_driver_provider</code></td>
+<td>Network adapter driver</td>
+</tr>
+<tr>
+<td><code>ps_version</code>, <code>pwsh_version</code></td>
+<td>Windows PowerShell and PowerShell 7</td>
+</tr>
+<tr>
+<td><code>edge_version</code>, <code>webview2_version</code></td>
+<td>Browser and embedded runtime</td>
+</tr>
+<tr>
+<td><code>bios_version</code>, <code>bios_date</code></td>
+<td>Firmware</td>
+</tr>
+<tr>
+<td><code>pagefile_mb</code>, <code>pagefile_peak_mb</code>, <code>pagefile_automatic</code></td>
+<td>Pagefile configuration</td>
+</tr>
+<tr>
+<td><code>power_plan</code>, <code>power_plan_guid</code></td>
+<td>Active power plan (GUID because names are localised)</td>
+</tr>
+<tr>
+<td><code>restart_pending</code></td>
+<td>Pending-reboot registry markers</td>
+</tr>
+<tr>
+<td><code>defender_realtime</code>, <code>defender_av_signature_age_d</code></td>
+<td>Protection status</td>
+</tr>
+<tr>
+<td><code>hw_problem_devices</code>, <code>hw_problem_list</code>, <code>hw_disks</code>, <code>hw_disks_unhealthy</code>, <code>hw_battery</code>, <code>hw_pointing</code>, <code>hw_touchpad</code></td>
+<td>Hardware health</td>
+</tr>
+<tr>
+<td><code>drv_total</code>, <code>drv_unsigned</code>, <code>drv_stale</code>, <code>drv_stale_list</code>, <code>drv_problem</code>, <code>drv_problem_list</code></td>
+<td>Driver inventory and faults</td>
+</tr>
+<tr>
+<td><code>wsl_installed</code>, <code>wsl_config_present</code>, <code>wsl_cap_mb</code>, <code>wsl_cpus_cfg</code>, <code>wsl_autoreclaim</code></td>
+<td>WSL configuration</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="b3-deliberate-collection-choices"><a class="anchor" href="#b3-deliberate-collection-choices" aria-hidden="true">#</a>B.3 Deliberate collection choices</h3>
+<ul>
+<li><strong>Locale independence.</strong> Performance data comes from
+  <code>Win32_PerfFormattedData_*</code> CIM classes rather than <code>Get-Counter</code>, whose
+  counter paths are localised and fail on non-English Windows.</li>
+<li><strong>No assumed drive letter.</strong> The system volume is read from
+  <code>%SystemDrive%</code>.</li>
+<li><strong>Power plans by GUID.</strong> Display names are localised and cannot be matched
+  reliably.</li>
+<li><strong>Driver inventory via <code>pnputil /enum-drivers</code>.</strong> <code>Win32_PnPSignedDriver</code> is
+  the obvious alternative and is slow enough to time the sample out.</li>
+<li><strong>Environment-based program paths.</strong> Edge and PowerShell 7 are located through
+  <code>%ProgramFiles%</code>, <code>%ProgramFiles(x86)%</code>, <code>%ProgramW6432%</code> and <code>%LOCALAPPDATA%</code>
+  with a registry fallback, so a non-<code>C:</code> Windows install works.</li>
+<li><strong>PowerShell 5.1 compatible.</strong> The collector avoids PS7-only syntax, so it
+  runs on a stock Windows 11 machine; PowerShell 7 is used automatically when
+  present.</li>
+</ul>
+<hr>
+<h2 id="appendix-c-scoring-mathematics"><a class="anchor" href="#appendix-c-scoring-mathematics" aria-hidden="true">#</a>Appendix C. Scoring mathematics</h2>
+<h3 id="c1-criterion-progress"><a class="anchor" href="#c1-criterion-progress" aria-hidden="true">#</a>C.1 Criterion progress</h3>
+<p>For a normal criterion, progress is the fraction of the baseline → target
+journey completed, clamped to 0–100:</p>
+<pre><code>progress = clamp( (current − baseline) / (target − baseline) × 100 , 0 , 100 )
+</code></pre>
+<p>If the target is met, progress is forced to 100 — otherwise a metric that was
+already better than its achievable floor at baseline time would report "met"
+alongside 0 %.</p>
+<p><strong>Smoothing.</strong> Counts breathe constantly, so the <em>sustained</em> value is scored:
+the rolling median of the last <code>score_smooth_window</code> samples (default 15 ≈ 5
+min). Per-metric overrides exist (<code>smooth_window_overrides</code>); carry-forward
+metrics use the raw latest value, because a short median would only return a
+stale earlier step. Live gauges and charts always show the raw latest value.</p>
+<p><strong>Dead-band.</strong> A metric within <code>regress_band_pct</code> (default 2 %) of its baseline
+counts as unchanged rather than regressed. Without it, every criterion reads
+"regress" on day one, when the baseline <em>is</em> the current value.</p>
+<h3 id="c2-ceiling-criteria-wsl-memory"><a class="anchor" href="#c2-ceiling-criteria-wsl-memory" aria-hidden="true">#</a>C.2 Ceiling criteria (WSL memory)</h3>
+<p>"At or below the cap <strong>and not growing</strong>" cannot use the formula above, because a
+cap normally sits <em>above</em> the starting value. Instead the working-set slope is
+estimated by least squares over the last <code>window_seconds</code>, and the score is based
+on remaining runway:</p>
+<ul>
+<li>above the cap → 0, <code>regress</code>;</li>
+<li>insufficient samples or span → <code>measuring</code> (excluded from the overall);</li>
+<li>flat or falling → 100, <code>met</code>;</li>
+<li>rising with ≥ 12 h of headroom and under half the cap → 100, <code>met</code> (churn, not
+  a leak);</li>
+<li>rising with ≥ 3 h of headroom → 50–95, <code>partial</code>;</li>
+<li>otherwise → <code>regress</code>.</li>
+</ul>
+<p>The window is re-anchored at a genuine VM restart or working-set reset (detected
+as a collector gap or a collapse from a high steady state) so the recovery ramp
+afterwards does not read as a leak.</p>
+<h3 id="c3-target-derivation"><a class="anchor" href="#c3-target-derivation" aria-hidden="true">#</a>C.3 Target derivation</h3>
+<p>Targets are ratios of the machine's own capacity, never absolute constants (see
+<code>config["targets"]</code>), then clamped so a target is always an improvement on the
+baseline and never crosses a physical floor. Examples: commit charge ≤ 75 % of
+RAM, available ≥ 30 % of RAM, free space ≥ 15 % of the volume, browser processes
+≥ the measured non-closable floor plus headroom.</p>
+<h3 id="c4-the-10-category-summary-score"><a class="anchor" href="#c4-the-10-category-summary-score" aria-hidden="true">#</a>C.4 The 10-category Summary score</h3>
+<p>The Summary distils everything into ten categories scored 0–100. Categories that
+map to a criterion use that criterion's progress; the rest are computed from live
+values. <strong>Room for improvement is <code>100 − score</code>.</strong></p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Category</th>
+<th>How it is scored</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Memory pressure</td>
+<td>Mean progress of commit, compression and available memory</td>
+</tr>
+<tr>
+<td>WSL 2</td>
+<td>The vmmem ceiling score, or headroom against the configured cap</td>
+</tr>
+<tr>
+<td>Browser footprint</td>
+<td>Browser-process criterion progress</td>
+</tr>
+<tr>
+<td>Application handles</td>
+<td>Handle criterion progress</td>
+</tr>
+<tr>
+<td>CPU &amp; processes</td>
+<td><code>100 − CPU%</code>, less a penalty when the run queue is non-zero</td>
+</tr>
+<tr>
+<td>Storage</td>
+<td>Mean of free-space progress and disk health</td>
+</tr>
+<tr>
+<td>Network optimisation</td>
+<td>Mean of remote-TCP and startup-entry progress, less a penalty for channel overlap</td>
+</tr>
+<tr>
+<td>Wi-Fi connectivity</td>
+<td>Signal percentage, or a band from the negotiated link rate when Location is denied</td>
+</tr>
+<tr>
+<td>Hardware &amp; drivers</td>
+<td>100 less penalties for device faults, driver faults, stale drivers and unhealthy disks</td>
+</tr>
+<tr>
+<td>Component currency</td>
+<td>Share of detected components on their recommended version</td>
+</tr>
+</tbody>
+</table></div>
+<p>The overall score is the mean of the categories that could be evaluated;
+<code>measuring</code> categories are excluded rather than assumed good. <strong>The Details
+header and the Summary tab display the same overall number</strong> — both call one
+shared computation, so they cannot disagree.</p>
+<h3 id="c5-adaptive-personal-best-layer"><a class="anchor" href="#c5-adaptive-personal-best-layer" aria-hidden="true">#</a>C.5 Adaptive (personal-best) layer</h3>
+<p>Independently of the fixed criteria, SysPerf tracks the best value you have
+actually achieved per metric and sets a stretch goal slightly beyond it
+(<code>adaptive.stretch</code>, default 5 %). It reports today's typical value, whether you
+are at or beat your personal best, and a self-improvement percentage. It needs
+<code>adaptive.learn_samples</code> observations before it will score a metric.</p>
+<hr>
+<h2 id="appendix-d-wi-fi-and-network-analysis-internals"><a class="anchor" href="#appendix-d-wi-fi-and-network-analysis-internals" aria-hidden="true">#</a>Appendix D. Wi-Fi and network analysis internals</h2>
+<h3 id="d1-why-two-data-sources"><a class="anchor" href="#d1-why-two-data-sources" aria-hidden="true">#</a>D.1 Why two data sources</h3>
+<p><code>Get-NetAdapter</code> and <code>Get-NetConnectionProfile</code> work without elevation or any
+privacy permission, and yield the SSID, negotiated link rate, adapter model,
+network category and IPv4 connectivity. The richer detail — signal percentage,
+band, channel, Rx/Tx rates and the neighbour scan — comes from <code>netsh wlan</code>,
+which on Windows 11 is gated behind <strong>Location</strong> permission for the WLAN service
+and may also require elevation.</p>
+<p>When <code>netsh</code> is unavailable SysPerf sets <code>detail_limited</code> and the dashboard shows
+adapter-level data plus an explanation of what to enable. It never reports a
+fabricated signal value.</p>
+<h3 id="d2-channel-overlap-model"><a class="anchor" href="#d2-channel-overlap-model" aria-hidden="true">#</a>D.2 Channel overlap model</h3>
+<ul>
+<li><strong>2.4 GHz</strong> — 20 MHz channels are spaced 5 MHz apart, so two access points
+  overlap when their channel numbers differ by less than 5. Only <strong>1, 6 and 11</strong>
+  are mutually non-overlapping. Each candidate is scored by signal-weighted
+  neighbour load, and the clearest is recommended.</li>
+<li><strong>5 / 6 GHz</strong> — 20 MHz channels do not overlap, so congestion is simply the
+  co-channel count; the least-used common channel is recommended.</li>
+</ul>
+<h3 id="d3-why-sysperf-cannot-fix-overlap"><a class="anchor" href="#d3-why-sysperf-cannot-fix-overlap" aria-hidden="true">#</a>D.3 Why SysPerf cannot "fix" overlap</h3>
+<p>Channel and channel width are <strong>access-point</strong> settings. A client can only choose
+which band to prefer and which access point to join. The optimisation plan
+therefore tags every action by where it applies — <code>client</code>, <code>router</code> or
+<code>windows</code> — and SysPerf changes none of them.</p>
+<hr>
+<h2 id="appendix-e-security-and-privacy-model"><a class="anchor" href="#appendix-e-security-and-privacy-model" aria-hidden="true">#</a>Appendix E. Security and privacy model</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>System writes</td>
+<td>None. Every system call is a query. The only file writes are inside SysPerf's own data directory.</td>
+</tr>
+<tr>
+<td>Bind address</td>
+<td><code>127.0.0.1</code> by default.</td>
+</tr>
+<tr>
+<td>Non-loopback binds</td>
+<td>A token is generated and <strong>required</strong> — the API is never silently exposed unauthenticated. Sent as <code>X-SysPerf-Token</code> or <code>?token=</code>.</td>
+</tr>
+<tr>
+<td>Token comparison</td>
+<td>Constant-time (<code>secrets.compare_digest</code>).</td>
+</tr>
+<tr>
+<td>TLS</td>
+<td>None. Use a reverse proxy for anything beyond a trusted host.</td>
+</tr>
+<tr>
+<td>Response headers</td>
+<td><code>X-Content-Type-Options</code>, <code>X-Frame-Options</code>, <code>Referrer-Policy</code>, <code>Cache-Control: no-store</code>, and a restrictive <code>Content-Security-Policy</code>.</td>
+</tr>
+<tr>
+<td>Third-party assets</td>
+<td>None. No CDN, no external JavaScript or CSS; the dashboard works offline.</td>
+</tr>
+<tr>
+<td>Telemetry</td>
+<td>None. No accounts, no network egress.</td>
+</tr>
+<tr>
+<td><code>anonymize</code></td>
+<td>Replaces process, host and device names with stable hashes in the API payload, so the dashboard can be screen-shared safely.</td>
+</tr>
+<tr>
+<td>Runtime data</td>
+<td>History, baseline, adaptive state and config live in the per-user data directory and are excluded from version control.</td>
+</tr>
+<tr>
+<td><code>POST /api/recalibrate</code></td>
+<td>The only non-GET route. Rewrites SysPerf's own baseline file and touches nothing else.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="e1-what-the-data-contains"><a class="anchor" href="#e1-what-the-data-contains" aria-hidden="true">#</a>E.1 What the data contains</h3>
+<p>The payload describes your machine: process names, installed drivers, startup
+entries, connection counts, hostname, model and the Wi-Fi SSID. It never leaves
+the machine unless you expose the port or share the output. Enable <code>anonymize</code>
+before sharing screenshots or bug reports.</p>
+<hr>
+<h2 id="appendix-f-performance-characteristics"><a class="anchor" href="#appendix-f-performance-characteristics" aria-hidden="true">#</a>Appendix F. Performance characteristics</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Typical</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fast sample</td>
+<td>Well under a second</td>
+</tr>
+<tr>
+<td>Full sweep</td>
+<td>Seconds to tens of seconds, dominated by WMI/CIM and <code>pnputil</code> latency rather than by SysPerf</td>
+</tr>
+<tr>
+<td>API snapshot</td>
+<td>Cached for <code>snapshot_ttl</code> (3 s), so polling is cheap</td>
+</tr>
+<tr>
+<td>Memory</td>
+<td>A few tens of MB for the Python process</td>
+</tr>
+<tr>
+<td>History</td>
+<td>Ring buffer of <code>max_samples</code> in memory; JSONL trimmed at <code>history_max_bytes</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The full sweep runs on a background thread, so its duration never blocks the
+dashboard or the API. If a sweep fails, the previous slow-tier values are carried
+forward and <code>meta.error</code> reports the reason.</p>
+<hr>
+<h2 id="appendix-g-extending-sysperf"><a class="anchor" href="#appendix-g-extending-sysperf" aria-hidden="true">#</a>Appendix G. Extending SysPerf</h2>
+<ul>
+<li><strong>Retune thresholds</strong> — edit <code>sysperf.config.json</code>; nothing needs recompiling.</li>
+<li><strong>Adjust browser ownership</strong> — add host process names under
+  <code>browser_hosts.mandatory</code> / <code>in_use</code> so the closability floor matches your
+  environment.</li>
+<li><strong>Change the component targets</strong> — edit <code>CATALOG</code> in <code>components.py</code>. Only
+  components detected on the machine are listed, so adding an entry is safe.</li>
+<li><strong>Add a criterion</strong> — add a spec row in <code>profile.CRITERIA_SPEC</code>, derive its
+  target in <code>profile.derive_targets</code>, and collect the field in
+  <code>collect_win.ps1</code>. The scorecard, KPI cards and category score pick it up
+  automatically.</li>
+<li><strong>Add a recommendation</strong> — add a rule in <code>advisor.py</code>.</li>
+<li><strong>Run the tests</strong> — <code>python -m pytest</code> from the project root.</li>
+</ul>
+      <footer>
+        SysPerf 2.0.0 — System Performance Agent. Apache License 2.0.
+        Generated from <code>docs/USER_MANUAL.md</code> on 2026-10-21.
+        Edit the Markdown and re-run <code>python docs/build_manual.py</code>;
+        do not edit this file directly.
+      </footer>
+    </div>
+  </main>
+</div>
+</body>
+</html>
