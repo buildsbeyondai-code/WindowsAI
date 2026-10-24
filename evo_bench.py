@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
 
-from sysperf import config, scoring, trends            # noqa: E402
+from sysperf import appctl, config, scoring, trends    # noqa: E402
 from sysperf.adaptive import AdaptiveScorer             # noqa: E402
 
 _TMP = Path(tempfile.mkdtemp(prefix="evo_bench_"))
@@ -25,7 +25,11 @@ def _sample(i: int) -> dict:
     s = {k: float(100 + (i * 37 + j * 11) % 400) for j, k in enumerate(_KEYS)}
     s.update(_t=1_790_000_000.0 + i * 60.0, vmmem_mb=3000.0 + (i * 13) % 900,
              _iso=f"2026-10-{1 + i // 1440 % 28:02d}T{i // 60 % 24:02d}:{i % 60:02d}:00",
-             session_locked=(i % 17 == 0))
+             session_locked=(i % 17 == 0),
+             ncpu=8, cpu_procs=[{"n": f"app{j}", "pid": 1000 + j, "ws_mb": 50 + j,
+                                 "cpu_s": i * (j % 9) * 12.0,
+                                 "exe": f"C:\\Apps\\app{j}.exe" if j % 3 else None}
+                                for j in range(60)])
     return s
 
 
@@ -60,9 +64,16 @@ def _trend_ingest_summary():
     st.summary(_LATEST)
 
 
+def _top_apps():
+    for _ in range(15):
+        appctl.top_apps(_HIST)
+
+
+# Keys name the code each benchmark exercises; the planner is told to target it.
 BENCHMARKS = {
-    "scorecard": _scorecard,
-    "vmmem_trend": _vmmem_trend,
-    "smoothed_current": _smoothed_current,
-    "trend_ingest_summary": _trend_ingest_summary,
+    "scoring.build_scorecard": _scorecard,
+    "scoring.vmmem_trend": _vmmem_trend,
+    "scoring._smoothed_current": _smoothed_current,
+    "trends.TrendStore.ingest+summary": _trend_ingest_summary,
+    "appctl.top_apps (cpuwatch.consistent_cpu, last_exe)": _top_apps,
 }
