@@ -206,8 +206,11 @@ class Sandbox:
                            "/opt"):
                 if os.path.isdir(hidden):
                     a += ["--tmpfs", hidden]
-            for d in self._site_dirs():
-                a += ["--ro-bind", d, d]
+            # sys.executable may live in a venv under a hidden dir (~/.venv);
+            # without its prefix the jailed exec fails with ENOENT.
+            for d in sorted({sys.prefix, *self._site_dirs()}):
+                if os.path.isdir(d):
+                    a += ["--ro-bind", d, d]
             a += ["--ro-bind", w, w, "--chdir", w, "--unshare-all", "--die-with-parent",
                   "--new-session", "--clearenv", "--setenv", "PATH", "/usr/bin:/bin",
                   "--setenv", "HOME", "/tmp", "--setenv", "PYTHONDONTWRITEBYTECODE", "1",

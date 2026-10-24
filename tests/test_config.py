@@ -38,7 +38,9 @@ def test_fix_enabled_env(monkeypatch):
 
 def test_ps_exe_is_a_path():
     importlib.reload(config)
-    assert isinstance(config.PS_EXE, str) and config.PS_EXE
+    # None is the designed answer where no PowerShell exists (Linux, the sandbox).
+    assert config.PS_EXE is None or (isinstance(config.PS_EXE, str) and config.PS_EXE)
+    assert config.CAN_COLLECT == (config.PS_EXE is not None)
 
 
 # --------------------------------------------- settings file + precedence -----
