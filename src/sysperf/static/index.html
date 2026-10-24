@@ -4986,9 +4986,9 @@ tick();
       ["repo", "Approved repository", !!st.repo,
         st.repo ? st.repo : "a git checkout the agent may branch from — the installed app folder is one (…\\SysPerf\\app)"],
       ["ai", "AI provider", !!l.available,
-        l.available ? (l.provider + (l.model ? " · " + l.model : "")) : "choose Anthropic (store an API key) or install kiro-cli"],
+        l.available ? (l.provider + " · " + (l.model || "auto")) : "choose claude_code (uses your Claude Code login), or Anthropic with an API key"],
       ["sandbox", "Isolation sandbox", (s.isolation || {}).backend !== "none",
-        (s.isolation || {}).backend !== "none" ? s.isolation.backend : "needs Docker (evolution.docker_image) — generated code never runs unsandboxed"],
+        (s.isolation || {}).backend !== "none" ? s.isolation.backend : "needs bubblewrap in WSL (sudo apt-get install bubblewrap python3-venv) or Docker — generated code never runs unsandboxed"],
       ["audit", "Audit chain", !!(s.audit || {}).ok,
         (s.audit || {}).ok ? `intact · ${s.audit.checked} entries verified` : `BROKEN at ${(s.audit || {}).broken_at}`]];
     const ready = req.filter(r => r[2]).length, pct = Math.round(100 * ready / req.length);
@@ -5060,7 +5060,7 @@ tick();
       </div>
       <div class="evo-sub">AI provider</div>
       <div class="evo-form">
-        <label class="evo-f">Provider <select id="sevProvider">${["none", "anthropic", "kiro_cli"].map(p =>
+        <label class="evo-f">Provider <select id="sevProvider">${["none", "claude_code", "anthropic", "kiro_cli"].map(p =>
           `<option${p === s.llm.provider ? " selected" : ""}>${p}</option>`).join("")}</select></label>
         <label class="evo-f">Model <input id="sevModel" value="${esc(s.llm.model || "")}" list="sevModels" placeholder="choose from provider list"></label>
         <label class="evo-f">Daily token budget <input id="sevBudget" type="number" min="0" value="${(s.llm.usage_today || {}).daily_token_budget || 200000}"></label>

@@ -126,18 +126,26 @@ print("BENCH_JSON=" + json.dumps(out))
 class Sandbox:
     """Runs a command over a read-only worktree with no network.
 
-    ``backend`` is chosen once: ``bwrap`` > ``docker`` (if an image is
-    configured) > ``none``. ``none`` refuses to execute anything.
+    ``backend`` is chosen once: ``bwrap`` > ``wsl-bwrap`` > ``docker`` (if an
+    image is configured) > ``none``. ``none`` refuses to execute anything.
+
+    ``wsl-bwrap`` is for a native-Windows install: the same bubblewrap jail, run
+    inside the default WSL distro via ``wsl.exe``, with a Linux interpreter from
+    a dedicated venv (WSL_SANDBOX_VENV, holding the app's requirements) standing
+    in for the Windows ``sys.executable``.
     """
+    WSL_SANDBOX_VENV = os.environ.get("PERFDASH_WSL_SANDBOX_VENV", ".sysperf-sandbox-venv")
 
     def __init__(self, backend: str = "auto", docker_image: Optional[str] = None,
                  timeout_s: float = 300.0, mem_mb: int = 2048):
         self.docker_image = docker_image
+        self.wsl_python: Optional[str] = None    # Linux path, set by _detect()
         self.timeout_s = timeout_s
         self.mem_mb = mem_mb
         self.backend = self._detect() if backend == "auto" else backend
         self.why_none = None if self.backend != "none" else (
-            "no isolation backend: install bubblewrap (Linux/WSL) or configure "
+            "no isolation backend: install bubblewrap (Linux/WSL; on Windows also "
+            f"the ~/{self.WSL_SANDBOX_VENV} venv in WSL) or configure "
             "evolution.docker_image; generated code will not be executed")
 
     def _detect(self) -> str:
@@ -150,9 +158,33 @@ class Sandbox:
                     return "bwrap"
             except (OSError, subprocess.SubprocessError):
                 pass
+        if os.name == "nt" and shutil.which("wsl.exe"):
+            try:
+                r = run_hidden(["wsl.exe", "-e", "bwrap", "--ro-bind", "/", "/",
+                                "--unshare-all", "--die-with-parent", "true"],
+                               capture_output=True, timeout=60)
+                if r.returncode == 0:
+                    probe = ('p="$HOME/' + self.WSL_SANDBOX_VENV + '/bin/python"; '
+                             '"$p" -c "import flask, waitress, pytest" && echo "$p"')
+                    r = run_hidden(["wsl.exe", "-e", "sh", "-c", probe],
+                                   capture_output=True, text=True, timeout=60)
+                    py = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ""
+                    if r.returncode == 0 and py.startswith("/"):
+                        self.wsl_python = py
+                        return "wsl-bwrap"
+            except (OSError, subprocess.SubprocessError):
+                pass
         if self.docker_image and shutil.which("docker"):
             return "docker"
         return "none"
+
+    @staticmethod
+    def _wsl_path(p: str) -> str:
+        """C:\\x\\y -> /mnt/c/x/y (WSL's default automount)."""
+        p = str(p).replace("\\", "/")
+        if len(p) > 1 and p[1] == ":":
+            return f"/mnt/{p[0].lower()}{p[2:]}"
+        return p
 
     @staticmethod
     def _site_dirs() -> list:
@@ -182,6 +214,23 @@ class Sandbox:
                   "--setenv", "PYTHONHASHSEED", "0",
                   "--setenv", "PYTHONPATH", os.pathsep.join(self._site_dirs())]
             return a + cmd
+        if self.backend == "wsl-bwrap":
+            lw = self._wsl_path(w)
+            venv = self.wsl_python.rsplit("/bin/", 1)[0]
+            a = ["wsl.exe", "-e", "bwrap", "--ro-bind", "/", "/", "--dev", "/dev",
+                 "--proc", "/proc", "--tmpfs", "/tmp"]
+            for hidden in ("/home", "/root", "/mnt", "/media", "/run", "/var", "/srv",
+                           "/opt"):
+                a += ["--tmpfs", hidden]
+            a += ["--ro-bind", venv, venv, "--ro-bind", lw, lw, "--chdir", lw,
+                  "--unshare-all", "--die-with-parent", "--new-session", "--clearenv",
+                  "--setenv", "PATH", "/usr/bin:/bin", "--setenv", "HOME", "/tmp",
+                  "--setenv", "PYTHONDONTWRITEBYTECODE", "1",
+                  "--setenv", "PYTHONHASHSEED", "0"]
+            # resource limits (no preexec_fn on Windows): prlimit inside the jail
+            lim = ["prlimit", f"--as={self.mem_mb * 1024 * 1024}",
+                   f"--fsize={64 << 20}", "--core=0", "--"]
+            return a + lim + [self.wsl_python if c == sys.executable else c for c in cmd]
         if self.backend == "docker":
             return ["docker", "run", "--rm", "--network", "none", "--read-only",
                     "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
@@ -207,7 +256,10 @@ class Sandbox:
             r = run_hidden(self.argv(workdir, cmd), capture_output=True, text=True,
                                timeout=timeout_s or self.timeout_s,
                                preexec_fn=limits if self.backend == "bwrap" else None,
-                               env={"PATH": os.environ.get("PATH", "/usr/bin:/bin")},
+                               # wsl.exe needs the Windows environment to start;
+                               # --clearenv inside the jail still empties it.
+                               env=(dict(os.environ) if self.backend == "wsl-bwrap" else
+                                    {"PATH": os.environ.get("PATH", "/usr/bin:/bin")}),
                                stdin=subprocess.DEVNULL)
             return {"rc": r.returncode, "stdout": r.stdout[-20000:],
                     "stderr": r.stderr[-5000:], "elapsed": time.time() - started}
