@@ -72,11 +72,10 @@ def test_detect_wsl_bwrap_on_windows(monkeypatch):
         if argv[-1] == "true":
             return SimpleNamespace(returncode=0, stdout="")
         return SimpleNamespace(returncode=0, stdout="noise\n/home/u/.venv/bin/python\n")
-    monkeypatch.setattr(cv.os, "name", "nt")
+    monkeypatch.setattr(cv, "OS_NAME", "nt")
     monkeypatch.setattr(cv.shutil, "which", _which({"wsl.exe"}))
     monkeypatch.setattr(cv, "run_hidden", run)
     s = cv.Sandbox()
-    monkeypatch.setattr(cv.os, "name", "posix")         # pathlib needs the real OS below
     assert s.backend == "wsl-bwrap" and s.wsl_python == "/home/u/.venv/bin/python"
     argv = s.argv(Path("D:/work/wt"), [sys.executable, "-m", "pytest"])
     assert argv[:3] == ["wsl.exe", "-e", "bwrap"]
@@ -92,11 +91,11 @@ def test_detect_wsl_without_a_usable_venv_falls_through(monkeypatch, probe_rc, s
         if argv[-1] == "true":
             return SimpleNamespace(returncode=first_rc, stdout="")
         return SimpleNamespace(returncode=probe_rc, stdout=stdout)
-    monkeypatch.setattr(cv.os, "name", "nt")
+    monkeypatch.setattr(cv, "OS_NAME", "nt")
     monkeypatch.setattr(cv.shutil, "which", _which({"wsl.exe"}))
     monkeypatch.setattr(cv, "run_hidden", run)
     backend = cv.Sandbox().backend
-    monkeypatch.setattr(cv.os, "name", "posix")
+    monkeypatch.setattr(cv, "OS_NAME", "posix")
     assert backend == "none"
 
 
@@ -104,17 +103,17 @@ def test_detect_docker_and_errors(monkeypatch, tmp_path):
     def boom(*a, **k):
         raise OSError("no exec")
     monkeypatch.setattr(cv, "run_hidden", boom)
-    monkeypatch.setattr(cv.os, "name", "posix")
+    monkeypatch.setattr(cv, "OS_NAME", "posix")
     monkeypatch.setattr(cv.shutil, "which", _which({"bwrap", "docker"}))
     s = cv.Sandbox(docker_image="img:1")
     assert s.backend == "docker"
     argv = s.argv(tmp_path, ["python", "x"])
     assert argv[:2] == ["docker", "run"] and "--network" in argv and argv[-3:] == [
         "img:1", "python", "x"]
-    monkeypatch.setattr(cv.os, "name", "nt")
+    monkeypatch.setattr(cv, "OS_NAME", "nt")
     monkeypatch.setattr(cv.shutil, "which", _which({"wsl.exe"}))
     backend = cv.Sandbox().backend
-    monkeypatch.setattr(cv.os, "name", "posix")
+    monkeypatch.setattr(cv, "OS_NAME", "posix")
     assert backend == "none"
     none = cv.Sandbox(backend="none")
     with pytest.raises(RuntimeError):

@@ -82,10 +82,11 @@ def test_footprint_and_rss(tmp_path):
     assert fp["avg_cpu_pct"] == round(4.0 / (os.cpu_count() or 1), 2)
     statm = tmp_path / "statm"
     statm.write_text("100 256 0 0")
-    assert rss_mb(statm) == round(256 * os.sysconf("SC_PAGE_SIZE") / 1048576, 1)
-    assert rss_mb(tmp_path / "missing") is None
-    statm.write_text("bad")
-    assert rss_mb(statm) is None
+    if os.name != "nt":                         # Windows reads RSS from the process API
+        assert rss_mb(statm) == round(256 * os.sysconf("SC_PAGE_SIZE") / 1048576, 1)
+        assert rss_mb(tmp_path / "missing") is None
+        statm.write_text("bad")
+        assert rss_mb(statm) is None
     assert footprint(0.0)["threads"] >= 1
 
 

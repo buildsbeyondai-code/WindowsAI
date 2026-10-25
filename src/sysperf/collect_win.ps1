@@ -322,7 +322,7 @@ if ($Full) {
     # rest of the sweep, then merge its result at the end. Everything else runs
     # sequentially on the warm main runspace - cheaper and more predictable than a
     # runspace per block, which cold-imports its modules every sweep. READ-ONLY.
-    $netJob = Start-ThreadJob -ScriptBlock {
+    $netBlock = {
         $ErrorActionPreference = 'SilentlyContinue'; $r = [ordered]@{}
         $remoteFilter = { $_.RemoteAddress -notin '127.0.0.1','::1','0.0.0.0','::' -and
                           $_.RemoteAddress -notlike '169.254.*' -and $_.RemoteAddress -notlike 'fe80:*' }
@@ -360,6 +360,12 @@ if ($Full) {
         if ($prof) { $r.net_category=[string]$prof.NetworkCategory; $r.net_ipv4_conn=[string]$prof.IPv4Connectivity; $r.net_ipv6_conn=[string]$prof.IPv6Connectivity }
         $r
     }
+    # Windows PowerShell 5.1 (every Windows PC; the default for Store installs)
+    # has no Start-ThreadJob: run the block inline there, paying its 8 s wait,
+    # rather than losing every network metric.
+    $netJob = $null; $netFrag = $null
+    if (Get-Command Start-ThreadJob -ErrorAction SilentlyContinue) { $netJob = Start-ThreadJob -ScriptBlock $netBlock }
+    else { $netFrag = & $netBlock }
 
     $svc = Get-Service
     $out.services_running = @($svc | Where-Object Status -eq 'Running').Count
@@ -664,7 +670,7 @@ if ($Full) {
     # Merge the overlapped network fragment (its 8 s wait ran alongside the work
     # above). If the job failed/timed out its keys are absent and the Python
     # collector carries the previous values forward. -Wait bounds the sweep.
-    $frag = Receive-Job $netJob -Wait -AutoRemoveJob -ErrorAction SilentlyContinue
+    $frag = if ($netJob) { Receive-Job $netJob -Wait -AutoRemoveJob -ErrorAction SilentlyContinue } else { $netFrag }
     if ($frag -is [System.Collections.IDictionary]) { foreach ($k in $frag.Keys) { $out[$k] = $frag[$k] } }
 }
 

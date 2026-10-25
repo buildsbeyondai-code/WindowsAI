@@ -82,7 +82,7 @@ def test_claude_code_error_classification(res, kind, retry):
 
 def test_claude_code_discovery(monkeypatch, tmp_path):
     import shutil
-    monkeypatch.setattr(llm.os, "name", "nt")
+    monkeypatch.setattr(llm, "OS_NAME", "nt")
     p = llm.ClaudeCodeProvider(run=lambda argv, **kw: _res(rc=0))
     assert p.via_wsl and p.executable == "wsl.exe"
     p = llm.ClaudeCodeProvider(run=lambda argv, **kw: _res(rc=1))

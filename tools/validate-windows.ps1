@@ -38,9 +38,9 @@ Check 'Privilege level reported' { if ($isAdmin) { 'administrator' } else { 'sta
 Check 'PowerShell available' { "$($PSVersionTable.PSEdition) $($PSVersionTable.PSVersion)" }
 
 $py = (Get-Command python -ErrorAction SilentlyContinue).Source
-Check 'Python 3.9+' {
+Check 'Python 3.10+' {
     if (-not $py) { throw 'python not on PATH' }
-    $v = & $py -c "import sys;print('%d.%d'%sys.version_info[:2]);sys.exit(0 if sys.version_info>=(3,9) else 1)"
+    $v = & $py -c "import sys;print('%d.%d'%sys.version_info[:2]);sys.exit(0 if sys.version_info>=(3,10) else 1)"
     if ($LASTEXITCODE) { throw "Python $v is too old" }; "Python $v"
 }
 

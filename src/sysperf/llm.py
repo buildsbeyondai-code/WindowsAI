@@ -42,6 +42,9 @@ from typing import Any, Callable
 from .background_process import run_hidden
 
 log = logging.getLogger("sysperf.llm")
+# Read through this name (not os.name) so tests can simulate the other OS
+# without patching the global os module, which breaks pathlib on Windows.
+OS_NAME = os.name
 
 ANTHROPIC_VERSION = "2023-06-01"          # API version header, not a model id
 DEFAULT_BASE_URL = "https://api.anthropic.com"
@@ -90,7 +93,7 @@ def load_api_key(key_file: Path | None, env=None) -> tuple:
             return env[var].strip(), f"env:{var}"
     if key_file and Path(key_file).is_file():
         p = Path(key_file)
-        if os.name != "nt" and (p.stat().st_mode & (stat.S_IRWXG | stat.S_IRWXO)):
+        if OS_NAME != "nt" and (p.stat().st_mode & (stat.S_IRWXG | stat.S_IRWXO)):
             log.warning("ignoring %s: readable by other users (chmod 600 it)", p.name)
             return None, "file:insecure-permissions"
         key = p.read_text(encoding="utf-8").strip()
@@ -394,7 +397,7 @@ class ClaudeCodeProvider(Provider):
         m = (model or "auto").strip()
         self.model = None if m.lower() == "auto" else m
         self._run = run
-        self.via_wsl = via == "wsl" or (via == "auto" and os.name == "nt"
+        self.via_wsl = via == "wsl" or (via == "auto" and OS_NAME == "nt"
                                          and executable is None and self._wsl_has_claude())
         self.executable = "wsl.exe" if self.via_wsl else (executable or self._find())
         self.timeout_s = timeout_s
