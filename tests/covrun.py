@@ -127,6 +127,18 @@ def pragma_lines(path):
     return out
 
 
+def fresh_basetemp() -> str:
+    """A private pytest temp root for this run.
+
+    pytest's default root, %TEMP%\\pytest-of-<user>, is shared with every other
+    pytest run on the machine. On 2026-10-25 that folder carried an ACL the
+    in-app Self-test could not open (WinError 5), and every test errored. A
+    fresh root per run cannot be locked or owned by anything else.
+    """
+    import tempfile
+    return tempfile.mkdtemp(prefix="sysperf-gates-")
+
+
 def main():
     # threading.settrace too: sys.settrace covers only the calling thread, so code
     # that tests run on worker threads (reader pumps, background senders) would
@@ -144,11 +156,14 @@ def main():
         ignores = []
         for suite in sorted(Path(HERE).glob("test_e2e*.py")):
             ignores += ["--ignore", str(suite)]
+        basetemp = fresh_basetemp()
         rc = pytest.main(["-q", "-p", "no:cacheprovider", "-p", "no:assertion",
-                          *ignores, HERE])
+                          "--basetemp", basetemp, *ignores, HERE])
     finally:
         sys.settrace(None)
         threading.settrace(None)
+    import shutil
+    shutil.rmtree(basetemp, ignore_errors=True)
 
     print("\n" + "=" * 58)
     print("COVERAGE (stdlib settrace; # pragma: no cover honoured)")

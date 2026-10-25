@@ -324,6 +324,12 @@ def gate_frontend() -> Gate:
 # --------------------------------------------------------------------------- #
 # 7. browser (Playwright) + UI coverage                                       #
 # --------------------------------------------------------------------------- #
+def covrun_basetemp() -> str:
+    """A private pytest temp root (see covrun.fresh_basetemp)."""
+    import covrun
+    return covrun.fresh_basetemp()
+
+
 def gate_browser() -> Gate:
     """The browser suite, plus the UI-coverage floor it exists to defend.
 
@@ -343,10 +349,12 @@ def gate_browser() -> Gate:
         gate.skip("playwright is not installed")
         return gate
 
+    basetemp = covrun_basetemp()
     proc = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:randomly",
-         *[str(p) for p in suites]],
+         "--basetemp", basetemp, *[str(p) for p in suites]],
         cwd=str(ROOT), capture_output=True, text=True)
+    shutil.rmtree(basetemp, ignore_errors=True)
     summary = next((ln.strip() for ln in reversed(proc.stdout.splitlines())
                     if " passed" in ln or " failed" in ln), "")
     if proc.returncode != 0:
