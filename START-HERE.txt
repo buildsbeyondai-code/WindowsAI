@@ -6,11 +6,11 @@ Easiest: run the graphical installer
 No administrator rights are needed; everything installs under your user profile.
 
 ================================================================================
-  SysPerf - System Performance Agent 4.1.0
+  SysPerf - System Performance Agent 5.0.0
   START HERE
 ================================================================================
 
-  A read-only performance dashboard and advisor for Windows 11.
+  A self-improving performance dashboard for Windows 11.
   Free and open-source software, Apache License 2.0.
 
 
@@ -107,13 +107,18 @@ REQUIREMENTS
 
 PRIVACY
 --------------------------------------------------------------------------------
-  Nothing leaves the machine. There is no telemetry, no upload, no account, and
-  the dashboard loads no third-party scripts - it works with networking off.
+  No telemetry, no upload, no account, and the dashboard loads no third-party
+  scripts. Two things go out, and only what they need: a daily check of public
+  release feeds for the Components view (sends nothing about this PC), and, only
+  if you turn on AI self-evolution, code excerpts to the model provider you chose.
 
   Treat http://127.0.0.1:5056/api/metrics as sensitive: it lists running
-  processes, installed drivers and startup entries. That is why the server binds
-  to your own machine only. Set "anonymize": true in the config before sharing a
-  screenshot.
+  processes, installed drivers and startup entries. That is why the server answers
+  only on this machine, and only to requests addressed to it. Check screenshots
+  for app and device names before sharing them.
+
+  SysPerf can change the PC (flush DNS, trim memory, restart a stuck Explorer,
+  quit tray apps you allow). Each change is listed on Home with how to undo it.
 
 
 IF SOMETHING GOES WRONG

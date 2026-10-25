@@ -1,31 +1,31 @@
 # SysPerf — System Performance Agent
 
-**A read-only performance dashboard and advisor for Windows 11.** It measures the
+**A self-improving performance dashboard for Windows 11.** It measures the
 machine, learns that machine's own baseline, scores progress against targets
-derived from its actual capacity, and tells you exactly what to change.
+derived from its actual capacity, and tells you exactly what to change. With
+your consent it makes the safe changes itself, and every one can be undone.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows%2011%20%7C%20WSL%202-informational.svg)](#requirements)
 
-> **New in 2.0** — a tabbed **Summary / Details** UI. The **Summary** distils the
-> whole dashboard into a **10-category scorecard** (each with a score and room
-> for improvement and one overall system score). New **Wi-Fi**, **band/channel
-> overlap** and **network optimisation** panels, and a **component-upgrade
-> advisory** (Windows, PowerShell, Edge/WebView2, drivers, BIOS, and
-> Python/Node/Git/WSL when present). Everything is portable — machine identity,
-> baselines and targets are all derived per machine. See the [changelog](CHANGELOG.md).
+> **New in 5.0**: DNS-rebinding protection, a Content-Security-Policy, an encrypted
+> API key file, a hash-locked supply chain, and docs and settings that are checked
+> against the code. See [What's new in 5.0](#whats-new-in-50) and the
+> [changelog](CHANGELOG.md).
 
 ## Documentation
 
-- **[SysPerf-User-Manual.html](SysPerf-User-Manual.html)** — the complete manual:
-  installation, reading the dashboard, scoring maths, configuration and API, plus
-  technical appendices (architecture and data flow, collected-data reference,
-  Wi-Fi/network internals, security model, performance, extension points).
-  Self-contained HTML: open it in any browser, works offline, prints cleanly.
-- Source: [`docs/USER_MANUAL.md`](docs/USER_MANUAL.md) — rebuild with
+- **[docs/SysPerf-User-Manual.html](docs/SysPerf-User-Manual.html)** — the complete
+  manual: installation, reading the dashboard, scoring maths, configuration and API,
+  and technical appendices. Self-contained HTML that works offline and prints
+  cleanly. Source: [`docs/USER_MANUAL.md`](docs/USER_MANUAL.md); rebuild it with
   `pip install markdown && python docs/build_manual.py`.
-
+- **Engineering docs:** [architecture](docs/ARCHITECTURE.md),
+  [requirements and acceptance criteria](docs/REQUIREMENTS.md),
+  [decisions](docs/DECISIONS.md), [operations and incidents](docs/OPERATIONS.md),
+  [release checklist](docs/RELEASE_CHECKLIST.md),
+  [project state](docs/PROJECT_STATE.md), [security policy](SECURITY.md).
 
 ```
 System score        : 46%  [#############...............]
@@ -247,10 +247,13 @@ plan is matched by GUID rather than by its display name.
 sysperf                     start the dashboard (http://127.0.0.1:5056/)
 sysperf --report            print a text report with recommendations, then exit
 sysperf --once              take one sample and print the raw JSON
-sysperf --recalibrate       reset the baseline to the current state
 sysperf --where             show the data directory and config path
+sysperf --supervise         run under the supervisor (what the sign-in task does)
 sysperf --port 5100 --open  serve on another port and open a browser
 ```
+
+To capture a new baseline, delete `baseline.json` from the data directory
+(`sysperf --where`) and restart. The next settled samples become the baseline.
 
 ### API
 
@@ -259,12 +262,14 @@ the per-process CSRF token, and are listed as such. All return JSON.
 
 | Endpoint | Returns |
 |---|---|
-| `/api/metrics` | Everything: latest sample, chart series, scorecard, browser breakdown, hardware, recommendations, profile, baseline |
-| `/api/advice` | Just the prioritised recommendations |
-| `/api/profile` | Machine identity, the stored baseline, and the derived criteria |
-| `/api/health` | Liveness, sample count, last collector error |
-| `/api/config` | Effective configuration, with the auth token removed |
-| `POST /api/recalibrate` | Resets the baseline. Writes only SysPerf's own file. |
+| `/api/metrics` | Everything: latest sample, chart series, scorecard, browser breakdown, hardware, components, profile and baseline |
+| `/api/live` | Second-fresh headline values read straight from Win32 APIs |
+| `/api/health` | Liveness, platform, sample count and age, last collector error |
+| `/api/home` | The Home view: score, next actions, what SysPerf did today |
+| `/api/history` | One metric over time (`?key=cpu_pct&hours=24`) |
+| `/api/diagnostics` | SysPerf's own errors, workers, probes, footprint, supervisor and deploy history |
+| `/api/settings`, `/api/settings/export` | The validated settings form and an export of it |
+| `/api/fixes` | Applicable fixes and the CSRF token for this process |
 | `/api/trends` | Long-term per-criterion drift, usage profile, load regime. |
 | `/api/rca` | Weighted root-cause analysis of the current score. |
 | `/api/autoimprove` | Loop status, effectiveness ledger, proposals, cycle log. |
@@ -275,8 +280,11 @@ the per-process CSRF token, and are listed as such. All return JSON.
 | `POST /api/evolution/run` | Force an evolution pass now. |
 | `POST /api/evolution/promote` | Promote or reject a generated candidate. Promotion requires `confirm=true`. |
 | `POST /api/evolution/rollback` | Undo the most recent evolution. |
-| `/api/selftest` | This project's own seven quality gates, as last run. |
+| `/api/selftest` | This project's own eight quality gates, as last run. |
 | `POST /api/selftest/run` | Run the gate suite in the background. |
+
+Every route that changes something is a `POST` that needs the CSRF token.
+[SECURITY.md](SECURITY.md#mutating-surface) lists all 28 of them.
 
 ---
 
@@ -290,12 +298,12 @@ Three details make the number trustworthy rather than merely reactive:
 1. **Smoothing.** Process, handle and connection counts breathe constantly.
    Scoring the latest sample makes the score collapse on every upward breath, so
    the *sustained* state — a rolling median — is scored instead. Live gauges and
-   charts still show the raw value. Bursty metrics that are sampled sparsely get
-   a longer window (`smooth_window_overrides`).
+   charts still show the raw value. The window is 5 samples (about 5 minutes);
+   remote connections, which burst, use 60 minutes.
 
-2. **A noise dead-band.** On day one the baseline *is* the current value, so any
-   upward tick would read as a regression. A metric within `regress_band_pct`
-   (2% by default) of its baseline counts as unchanged.
+2. **Samples from before a gap are ignored.** After a reboot or sleep the
+   median uses only samples from the current session, so a stale pre-reboot
+   value cannot hold a row at *regress*.
 
 3. **Honest abstention.** WSL memory is a *ceiling* criterion — "at or below the
    cap **and not growing**" — not a reduction target, so the generic formula does
@@ -457,6 +465,17 @@ SysPerf runs exactly as before.
 
 Setup, guarantees and limits are in [`docs/AI_EVOLUTION.md`](docs/AI_EVOLUTION.md).
 
+## What's new in 5.0
+
+| Area | What changed |
+|---|---|
+| **DNS-rebinding fix** | Requests must name SysPerf in `Host`, and cross-origin POSTs are refused. Before 5.0 a malicious page could reach the mutating API. |
+| **Content-Security-Policy** | Only this origin may load scripts, styles or images, or be fetched. |
+| **Encrypted API key** | The model API key file is DPAPI-encrypted on Windows. |
+| **Honest docs and settings** | SECURITY.md, the README, the manual and the example config describe only what exists. Tests fail if they drift. |
+| **Supply chain** | A hash-locked `requirements.lock`, plus `pip-audit`, a CycloneDX SBOM and Dependabot in CI. |
+| **Engineering docs** | Architecture, requirements traced to tests, decisions, operations with incident records, and a release checklist. |
+
 ## What's new in 4.1
 
 | Area | What changed |
@@ -483,19 +502,19 @@ The keys worth knowing about:
 
 | Key | Default | Effect |
 |---|---|---|
-| `host` / `port` | `127.0.0.1` / `5056` | Bind address. A non-loopback host requires a token — see [Security](#security). |
+| `host` / `port` | `127.0.0.1` / `5056` | Bind address. Loopback only: there is no authentication. |
+| `allowed_hosts` | `[]` | Extra Host names to answer to (e.g. a local reverse proxy). Any other Host gets 403. |
 | `sample_seconds` | `60` | Fast-tier cadence, clamped to 30–600 (honoured since 4.1; also on the Settings tab). |
 | `autoimprove.threshold` / `.interval_seconds` / `.mode` | `80` / `300` / `auto` | The agent loop (honoured since 4.1). |
 | `history.raw_days` | `14` | Raw samples kept in SQLite; hourly summaries are kept for over a year. |
 | `collector.persistent_shell` | `true` | Reuse one PowerShell process for every sample. |
 | `targets.*` | see example | Fractions of *your* capacity used to derive targets. Raise to loosen, lower to tighten. |
 | `browser_hosts` | common apps | Which applications' embedded-browser processes count as unclosable or in-use. **Worth editing** — an unlisted app is treated as discretionary and inflates what SysPerf expects you to reduce. |
-| `advisor.enabled` | `true` | Turn recommendations off entirely. |
-| `anonymize` | `false` | Replace application and device names with stable hashes so the dashboard is safe to screen-share. |
 
-Environment overrides: `SYSPERF_DATA_DIR`, `SYSPERF_CONFIG`, `SYSPERF_HOST`,
-`SYSPERF_PORT`, `SYSPERF_TOKEN`, `SYSPERF_SAMPLE_SECONDS`, `SYSPERF_ANONYMIZE`,
-`SYSPERF_PS_EXE`.
+Environment overrides (they beat the file): `SYSPERF_DATA_DIR`, `SYSPERF_CONFIG`,
+`PERFDASH_HOST`, `PERFDASH_PORT`, `PERFDASH_ALLOWED_HOSTS`, `PERFDASH_SAMPLE_SECONDS`,
+`PERFDASH_FIX_ENABLED`, `PERFDASH_AUTO_MODE`, `SYSPERF_PS_EXE`. Every key in
+[`sysperf.config.example.json`](sysperf.config.example.json) is one the code reads.
 
 ### Hardware watchlist
 
@@ -522,102 +541,68 @@ The file is re-read on every request, so edits show up immediately.
 
 ## Security
 
-- **Read-only.** Every collector call is a query: `Get-CimInstance`,
-  `Get-Process`, `Get-ItemProperty`, `pnputil /enum-drivers`,
-  `powercfg /getactivescheme`. Nothing is written, started, stopped or
-  reconfigured. The collector is a single readable PowerShell file —
-  [`src/sysperf/scripts/collect_win.ps1`](src/sysperf/scripts/collect_win.ps1) —
-  audit it yourself.
-- **Local by default.** The server binds `127.0.0.1`. The API describes your
-  machine in detail — running processes, installed drivers, open connections —
-  and should not be exposed casually.
-- **Token required off loopback.** Setting a non-loopback `host` makes SysPerf
-  generate a token, store it in the config file, and require it on every request
-  (`X-SysPerf-Token` header or `?token=`). It will not serve unauthenticated
-  telemetry to a network. There is **no TLS**: put a reverse proxy in front of it
-  for anything beyond a trusted LAN.
-- **No outbound traffic.** Nothing is uploaded, no telemetry is sent, and the
-  front end loads no third-party scripts or fonts. After installation the tool
-  works with the network off.
-- **No injection surface.** The collector script path is fixed in code and no
-  HTTP input reaches a shell.
-- **Response headers** on every response: `nosniff`, `SAMEORIGIN`, `no-referrer`,
-  `no-store`, and a restrictive `Content-Security-Policy`.
+SysPerf is a local web server with no login that can change your PC when you
+let it. Its defences assume the attacker is another web page in your browser:
 
-The one write path is `POST /api/recalibrate`, which rewrites SysPerf's own
-`baseline.json` and touches nothing else.
+- **Loopback only.** It binds `127.0.0.1`. Binding to a network is not supported.
+- **Host and Origin checks.** Requests that do not name SysPerf in `Host`, and
+  POSTs from another origin, get 403. This blocks DNS rebinding.
+- **CSRF token on every change.** All 28 POST routes require a per-process token.
+- **Strict response headers.** `Content-Security-Policy` (this origin only),
+  `nosniff`, `X-Frame-Options: SAMEORIGIN`, `no-referrer`, `no-store`.
+- **No shell from HTTP.** The collector path is fixed in code, and App Control
+  accepts only allow-listed process names.
+- **System changes are listed and reversible.** Automatic fixes, the Explorer
+  watchdog, tray auto-quit and the OneDrive policy are each described on Home
+  with how to undo them, and are off by default in the Store build.
+  `fixes.enabled: false` turns off everything that changes the PC.
+- **Outbound traffic:** only the daily version check (public release feeds)
+  and, if you enable self-evolution, the model provider you configure.
+- **Secrets:** the API key file is DPAPI-encrypted on Windows (`0600`
+  elsewhere) and never logged or returned.
 
-To report a vulnerability, see [SECURITY.md](SECURITY.md).
+Details, the full mutating-surface table and how to report a vulnerability are
+in [SECURITY.md](SECURITY.md).
 
 ---
 
 ## Architecture
 
-```
-src/sysperf/
-├── __main__.py          CLI: serve, --report, --once, --recalibrate, --where
-├── app.py               Flask factory, auth, security headers, WSGI server
-├── collector.py         background sampler, rolling history, snapshot assembly
-├── platform_win.py      Windows/WSL detection, PowerShell bridge, path translation
-├── config.py            defaults, config file, env overrides, bind-security policy
-├── profile.py           baseline capture, target derivation, per-machine criteria
-├── scoring.py           progress, smoothing, ceiling criterion, trend estimator
-├── adaptive.py          personal-best layer
-├── advisor.py           recommendation rules
-├── trends.py            long-term daily/hourly rollups, drift, usage profile
-├── rca.py               root-cause attribution for score shortfalls
-├── autoimprove.py       the scan → RCA → fix → verify → learn loop
-├── browser.py           browser-process ownership breakdown
-├── hardware.py          device/disk/battery/driver panel + watchlist
-├── pwsh_session.py      4.1: one warm PowerShell process reused for every sample
-├── historydb.py         4.1: SQLite history (raw samples + hourly rollups)
-├── health.py            4.1: error buffer, worker liveness, own footprint, log rotation
-├── notify.py            4.1: notification inbox + Windows toasts
-├── settings_hub.py      4.1: one validated settings surface (export/import/reset)
-├── supervisor.py        4.1: restarts the server; rolls back an unhealthy patch
-├── codevolve.py         AI source evolution: sandbox, benchmarks, apply/rollback
-├── scripts/
-│   └── collect_win.ps1  the only Windows-specific code — one JSON object on stdout
-└── static/
-    └── index.html       dashboard: hand-written SVG charts, no JS dependencies
-```
+One Python process (Flask on waitress) serves one self-contained page.
+Background workers measure the PC (`collector` → `pwsh_session` →
+`collect_win.ps1`, plus `livestats` for Win32 values), score it (`scoring`,
+`adaptive`, `machine_profile`), act within limits (`autoimprove`, `fixes`,
+`optactions`, `procwatch`, `trayquit`), and record what happened (`historydb`,
+`evodb`, `notify`). A supervisor process restarts it and rolls back unhealthy
+patches.
 
-Dependency direction is acyclic: `config` and `platform_win` are leaves;
-`scoring`, `profile`, `browser`, `hardware` and `advisor` sit above them;
-`collector` composes those; `trends` feeds `rca`, which feeds `autoimprove`; and
-`app` only wires things together.
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has the module map, data flow,
+trust boundaries, state files and failure modes. Decisions behind the design
+are in [docs/DECISIONS.md](docs/DECISIONS.md).
 
-State lives in the data directory, never in the install directory:
-
-| File | Purpose |
-|---|---|
-| `baseline.json` | Your starting point, captured once. Progress is measured from here. |
-| `history.jsonl` | Samples, auto-trimmed at ~12 MB. |
-| `adaptive_state.json` | Personal bests and daily typicals. |
-| `sysperf.config.json` | Your configuration. |
-| `hw_watchlist.json` | Faults you track by hand. |
-| `trends_daily.json` | Daily and hourly rollups per criterion — the long-term horizon. |
-| `autoimprove_state.json` | Loop mode, cooldowns, learned fix effectiveness, open proposals. |
-| `autoimprove_log.jsonl` | One record per cycle, capped at 500. |
+All state lives in the data directory (`sysperf --where`), never in the install
+directory.
 
 ---
 
 ## Development
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-PYTHONPATH=src .venv/bin/python -m pytest      # 96 tests, no Windows required
-PYTHONPATH=src .venv/bin/python -m ruff check src tests
+python3 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.lock
+.venv/bin/pip install pytest==9.1.1 ruff==0.6.9 markdown==3.11.2
+.venv/bin/python -m pytest -rs        # about 1,100 tests; Windows-only ones skip elsewhere
+.venv/bin/python -m ruff check src tests
 ```
 
-The test suite replaces the PowerShell layer with a synthetic sample, so
-everything above the collector boundary is testable on Linux, macOS or in CI.
-The fixture machine is deliberately not anyone's real machine: the whole point is
-that no machine is special.
+Above the collector boundary, everything is tested with synthetic samples, so the
+suite runs on Linux, macOS or CI. Windows-only tests exercise the real Win32,
+DPAPI and PowerShell paths. The in-app Self-test tab runs the same eight gates.
+Before a release, follow [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). The one rule
-that is not negotiable: **SysPerf does not write to the system.** A pull request
-that changes a Windows setting, however helpfully, will not be merged.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). The rules
+that are not negotiable: anything that changes the PC must be reversible,
+opt-in or individually enabled, listed on Home with how to undo it, and
+covered by tests. No feature may show a value that is not measured.
 
 ---
 
@@ -650,8 +635,8 @@ state, not the latest sample. See [How scoring works](#how-scoring-works).
 **A criterion is stuck on `measuring`.** The WSL trend needs six samples over ten
 minutes. Leave it running.
 
-**Slow samples.** The full sweep enumerates services and drivers and takes a few
-seconds. Raise `full_every` to run it less often.
+**Slow samples.** The full sweep (every fifth sample) enumerates services and
+drivers and takes a few seconds. Raise `sample_seconds` to sample less often.
 
 **Port already in use.** `install.ps1 -Port 5100`, or set `port` in the config.
 
@@ -667,13 +652,16 @@ PowerShell session, once a minute by default; the full sweep costs a few seconds
 more every fifth sample. Settings › Diagnostics shows SysPerf's own CPU and memory
 use, so you can check. The API caches its snapshot so repeated polling is nearly free.
 
-**Does it send anything anywhere?** No. There is no outbound network code beyond
-the local HTTP server.
+**Does it send anything anywhere?** Only two things, and only what they need.
+The daily version check reads public release feeds, and sends nothing about your
+PC. If you turn on AI self-evolution, source excerpts and metrics go to the model
+provider you configured. Nothing else leaves the PC.
 
-**Why does it not just fix things?** Because then you would not know what changed.
-Silent registry and service edits are exactly why "optimiser" tools have the
-reputation they do. Recommendations tell you what to do, what it will affect, and
-whether it can be undone.
+**Does it change my PC?** Only in ways it lists. Automatic fixes (DNS flush,
+memory trims), the Explorer watchdog, tray auto-quit and the OneDrive policy are
+each shown on Home with how to undo them. Autonomy starts at *Observe*, and the
+Store build starts with every one of them off. Set `fixes.enabled` to `false` and
+SysPerf only measures and recommends.
 
 **Can I run it on a server or a fleet?** It is built for a single desktop. Nothing
 prevents multiple instances, but there is no aggregation layer. The JSON API is
