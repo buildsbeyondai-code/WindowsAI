@@ -21,7 +21,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         python: ['3.10', '3.13']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -89,7 +89,7 @@ jobs:
     name: build distributions
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -122,7 +122,7 @@ jobs:
     name: dependencies, advisories and SBOM
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -152,7 +152,7 @@ jobs:
     name: analyse PowerShell
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: PSScriptAnalyzer
         shell: pwsh
         run: |
