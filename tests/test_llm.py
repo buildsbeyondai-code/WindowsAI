@@ -1,4 +1,5 @@
 """4.0 runtime LLM layer: client resilience, credentials, validation, budget."""
+import base64
 import io
 import json
 import logging
@@ -146,6 +147,70 @@ def test_key_file_is_private_and_insecure_file_refused(tmp_path):
     assert llm.load_api_key(f, env={"ANTHROPIC_API_KEY": "sk-ant-env-1"})[1].startswith("env")
     with pytest.raises(ValueError):
         llm.store_api_key(f, "two words")
+
+
+class _FakeDpapi:
+    """Reversible stand-in for DPAPI: the key never appears in the file."""
+
+    def protect(self, data):
+        return bytes(b ^ 0x5A for b in data)
+
+    def unprotect(self, blob):
+        if blob.startswith(b"bad"):
+            raise OSError(13, "not this user")
+        return bytes(b ^ 0x5A for b in blob)
+
+
+def test_key_file_is_dpapi_encrypted_when_available(tmp_path, monkeypatch):
+    monkeypatch.setattr(llm, "_dpapi", _FakeDpapi)
+    f = tmp_path / "s" / "anthropic.key"
+    llm.store_api_key(f, "sk-ant-abc-0123456789")
+    text = f.read_text(encoding="utf-8")
+    assert text.startswith(llm.DPAPI_PREFIX) and "sk-ant" not in text
+    assert llm.load_api_key(f, env={}) == ("sk-ant-abc-0123456789", "file:dpapi")
+
+
+def test_plaintext_key_file_is_encrypted_in_place_on_first_read(tmp_path, monkeypatch):
+    monkeypatch.setattr(llm, "OS_NAME", "nt")          # skip the POSIX mode check
+    monkeypatch.setattr(llm, "_dpapi", _FakeDpapi)
+    f = tmp_path / "anthropic.key"
+    f.write_text("sk-ant-legacy-0123456789\n", encoding="utf-8")
+    assert llm.load_api_key(f, env={}) == ("sk-ant-legacy-0123456789", "file:dpapi")
+    assert f.read_text(encoding="utf-8").startswith(llm.DPAPI_PREFIX)
+    assert llm.load_api_key(f, env={})[0] == "sk-ant-legacy-0123456789"
+
+
+def test_plaintext_key_still_loads_when_encrypting_fails(tmp_path, monkeypatch, caplog):
+    monkeypatch.setattr(llm, "OS_NAME", "nt")
+    monkeypatch.setattr(llm, "_dpapi", _FakeDpapi)
+
+    def fail(path, key):
+        raise OSError(5, "read-only")
+    monkeypatch.setattr(llm, "store_api_key", fail)
+    f = tmp_path / "anthropic.key"
+    f.write_text("sk-ant-legacy-0123456789", encoding="utf-8")
+    assert llm.load_api_key(f, env={}) == ("sk-ant-legacy-0123456789", "file")
+    assert "could not encrypt" in caplog.text
+
+
+@pytest.mark.parametrize("blob, dpapi, why", [
+    ("bad-blob", _FakeDpapi, "cannot decrypt"),         # another user's blob
+    ("!!not base64!!", _FakeDpapi, "cannot decrypt"),
+    ("AAAA", lambda: None, "not Windows"),               # copied to another OS
+])
+def test_unreadable_dpapi_key_file_is_ignored(tmp_path, monkeypatch, caplog, blob, dpapi, why):
+    monkeypatch.setattr(llm, "OS_NAME", "nt")
+    monkeypatch.setattr(llm, "_dpapi", dpapi)
+    f = tmp_path / "anthropic.key"
+    raw = base64.b64encode(b"bad").decode() if blob == "bad-blob" else blob
+    f.write_text(llm.DPAPI_PREFIX + raw, encoding="utf-8")
+    assert llm.load_api_key(f, env={}) == (None, "file:unreadable")
+    assert why in caplog.text
+
+
+def test_dpapi_is_only_used_on_windows(monkeypatch):
+    monkeypatch.setattr(llm, "OS_NAME", "posix")
+    assert llm._dpapi() is None
 
 
 def test_logs_never_carry_a_key():
