@@ -67,6 +67,45 @@ class ErrorBuffer(logging.Handler):
             self._items.clear()
 
 
+class RepeatFilter(logging.Filter):
+    """Lets the first ``burst`` identical WARNING+ records through per window.
+
+    On 2026-10-25 a failing tray-quit check wrote the same traceback 36 times in
+    nine minutes. The ErrorBuffer already counts repeats for the page; this keeps
+    the runtime log readable too. The first record after a window that dropped
+    anything says how many were suppressed, so nothing is silently lost.
+    """
+
+    MAX_KEYS = 500
+
+    def __init__(self, burst: int = 3, window_s: float = 600.0,
+                 clock: Callable[[], float] = time.time):
+        super().__init__()
+        self.burst, self.window_s, self.clock = burst, window_s, clock
+        self._seen: dict = {}
+        self._lock = threading.Lock()
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.levelno < logging.WARNING:
+            return True
+        exc = record.exc_info[1] if record.exc_info else None
+        key = (record.name, str(record.msg), type(exc).__name__ if exc else "")
+        now = self.clock()
+        with self._lock:
+            if len(self._seen) > self.MAX_KEYS:
+                self._seen.clear()
+            start, seen, dropped = self._seen.get(key, (now, 0, 0))
+            if now - start >= self.window_s:
+                if dropped:
+                    record.msg = (f"{record.msg} [{dropped} identical message(s) "
+                                  f"suppressed in the previous {self.window_s:.0f} s]")
+                start, seen, dropped = now, 0, 0
+            seen += 1
+            keep = seen <= self.burst
+            self._seen[key] = (start, seen, dropped + (0 if keep else 1))
+        return keep
+
+
 def rss_mb(statm: Path = Path("/proc/self/statm")) -> float | None:
     """Resident memory of this process in MB, or None if it cannot be read."""
     if os.name == "nt":                                      # pragma: no cover - Windows

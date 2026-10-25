@@ -1563,6 +1563,7 @@ def _log_to_stream() -> logging.Handler:
             return h
     h = logging.StreamHandler()
     h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    h.addFilter(health_mod.RepeatFilter())     # a stuck worker must not flood the log
     root.addHandler(h)
     return h
 
