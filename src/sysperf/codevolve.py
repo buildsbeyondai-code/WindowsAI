@@ -739,6 +739,12 @@ class CodeEvolution:
             if not verdict["accept"]:
                 return self._reject(cid, cand, "benchmark: " + verdict["reason"])
 
+            # The Settings switch "Keep winning patches for review": off means a
+            # winner is recorded with its evidence but no review branch is made.
+            if not self.settings.get("auto_retain", True):
+                return self._reject(cid, cand, "passed tests and benchmark, but keeping "
+                                    "winning patches is switched off: " + verdict["reason"])
+
             # ---- retain: commit on a review branch (never merged)
             branch = f"sysperf-evolve/{cand_id}"
             _git(wt, "checkout", "-q", "-b", branch)
