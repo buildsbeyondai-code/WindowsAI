@@ -24,6 +24,7 @@ Design constraints this file respects:
 from __future__ import annotations
 
 import json
+import os
 import sys
 import threading
 import time
@@ -69,6 +70,17 @@ def console_python(exe: str) -> str:
         if console.is_file():
             return str(console)
     return exe
+
+
+def hermetic_env(environ) -> dict:
+    """The environment for the test suite: the service's own settings removed.
+
+    The sign-in launcher sets SYSPERF_CONFIG to the real settings file, and the
+    suite inherited it (and would have inherited SYSPERF_DATA_DIR, pointing the
+    tests at real data). The suite must see a machine with no SysPerf settings.
+    """
+    return {k: v for k, v in environ.items()
+            if not k.upper().startswith(("SYSPERF_", "PERFDASH_"))}
 
 
 class SelfTest:
@@ -196,7 +208,7 @@ class SelfTest:
 
     def _default_runner(self, argv: list) -> int:   # pragma: no cover - subprocess
         proc = run_hidden(argv, cwd=str(self.root), capture_output=True,
-                              text=True, timeout=self.timeout_s)
+                              text=True, timeout=self.timeout_s, env=hermetic_env(os.environ))
         self._last_output = ((proc.stdout or "") + (proc.stderr or ""))[-1500:]
         return proc.returncode
 

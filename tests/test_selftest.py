@@ -311,3 +311,10 @@ def test_pythonw_is_swapped_for_the_console_interpreter(tmp_path):
     assert selftest.console_python("/usr/bin/python3") == "/usr/bin/python3"
     st = selftest.SelfTest(tmp_path, tmp_path / "r.json", python=str(tmp_path / "pythonw.exe"))
     assert st.python == str(tmp_path / "python.exe")
+
+
+def test_the_suite_runs_without_the_service_settings():
+    env = selftest.hermetic_env({"PATH": "x", "SYSPERF_CONFIG": "real.json",
+                                 "sysperf_data_dir": "real", "PERFDASH_PORT": "5056",
+                                 "PYTHONIOENCODING": "utf-8"})
+    assert env == {"PATH": "x", "PYTHONIOENCODING": "utf-8"}
