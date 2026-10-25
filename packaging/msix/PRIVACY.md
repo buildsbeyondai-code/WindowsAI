@@ -16,6 +16,12 @@ is served only on 127.0.0.1 (this computer) and can't be reached from the
 network. SysPerf has no account, no analytics and no advertising, and it sends
 no telemetry.
 
+Once a day SysPerf checks the public release pages of the components it
+reports (GitHub, PyPI, npm, Ubuntu, Microsoft Edge, endoflife.date) for their
+newest version numbers. These are plain requests for public pages; nothing
+about your PC is included. Set `"version_check": false` in the settings file to
+turn this off.
+
 ## The one exception: AI self-evolution (off by default)
 If you turn on AI self-evolution and enter your own AI provider key, SysPerf
 sends that provider (for example Anthropic) excerpts of SysPerf's own source code

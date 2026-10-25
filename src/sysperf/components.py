@@ -23,11 +23,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .background_process import run_hidden
-from .config import BASE, PLATFORM
+from .config import BASE, DATA_DIR, PLATFORM
 
 log = logging.getLogger("perfdash")
 
 COMPONENTS_FILE = BASE / "components.json"
+# Newest public versions, refreshed daily by version_check.LatestVersions.
+LATEST_FILE = DATA_DIR / "components_latest.json"
 _CACHE_TTL = 3600.0
 _cache: dict = {"t": 0.0, "linux": None}
 
@@ -167,6 +169,27 @@ def _wsl_version(v: dict) -> dict:
     return v
 
 
+def _live_latest() -> dict:
+    try:
+        data = json.loads(LATEST_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def effective_latest(catalog: str, live: str, current: str) -> tuple[str, str]:
+    """(target, source) for a version row.
+
+    The vendor's live release feed wins over the hand-reviewed catalog, which
+    goes stale. An installed version newer than both (a preview or Insider
+    build) is itself the target: "current" can never read higher than "latest".
+    """
+    target, source = (live, "live") if live else (catalog, "catalog")
+    if current and _cmp(current, target) == 1:
+        return current, "installed"
+    return target, source
+
+
 def build_components(latest: dict) -> dict:
     """Assemble the upgrade-advisory table from the catalog + live versions."""
     try:
@@ -176,6 +199,8 @@ def build_components(latest: dict) -> dict:
         return {"rows": [], "error": str(exc), "upgrades": 0, "total": 0}
 
     lv = _linux_versions()
+    live = _live_latest()
+    live_latest = live.get("latest") or {}
     cur_map = dict(lv)
     cur_map["gpu-driver"] = latest.get("gpu_driver", "")
     cur_map["net-driver"] = latest.get("net_driver_ver", "")
@@ -210,6 +235,8 @@ def build_components(latest: dict) -> dict:
         }
         if missing:
             row.update(current="not installed", missing=True, outdated=False)
+            row["latest"], row["latest_source"] = effective_latest(
+                c.get("latest", ""), live_latest.get(key, ""), "")
         elif mode == "date":
             row["current"] = cur_map.get(key, "") or "—"
             dt = latest.get(c.get("date_key", ""), "")
@@ -220,7 +247,9 @@ def build_components(latest: dict) -> dict:
         else:
             cur = cur_map.get(key, "")
             row["current"] = cur or "—"
-            cmp = _cmp(cur, c.get("latest", ""))
+            row["latest"], row["latest_source"] = effective_latest(
+                c.get("latest", ""), live_latest.get(key, ""), cur)
+            cmp = _cmp(cur, row["latest"])
             row["outdated"] = (cmp is not None and cmp < 0)
         if row["outdated"]:
             upg += 1
@@ -233,6 +262,7 @@ def build_components(latest: dict) -> dict:
     return {
         "rows": rows,
         "assessment_date": cat.get("assessment_date", ""),
+        "latest_checked_at": live.get("checked_at"),
         "note": cat.get("note", ""),
         "upgrades": upg,
         "total": len(rows),

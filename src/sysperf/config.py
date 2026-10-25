@@ -177,6 +177,9 @@ PORT = int(_setting("PERFDASH_PORT", "port", default=5056))
 # service still has NO network authentication (loopback bind + nginx proxy), so
 # do NOT widen HOST without adding real auth.
 FIX_ENABLED = _flag("PERFDASH_FIX_ENABLED", "fixes", "enabled", default=True)
+# Daily lookup of each component's newest public version (version_check.py):
+# plain GETs of public release feeds, nothing about this PC is sent.
+VERSION_CHECK = _flag("PERFDASH_VERSION_CHECK", "version_check", default=True)
 
 # Default OFF since 2026-10-24: stopping OneDrive made sync very slow. Set the
 # env var to 1 to opt back in.
