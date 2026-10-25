@@ -43,7 +43,7 @@ if (-not (Test-Path $venvPython)) {
         if ($cmd) { $py = $cmd.Source; break }
     }
     if (-not $py) {
-        throw 'Python 3.9+ not found. Install it from https://www.python.org/downloads/windows/'
+        throw 'Python 3.10+ not found. Install it from https://www.python.org/downloads/windows/'
     }
     & $py -m venv $venv
     & $venvPython -m pip install --upgrade pip --quiet --disable-pip-version-check
