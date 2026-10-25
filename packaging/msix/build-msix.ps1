@@ -107,7 +107,7 @@ function Find-SdkTool($name) {
 $MakeAppx = Find-SdkTool "makeappx.exe"
 $Msix = Join-Path $OutDir "SysPerf_${Version}_x64.msix"
 if (Test-Path $Msix) { Remove-Item -Force $Msix }
-& $MakeAppx pack /o /d $Layout /p $Msix | Out-Host
+& $MakeAppx pack /o /d $Layout /p $Msix | Select-String -Pattern "error|succeeded" | Out-Host
 if ($LASTEXITCODE) { throw "makeappx pack failed" }
 
 # --- 5. optional test signing --------------------------------------------------
