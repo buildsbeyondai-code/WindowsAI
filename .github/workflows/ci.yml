@@ -113,7 +113,7 @@ jobs:
               __import__("sysperf." + m)
           print("wheel OK", sysperf.__version__)
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
@@ -143,7 +143,7 @@ jobs:
           python -m venv /tmp/sbom
           /tmp/sbom/bin/pip install -q --require-hashes -r requirements.lock
           cyclonedx-py environment /tmp/sbom/bin/python --output-format JSON -o sbom.cdx.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: sbom.cdx.json
