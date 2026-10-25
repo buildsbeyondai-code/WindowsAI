@@ -146,6 +146,29 @@ def test_settings_file_values_are_honoured_and_clamped(monkeypatch, tmp_path):
         importlib.reload(config)
 
 
+def test_autoimprove_safety_limits_come_from_the_settings_file(monkeypatch, tmp_path):
+    """5.0: allow_caution / max_actions / cooldown / settle were documented
+    settings-file keys that only the environment could set."""
+    cfg = tmp_path / "sysperf.config.json"
+    cfg.write_text(json.dumps({"autoimprove": {
+        "allow_caution": True, "max_actions": 99, "cooldown_seconds": 600,
+        "settle_seconds": 5}}))
+    for k in ("PERFDASH_AUTO_ALLOW_CAUTION", "PERFDASH_AUTO_MAX_ACTIONS",
+              "PERFDASH_AUTO_COOLDOWN", "PERFDASH_AUTO_SETTLE"):
+        monkeypatch.delenv(k, raising=False)
+    try:
+        _reload_with(monkeypatch, SYSPERF_CONFIG=str(cfg))
+        assert config.AUTO_ALLOW_RISKS == ("safe", "caution")
+        assert config.AUTO_MAX_ACTIONS == 10            # clamped down from 99
+        assert config.AUTO_COOLDOWN_S == 600
+        assert config.AUTO_SETTLE_S == 30               # clamped up from 5
+        _reload_with(monkeypatch, PERFDASH_AUTO_ALLOW_CAUTION="0")
+        assert config.AUTO_ALLOW_RISKS == ("safe",)     # the environment still wins
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
+
+
 def test_wifi_plan_from_environment_json(monkeypatch):
     try:
         _reload_with(monkeypatch, PERFDASH_WIFI_PLAN='{"Home": 300, "Bad": -1, "Txt": "x"}')
