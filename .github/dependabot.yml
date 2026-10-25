@@ -1,0 +1,12 @@
+# Weekly update PRs for Python dependencies and the GitHub Actions used by CI.
+# After merging a pip update, regenerate requirements.lock (see its header).
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

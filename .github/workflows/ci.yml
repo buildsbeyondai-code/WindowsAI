@@ -98,7 +98,11 @@ jobs:
       - run: python -m twine check dist/*
       - name: Installed wheel carries the UI, collector and catalogs
         run: |
-          python -m venv /tmp/v && /tmp/v/bin/pip install -q dist/*.whl
+          # Reproducible install: the hash-locked runtime set, then the wheel alone.
+          python -m venv /tmp/v
+          /tmp/v/bin/pip install -q --require-hashes -r requirements.lock
+          /tmp/v/bin/pip install -q --no-deps dist/*.whl
+          /tmp/v/bin/pip check
           /tmp/v/bin/python -m sysperf --version
           /tmp/v/bin/python - <<'PY'
           import importlib.resources as r, sysperf
@@ -113,6 +117,35 @@ jobs:
         with:
           name: dist
           path: dist/
+
+  supply-chain:
+    name: dependencies, advisories and SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pip-audit==2.10.1 cyclonedx-bom==7.5.0 uv==0.13.5
+      - name: Lock file matches requirements.txt
+        run: |
+          uv pip compile --universal --generate-hashes --python-version 3.10 \
+            --no-header --quiet requirements.txt -o /tmp/fresh.lock
+          diff <(grep -v '^#' requirements.lock) /tmp/fresh.lock \
+            || { echo "requirements.lock is stale: regenerate it (see its header)"; exit 1; }
+      - name: Known vulnerabilities (runtime and dev)
+        run: |
+          pip-audit --require-hashes -r requirements.lock
+          pip-audit -r requirements-dev.txt
+      - name: Software bill of materials (CycloneDX)
+        run: |
+          python -m venv /tmp/sbom
+          /tmp/sbom/bin/pip install -q --require-hashes -r requirements.lock
+          cyclonedx-py environment /tmp/sbom/bin/python --output-format JSON -o sbom.cdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.cdx.json
 
   powershell:
     name: analyse PowerShell
