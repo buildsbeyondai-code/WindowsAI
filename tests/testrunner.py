@@ -418,6 +418,8 @@ def gate_live() -> Gate:
                               ("Cache-Control", "no-store")):
             if headers.get(header) != value:
                 gate.fail(f"GET {path} missing header {header}: {value}")
+        if "default-src 'self'" not in (headers.get("Content-Security-Policy") or ""):
+            gate.fail(f"GET {path} has no self-only Content-Security-Policy")
         try:
             data = json.loads(body)
         except json.JSONDecodeError:
@@ -443,6 +445,17 @@ def gate_live() -> Gate:
         code, data = _post(path, {"token": "wrong", "confirm": True, "mode": "off"})
         if code != 403:
             gate.fail(f"POST {path} with a bad token returned {code}, expected 403")
+
+    # DNS rebinding: a request addressed to another host name is refused
+    try:
+        urllib.request.urlopen(urllib.request.Request(
+            BASE_URL + "/api/fixes", headers={"Host": "rebind.invalid"}), timeout=10)
+        gate.fail("a request with a foreign Host header was served (DNS rebinding)")
+    except urllib.error.HTTPError as exc:
+        if exc.code != 403:
+            gate.fail(f"a foreign Host header returned {exc.code}, expected 403")
+    except (urllib.error.URLError, OSError) as exc:           # pragma: no cover
+        gate.fail(f"foreign-Host probe failed: {exc}")
 
     # GET purity: reading the API must not run a cycle
     before = payloads.get("/api/autoimprove", {}).get("cycles")
