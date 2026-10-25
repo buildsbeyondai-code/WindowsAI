@@ -95,6 +95,19 @@ def test_good_patch_is_retained_on_a_review_branch_never_main(tmp_path, repo):
 
 
 @needs_sandbox
+def test_winner_is_not_kept_when_auto_retain_is_off(tmp_path, repo):
+    before = head(repo)
+    eng, db = engine(tmp_path, repo, Fixed(GOOD), auto_retain=False)
+    res = eng.run_cycle("manual", "self_evolve")
+    cand = db.candidates()[0]
+    assert cand["decision"] == "rejected" and "switched off" in cand["reason"]
+    assert "candidate rejected" in res["explanation"]
+    branches = subprocess.run(["git", "-C", str(repo), "branch"], capture_output=True,
+                              text=True).stdout
+    assert "sysperf-evolve/" not in branches and head(repo) == before
+
+
+@needs_sandbox
 @pytest.mark.parametrize("label,obj,expect", [
     ("syntax", {"title": "x", "rationale": "x", "edits": [
         {"path": "dedupe.py", "find": "    seen = []\n", "replace": "    seen = set(\n"}]},
