@@ -35,12 +35,11 @@ from flask import Flask, jsonify, request, send_from_directory
 
 from . import appctl as appctl_mod
 from . import codevolve as codevolve_mod
-from . import cpuwatch
+from . import cpuwatch, hostguard
 from . import evodb as evodb_mod
 from . import fixes as fixes_mod
 from . import health as health_mod
 from . import historydb as historydb_mod
-from . import hostguard
 from . import livestats as livestats_mod
 from . import llm as llm_mod
 from . import notify as notify_mod
