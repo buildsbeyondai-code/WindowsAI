@@ -19,6 +19,10 @@ FEEDS = {
             {"Platform": "Windows", "Architecture": "x64", "ProductVersion": "155.0.9.9"},
             {"Platform": "MacOS", "Architecture": "universal", "ProductVersion": "160.0.0.0"}]}],
 }
+FEEDS["https://api.github.com/repos/microsoft/winget-pkgs/contents/manifests/m/Microsoft/EdgeWebView2Runtime"] = [
+    {"name": "155.0.4283.62", "type": "dir"}, {"name": "155.0.4283.9", "type": "dir"},
+    {"name": "99.0.1.1", "type": "dir"}, {"name": "README.md", "type": "file"},
+    {"name": "latest", "type": "dir"}]
 META_LTS = ("Dist: jammy\nVersion: 22.04.5 LTS\nSupported: 1\n\n"
             "Dist: noble\nVersion: 24.04.3 LTS\nSupported: 1\n\n"
             "Dist: resolute\nVersion: 26.04.1 LTS\nSupported: 1\n\n"
@@ -41,6 +45,8 @@ def test_each_feed_parser_reads_its_real_response_shape():
     assert vc.python_release(_get) == "3.15.1"
     assert vc.ubuntu_lts(_get) == "26.04.1"              # newest *supported* LTS
     assert vc.edge_stable(_get) == "156.0.4314.42"       # Stable, Windows x64 only
+    # WebView2 lags Edge: it has its own source, compared numerically
+    assert vc.winget("m/Microsoft/EdgeWebView2Runtime")(_get) == "155.0.4283.62"
     assert set(vc.SOURCES) >= {"wsl", "powershell", "ubuntu", "edge", "webview2", "python"}
 
 

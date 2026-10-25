@@ -26,9 +26,9 @@ ENV PYTHONUNBUFFERED=1 \
 # imported by the docs gate -- without them the Auto-Improve tab's test card can
 # report a stale result but never run a new one.
 RUN pip install --no-cache-dir \
-      "Flask==3.0.3" \
-      "waitress==3.0.0" \
-      "pytest==8.3.3" \
+      "Flask==3.1.3" \
+      "waitress==3.0.2" \
+      "pytest==9.1.1" \
       "markdown==3.7"
 
 WORKDIR /app
