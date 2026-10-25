@@ -15,7 +15,7 @@
   exact values from Partner Center > your app > Product identity.
 
 .EXAMPLE
-  .\build-msix.ps1 -IdentityName 12345Contoso.SysPerf -Publisher "CN=ABCD1234-..." -PublisherDisplayName "Contoso"
+  .\build-msix.ps1 -IdentityName 12345Contoso.SysPerf -Publisher "CN=ABCD1234-..." -PublisherDisplayName "Contoso" -DisplayName "SysPerf"
   .\build-msix.ps1 -SignForTest     # local test build with a self-signed cert
 #>
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingConvertToSecureStringWithPlainText', '',
@@ -24,6 +24,8 @@ param(
     [string]$IdentityName = "SysPerf.Dashboard",
     [string]$Publisher = "CN=SysPerf",
     [string]$PublisherDisplayName = "SysPerf",
+    # Must be a name reserved for the product in Partner Center.
+    [string]$DisplayName = "SysPerf",
     [string]$Version = "",
     [string]$Python = "",
     [string]$OutDir = "",
@@ -90,6 +92,7 @@ Remove-Item (Join-Path $Assets "SysPerf.ico")
 $manifest = Get-Content -Raw (Join-Path $Here "AppxManifest.xml")
 $manifest = $manifest.Replace("{{IDENTITY_NAME}}", $IdentityName).Replace("{{PUBLISHER}}", $Publisher)
 $manifest = $manifest.Replace("{{PUBLISHER_DISPLAY_NAME}}", [Security.SecurityElement]::Escape($PublisherDisplayName)).Replace("{{VERSION}}", $Version)
+$manifest = $manifest.Replace("{{DISPLAY_NAME}}", [Security.SecurityElement]::Escape($DisplayName))
 [IO.File]::WriteAllText((Join-Path $Layout "AppxManifest.xml"), $manifest, (New-Object Text.UTF8Encoding $false))
 
 # --- 4. makeappx ---------------------------------------------------------------
