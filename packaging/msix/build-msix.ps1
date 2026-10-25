@@ -57,9 +57,11 @@ if (-not $Python) {
     if (-not $Python) { $Python = (Get-Command python -ErrorAction Stop).Source }
 }
 $Venv = Join-Path $Work "venv"
-if (-not (Test-Path (Join-Path $Venv "Scripts\python.exe"))) {
-    & $Python -m venv $Venv; if ($LASTEXITCODE) { throw "venv failed" }
-}
+# Always a fresh venv: a reused one kept the previous build's packages, so the
+# package was not built from the lock files alone (and pip's conflict warning
+# about them stopped the build).
+if (Test-Path $Venv) { Remove-Item -Recurse -Force $Venv }
+& $Python -m venv $Venv; if ($LASTEXITCODE) { throw "venv failed" }
 $Py = Join-Path $Venv "Scripts\python.exe"
 & $Py -m pip install -q --upgrade pip
 # Reproducible: every runtime and build package comes from a hash-locked file,
