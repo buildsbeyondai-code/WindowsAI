@@ -4,6 +4,61 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.0.0 — 2026-10-25
+
+A security and engineering-quality release from a UAISES v1.0 audit. It is a
+major version because requests to an unknown host name are now refused, which
+can break a reverse-proxy setup until its name is added to `allowed_hosts`.
+A normal desktop install behaves exactly as before.
+
+### Security
+- **DNS rebinding closed** (`hostguard.py`). Every request must name SysPerf
+  in its `Host` header (loopback names, the bind address or
+  `allowed_hosts` / `PERFDASH_ALLOWED_HOSTS`). POSTs with a foreign `Origin`
+  are refused. Before this, a page that rebound its hostname to 127.0.0.1
+  could read the CSRF token from `/api/fixes` and call any POST route.
+- **Content-Security-Policy** on every response: only this origin may load
+  scripts, styles, images or be fetched.
+- **AI API key encrypted with DPAPI on Windows.** A plaintext key file from
+  4.x is encrypted in place on first read.
+- **SECURITY.md rewritten from the route table.** It lists all 28 POST
+  routes and the system changes each feature makes. It no longer claims an
+  `anonymize` option or an off-loopback token, neither of which existed.
+  `tests/test_security_doc.py` keeps it in step.
+
+### Added
+- `requirements.lock` (hash-locked, all platforms), and a CI `supply-chain`
+  job: lock freshness, `pip-audit`, CycloneDX SBOM. Dependabot config.
+- `docs/ARCHITECTURE.md`, `DECISIONS.md`, `REQUIREMENTS.md` (acceptance
+  criteria traced to tests), `OPERATIONS.md` (objectives, incident response,
+  root-cause records), `RELEASE_CHECKLIST.md`, `PROJECT_STATE.md`; `CLAUDE.md`.
+- Tests: Host/Origin guard; CSRF on every POST route; requirements
+  traceability; accessibility (WCAG AA contrast, control names, focus); heap
+  soak; live values against an independent CIM reading (Windows); real DPAPI
+  (Windows). `tools/soak.py` watches a running service for hours.
+
+### Changed
+- The runtime log keeps the first three identical warnings per 10 minutes
+  and reports how many it dropped (`health.RepeatFilter`).
+- All POST routes use the single `_csrf()` helper.
+- The self-evolution card now says plainly that a patch reaches the running
+  app only through **Apply & restart**.
+- Python 3.10 is the stated floor everywhere (install-wsl.sh accepted 3.9).
+- Classifier `Development Status :: 4 - Beta` until the packaging gate
+  (clean-machine MSIX upgrade) has been verified.
+- Dev dependency `markdown` 3.7 → 3.11.2 (PYSEC-2026-89).
+
+### Fixed
+- The tray auto-quit "add app" field had no accessible name.
+- The rendered HTML manual was four days behind `USER_MANUAL.md`.
+
+### Known limitations
+- MSIX install, upgrade and uninstall have been tested on this developer PC
+  only, not on a clean machine.
+- `tools/soak.py` has not yet completed a 24-hour run on this release.
+- Metrics are polled every 60 s, not event-driven (see DECISIONS.md ADR-005).
+- There is no authentication. Binding off loopback remains unsupported.
+
 ## 4.1.0 — 2026-10-25
 
 ### Added
