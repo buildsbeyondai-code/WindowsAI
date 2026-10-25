@@ -23,7 +23,8 @@ from .config import (
 )
 
 
-def _session_slice(history: list[dict], gap_s: float = SCORE_GAP_S) -> list[dict]:
+def _session_slice(history: list[dict], gap_s: float = SCORE_GAP_S,
+                   tail: int | None = None) -> list[dict]:
     """The trailing run of `history` that belongs to the CURRENT session.
 
     A gap longer than `gap_s` between consecutive samples means the collector was
@@ -32,14 +33,20 @@ def _session_slice(history: list[dict], gap_s: float = SCORE_GAP_S) -> list[dict
     such gap stops the scoring median from mixing two sessions, which otherwise
     makes the scorecard grade the previous session for a whole window after every
     restart. Mirrors the re-anchoring vmmem_trend() already performs.
+
+    ``tail`` limits the search to the last ``tail`` samples (the result is then
+    at most that long); callers that only need the newest few samples use it.
+    Scans newest-first: the first gap found is the newest one.
     """
-    anchor = 0
-    for i in range(1, len(history)):
+    n = len(history)
+    lo = 1 if tail is None else max(1, n - tail + 1)
+    nxt = history[-1].get("_t") if n else None
+    for i in range(n - 1, lo - 1, -1):
         t0 = history[i - 1].get("_t")
-        t1 = history[i].get("_t")
-        if t0 is not None and t1 is not None and t1 - t0 > gap_s:
-            anchor = i
-    return history[anchor:]
+        if t0 is not None and nxt is not None and nxt - t0 > gap_s:
+            return history[i:]
+        nxt = t0
+    return history[lo - 1:]
 
 
 def session_sample_count(history: list[dict]) -> int:
@@ -62,7 +69,7 @@ def _smoothed_current(history: list[dict], key: str, latest_val,
     """
     if not window or window <= 1:
         return latest_val
-    scoped = _session_slice(history)[-window:]
+    scoped = _session_slice(history, tail=window)[-window:]
     # Score the WORKING session. While the machine is locked, OneDrive syncs on
     # purpose (the lock policy starts it) and Windows runs idle maintenance;
     # counting those samples penalised the user for the dashboard's own design.
