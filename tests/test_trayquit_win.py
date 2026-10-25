@@ -49,3 +49,26 @@ def test_terminate_and_launch_a_throwaway_child(api, tmp_path):
         child.kill()
     assert api.launch(str(tmp_path / "missing.exe")) is False
     assert api.launch(os.path.join(os.environ.get("SYSTEMROOT", r"C:\Windows"), "System32", "whoami.exe"))
+
+
+def test_repeated_reads_do_not_grow_the_heap(api):
+    """Regression: the Structure types were rebuilt on every 15 s tick."""
+    import gc
+    import tracemalloc
+
+    from sysperf import health
+    me = os.getpid()
+    for _ in range(20):
+        api.processes(), api.mem_mb(me), health.rss_mb()
+    gc.collect()
+    tracemalloc.start()
+    try:
+        before = tracemalloc.take_snapshot()
+        for _ in range(200):
+            api.processes(), api.mem_mb(me), health.rss_mb()
+        gc.collect()
+        growth = sum(s.size_diff for s in
+                     tracemalloc.take_snapshot().compare_to(before, "filename"))
+    finally:
+        tracemalloc.stop()
+    assert growth < 128 * 1024, f"heap grew {growth / 1024:.0f} KB over 200 reads"

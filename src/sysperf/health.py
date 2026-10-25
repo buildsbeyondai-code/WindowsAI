@@ -117,24 +117,43 @@ def rss_mb(statm: Path = Path("/proc/self/statm")) -> float | None:
     return round(pages * os.sysconf("SC_PAGE_SIZE") / 1048576, 1)
 
 
+_WIN_MEM: tuple | None = None
+
+
+def _win_mem_api() -> tuple:                             # pragma: no cover - Windows
+    """(PMC, GetCurrentProcess, GetProcessMemoryInfo), built once.
+
+    Building the Structure and prototypes on every call leaked about 1 KB per
+    call (ctypes caches each new class's pointer type forever), found by
+    tests/test_soak.py on Windows: /api/diagnostics is polled by the page.
+    """
+    global _WIN_MEM
+    if _WIN_MEM is None:
+        import ctypes
+        from ctypes import wintypes
+
+        class PMC(ctypes.Structure):
+            _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD)] + [
+                (n, ctypes.c_size_t) for n in (
+                    "PeakWorkingSetSize", "WorkingSetSize", "QuotaPeakPagedPoolUsage",
+                    "QuotaPagedPoolUsage", "QuotaPeakNonPagedPoolUsage",
+                    "QuotaNonPagedPoolUsage", "PagefileUsage", "PeakPagefileUsage")]
+        # Private prototypes: the pseudo-handle (-1) is pointer-sized, so the types
+        # must be declared - but never on the shared windll function objects, whose
+        # argtypes other modules (trayquit) rely on with their own structure types.
+        current = ctypes.WINFUNCTYPE(wintypes.HANDLE)(
+            ("GetCurrentProcess", ctypes.windll.kernel32))
+        meminfo = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HANDLE, ctypes.POINTER(PMC),
+                                     wintypes.DWORD)(("GetProcessMemoryInfo", ctypes.windll.psapi))
+        _WIN_MEM = (PMC, current, meminfo)
+    return _WIN_MEM
+
+
 def _win_rss_mb() -> float | None:                       # pragma: no cover - Windows
     import ctypes
-    from ctypes import wintypes
-
-    class PMC(ctypes.Structure):
-        _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD)] + [
-            (n, ctypes.c_size_t) for n in (
-                "PeakWorkingSetSize", "WorkingSetSize", "QuotaPeakPagedPoolUsage",
-                "QuotaPagedPoolUsage", "QuotaPeakNonPagedPoolUsage",
-                "QuotaNonPagedPoolUsage", "PagefileUsage", "PeakPagefileUsage")]
-    pmc = PMC()
-    pmc.cb = ctypes.sizeof(PMC)
-    # Private prototypes: the pseudo-handle (-1) is pointer-sized, so the types must
-    # be declared - but never on the shared windll function objects, whose argtypes
-    # other modules (trayquit) rely on with their own structure types.
-    current = ctypes.WINFUNCTYPE(wintypes.HANDLE)(("GetCurrentProcess", ctypes.windll.kernel32))
-    meminfo = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HANDLE, ctypes.POINTER(PMC), wintypes.DWORD)(
-        ("GetProcessMemoryInfo", ctypes.windll.psapi))
+    pmc_type, current, meminfo = _win_mem_api()
+    pmc = pmc_type()
+    pmc.cb = ctypes.sizeof(pmc_type)
     if not meminfo(current(), ctypes.byref(pmc), pmc.cb):
         return None
     return round(pmc.WorkingSetSize / 1048576, 1)

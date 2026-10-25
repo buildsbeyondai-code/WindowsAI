@@ -137,9 +137,16 @@ class _WinDpapi:                     # pragma: no cover - Windows only (test_llm
         return self._call(self._unprotect, blob)
 
 
+_DPAPI_INSTANCE: list = []
+
+
 def _dpapi():
-    """The DPAPI wrapper on Windows, else None. Tests replace this."""
-    return _WinDpapi() if OS_NAME == "nt" else None
+    """The DPAPI wrapper on Windows (built once), else None. Tests replace this."""
+    if OS_NAME != "nt":
+        return None
+    if not _DPAPI_INSTANCE:                        # pragma: no cover - Windows only
+        _DPAPI_INSTANCE.append(_WinDpapi())
+    return _DPAPI_INSTANCE[0]                      # pragma: no cover - Windows only
 
 
 def _read_key_file(p: Path) -> tuple:
