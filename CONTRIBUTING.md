@@ -3,22 +3,25 @@
 Thanks for considering it. This document covers what SysPerf will and will not
 accept, and how to get a change merged.
 
-## The one rule that is not negotiable
+## The rules that are not negotiable
 
-**SysPerf does not write to the system.**
+1. **No fake data.** Every number on the page comes from a real OS source, and
+   says when it is stale, unavailable or still being measured. Tests use
+   fixtures; the shipped page never does.
+2. **Changes to the PC are listed, reversible and gated.** A remediation must be
+   registered in `optactions.py` with its risk, reversibility and rollback, so
+   autonomy levels govern it. It must be shown on Home with how to undo it, be
+   off in the Store build, and stop when `fixes.enabled` is false. Changes to
+   Defender, the firewall, Windows Update, UAC, BitLocker, backups, recursive
+   deletes or critical processes are refused at every level and will not be
+   merged.
+3. **Every change is tested and documented.** The suite and its 100% coverage
+   gate must stay green. `SECURITY.md`, `docs/REQUIREMENTS.md`, the example
+   config and the manual are checked against the code by tests, so update them
+   in the same pull request.
 
-Every collector call is a query. The advisor produces text. A pull request that
-disables a service, edits the registry, deletes files, changes a power plan or
-"just" toggles a setting will be declined regardless of how useful the change is.
-
-This is not caution for its own sake. It is the property that makes the tool
-auditable: a user can read `collect_win.ps1`, confirm it only reads, and trust the
-rest. Silent system modification is exactly why Windows "optimiser" tools have the
-reputation they do.
-
-The single permitted write path is SysPerf's own data directory: `baseline.json`,
-`history.jsonl`, `adaptive_state.json`, `sysperf.config.json`,
-`hw_watchlist.json`. Nothing else, ever.
+The collector itself, `collect_win.ps1`, only queries. Keep it that way, so a
+reader can audit it in one sitting.
 
 ## Design principles
 
@@ -57,7 +60,7 @@ The test suite stubs the PowerShell layer, so it runs on Linux and macOS as well
 as Windows. Verify anything touching `collect_win.ps1` on a real Windows machine:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File src\sysperf\scripts\collect_win.ps1 -Full
+powershell -NoProfile -ExecutionPolicy Bypass -File src\sysperf\collect_win.ps1 -Full
 powershell -ExecutionPolicy Bypass -File run.ps1 -Report
 ```
 
@@ -68,35 +71,21 @@ powershell -ExecutionPolicy Bypass -File run.ps1 -Report
    exist so a missing class returns null rather than failing the sample.
 2. If it is carried between full samples, add the key to `CARRY_FORWARD_KEYS`.
 3. If it should appear on a chart, add it to `SERIES_KEYS`.
-4. To make it a scored criterion, add it to `CRITERIA_SPEC` in `profile.py` and
-   derive a target in `derive_targets`. Set `requires` so the row disappears on
-   machines that do not report it.
+4. To make it a scored criterion, add a row to `CRITERIA` in `config.py` and
+   derive its target in `machine_profile.targets_for`. A row the machine does not
+   report shows as *measuring*, never as a made-up value.
 5. Add it to the fixture in `tests/conftest.py` and assert the behaviour.
 
-## Adding an advisor rule
+## Adding a fix
 
-```python
-@rule
-def _my_rule(latest: dict, sc: dict, cfg: dict, prof: dict):
-    value = _num(latest.get("my_metric"))
-    if not value or value < threshold:
-        return None                     # stay silent unless there is something to say
-    return _rec(
-        "category.short-id",
-        "One-line title, no jargon",
-        "medium", "category",
-        f"What was measured: {value}.",
-        "Why it matters, in terms of what the user experiences.",
-        ["The first concrete step.", "The second."],
-        command="Optional command for the user to run themselves",
-        needs_admin=False,
-        impact="What improves if they do it.",
-    )
-```
-
-Rules must be silent when there is nothing to report — a dashboard of
-unconditional advice trains people to ignore it. Never call a threshold you
-invented "recommended" without saying whose recommendation it is.
+1. Add a detector and a remediation to `fixes.py`. The detector must be quiet
+   when there is nothing to fix, because a dashboard of unconditional advice
+   trains people to ignore it.
+2. Register it in `optactions.py` with its risk (`safe`, `caution` or
+   `manual`), whether it is reversible, its rollback, and the metric that
+   proves it worked.
+3. Add tests for detection, preview, apply, and the measured before/after
+   verdict.
 
 ## Pull requests
 
@@ -128,13 +117,13 @@ Include:
 - `sysperf --version` and your Windows build (`winver`);
 - how it was installed (installer, `run.ps1`, `pip`, WSL);
 - what you expected and what happened;
-- the output of `sysperf --once` if it is a collection problem — set
-  `"anonymize": true` first if it contains application names you would rather not
-  share.
+- the output of `sysperf --once` if it is a collection problem. It contains
+  process and device names, so read it before you share it.
 
 ## Feature requests that will be declined
 
-- Anything that changes system state (see the top of this document).
+- System changes that are not reversible, not opt-in, or not listed on Home with
+  how to undo them (see the top of this document).
 - "Registry tweaks" and service-disabling lists. They are machine-specific,
   frequently harmful, and reverted by policy on managed devices.
 - Cloud upload, telemetry, or accounts.

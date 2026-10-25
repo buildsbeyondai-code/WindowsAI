@@ -1,8 +1,9 @@
 # SysPerf User Manual
 
-**System Performance Agent — version 4.1.0**
+**System Performance Agent — version 5.0.0**
 
-A read-only performance dashboard and advisor for Windows 11.
+A self-improving performance dashboard for Windows 11. It measures the PC, explains
+what holds it back, and changes it only in ways it lists and you can undo.
 
 ---
 
@@ -217,11 +218,9 @@ Because the baseline *is* the current state, no distance has been travelled yet.
 That is correct, not a bug. The numbers move when you act on the recommendations.
 
 If you would rather measure from a machine you have already tuned, act on the
-recommendations first, then run:
-
-```powershell
-sysperf --recalibrate
-```
+recommendations first. Then delete `baseline.json` from the data directory
+(`sysperf --where` shows it) and restart SysPerf. The next settled stretch of
+samples becomes the new baseline.
 
 ### 4.3 The first ten minutes
 
@@ -491,9 +490,9 @@ triple the count for several minutes before it settles.
 
 ### 6.4 The noise dead-band
 
-On day one your baseline equals your current value, so any upward tick of noise
-would cross it and read as a regression. A metric within **2%** of its baseline
-counts as unchanged. Configurable as `regress_band_pct`.
+A row is *regress* when its smoothed value is worse than the baseline and has not
+reached the target. Smoothing (below) is what keeps one noisy sample from
+flipping it.
 
 ### 6.5 Ceiling criteria
 
@@ -621,26 +620,24 @@ anything omitted keeps its default. Restart SysPerf after editing.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `host` | `127.0.0.1` | Bind address. Anything other than loopback requires a token — see [section 9](#9-privacy-and-security). |
+| `host` | `127.0.0.1` | Bind address. Loopback only: there is no authentication (see [section 9](#9-privacy-and-security)). |
 | `port` | `5056` | Listening port. |
-| `auth_token` | *(empty)* | Shared secret. Generated automatically if you set a non-loopback host. |
+| `allowed_hosts` | `[]` | Extra Host names SysPerf answers to, for example one a local reverse proxy forwards. Any other Host gets 403. |
 | `open_browser` | `false` | Open the dashboard on start. |
-| `sample_seconds` | `60` | Fast-tier cadence, clamped to 30–600. |
-| `full_every` | `15` | Run the slow tier every Nth sample. Raise it if samples feel expensive. |
-| `max_samples` | `240` | Samples kept in memory (240 × 60 s = 4 hours). |
-| `history_max_bytes` | `12000000` | History file is trimmed above this size. |
+| `sample_seconds` | `60` | Fast-tier cadence, clamped to 30–600. The slow tier runs every 5th sample. |
+| `collector.persistent_shell` | `true` | Reuse one PowerShell process for every sample. |
+| `history.raw_days` | `14` | Days of raw samples kept in SQLite (1–90). Hourly summaries are kept for 400 days. |
+| `version_check` | `true` | Read public release feeds once a day for the Components view. |
 
-### 8.3 Scoring
+### 8.3 Targets
 
 | Key | Default | Meaning |
 |---|---|---|
-| `score_smooth_window` | `15` | Samples in the rolling median. `1` scores the raw latest value. |
-| `smooth_window_overrides` | `{"net_remote": 180}` | Per-metric windows for bursty metrics. |
-| `regress_band_pct` | `2.0` | Noise dead-band before a metric counts as regressed. |
 | `targets.*` | see table in [6.2](#62-where-targets-come-from) | Fractions of your capacity used to derive targets. Raise to loosen, lower to tighten. |
+| `wifi.plan_mbps` | `{}` | Your SSID and the speed you pay for, e.g. `{"MyHome": 100}`. |
 
-Editing `targets` only affects newly derived targets. Run `sysperf --recalibrate`
-to apply changes to an existing baseline.
+Editing `targets` only affects newly derived targets. To apply changes to an
+existing baseline, delete `baseline.json` from the data directory and restart.
 
 ### 8.4 Browser ownership
 
@@ -690,34 +687,35 @@ in `hw_watchlist.json` in the data directory:
 keep the record without counting it as open. The file is re-read on every request,
 so edits appear immediately.
 
-### 8.6 Advisor and privacy
-
-| Key | Default | Meaning |
-|---|---|---|
-| `advisor.enabled` | `true` | Turn recommendations off. |
-| `advisor.stale_driver_years` | `4` | Age at which a third-party driver counts as stale. |
-| `advisor.reboot_after_hours` | `168` | Uptime at which a restart is suggested. |
-| `advisor.max_recommendations` | `20` | Cap on recommendations shown. |
-| `anonymize` | `false` | Replace application and device names with stable hashes. |
-
-### 8.7 Trends and autonomous improvement
+### 8.6 Fixes and autonomous improvement
 
 ```json
 {
-  "trends": { "retain_days": 180, "window_days": 14, "chronic_days": 5 },
+  "fixes": { "enabled": true },
   "autoimprove": {
-    "enabled": true, "mode": "auto", "interval_seconds": 300,
-    "threshold": 80.0, "allow_caution": false, "max_actions": 2,
+    "mode": "auto", "interval_seconds": 300, "threshold": 80,
+    "allow_caution": false, "max_actions": 2,
     "cooldown_seconds": 1800, "settle_seconds": 120
   }
 }
 ```
 
-`trends` shapes the long-term horizon: how much history to keep, how many days the
-drift is measured over, and how many settled days without a single pass count as
-chronic. `autoimprove` governs the loop itself — see chapter 14, and note that
-`mode` is the *initial* mode because the value chosen in the dashboard is
-persisted. Execution additionally requires `fixes.enabled`.
+`fixes.enabled: false` is the kill switch. Nothing that changes the PC runs
+(fixes, Explorer watchdog, tray auto-quit, OneDrive control), but everything is
+still detected and previewed. `autoimprove` governs the loop itself (see
+chapter 14). `mode` is the *initial* mode, because the value chosen in the
+dashboard is persisted. Values are clamped to safe ranges: `max_actions` 0–10,
+`cooldown_seconds` 60–86,400, `settle_seconds` 30–3,600.
+
+### 8.7 Drivers you have checked
+
+```json
+{ "drivers": { "verified_latest": { "gscheci.inf": "2026-10-24" } } }
+```
+
+A driver's INF date is set by its vendor, and many current drivers carry
+years-old dates. List one here once you have checked that it is the newest
+available. It is then shown as verified, never hidden.
 
 ### 8.8 Environment variables
 
@@ -727,57 +725,72 @@ Override the config file without editing it — useful for scripts and testing.
 |---|---|
 | `SYSPERF_DATA_DIR` | Where state is stored. |
 | `SYSPERF_CONFIG` | Path to the configuration file. |
-| `SYSPERF_HOST`, `SYSPERF_PORT` | Bind address and port. |
-| `SYSPERF_TOKEN` | Authentication token. |
-| `SYSPERF_SAMPLE_SECONDS` | Sampling cadence. |
-| `SYSPERF_ANONYMIZE` | `1` to anonymise names. |
+| `PERFDASH_HOST`, `PERFDASH_PORT` | Bind address and port. |
+| `PERFDASH_ALLOWED_HOSTS` | Comma-separated extra Host names. |
+| `PERFDASH_SAMPLE_SECONDS` | Sampling cadence. |
+| `PERFDASH_FIX_ENABLED` | `0` makes SysPerf strictly read-only. |
+| `PERFDASH_AUTO_MODE` | Initial loop mode: `off`, `observe` or `auto`. |
 | `SYSPERF_PS_EXE` | Full path to `powershell.exe` if it is somewhere unusual. |
+| `SYSPERF_STORE_MODE` | `1` to behave like the Store build (everything outside the app opt-in). |
 
 ---
 
 ## 9. Privacy and security
 
-### 9.1 Nothing leaves your machine
+### 9.1 What leaves your machine
 
-SysPerf has no outbound network code beyond the local HTTP server. Nothing is
-uploaded, no telemetry is sent, and there are no accounts. The dashboard loads no
-third-party scripts, fonts or images — after installation the whole tool works
-with networking switched off.
+Two things, and only what they need. The daily version check reads public
+release feeds (GitHub, PyPI, npm, endoflife.date, winget) and sends nothing
+about your PC. Turn it off with `version_check: false`. If you enable AI
+self-evolution, source excerpts and metrics go to the model provider you
+configure. There is no telemetry and no account, and the dashboard loads no
+third-party scripts, fonts or images.
 
-### 9.2 Read-only
+### 9.2 What it reads, and what it changes
 
-Every system call the collector makes is a query: `Get-CimInstance`,
+The collector (`src\sysperf\collect_win.ps1`) only queries: `Get-CimInstance`,
 `Get-Process`, `Get-ItemProperty`, `pnputil /enum-drivers`,
-`powercfg /getactivescheme`. The collector is a single readable PowerShell file —
-`src\sysperf\scripts\collect_win.ps1` — and you are encouraged to read it.
+`powercfg /getactivescheme`. You are encouraged to read it.
 
-The only thing SysPerf writes is its own state, in its own data directory:
-`baseline.json`, `history.jsonl`, `adaptive_state.json`, `sysperf.config.json` and
-`hw_watchlist.json`.
+SysPerf can also change the PC, but only through features that are listed on
+Home with how to undo them:
+
+- automatic fixes: flush DNS, trim idle apps' working sets, clear standby memory;
+- the Explorer watchdog;
+- tray auto-quit, which asks first for each app;
+- the OneDrive lock policy;
+- App Control.
+
+Autonomy starts at *Observe*. In the Store build every one of these starts off.
+`fixes.enabled: false` turns them all off. Its own state lives in its data
+directory.
 
 ### 9.3 Treat the API as sensitive
 
 `/api/metrics` describes your machine in detail: running process names, top memory
 consumers, installed drivers, enabled startup entries, connection counts, hostname
-and model. That is a useful reconnaissance picture, which is exactly why the
-server binds to loopback by default.
+and model. Wi-Fi SSID and BSSID are masked. That is still a useful reconnaissance
+picture, which is why the server binds to loopback only.
 
-### 9.4 If you expose it on a network
+### 9.4 How it is protected
 
-Setting `host` to anything other than loopback makes SysPerf generate an
-authentication token, store it in the configuration file, and require it on every
-request — as an `X-SysPerf-Token` header or a `?token=` parameter. It will not
-serve unauthenticated telemetry to a network.
+- **Host and Origin checks.** A request whose `Host` is not SysPerf's, and a
+  POST from another origin, get 403. This stops a malicious page that rebinds
+  its domain to 127.0.0.1 (DNS rebinding).
+- **CSRF token.** Every one of the 28 POST routes requires a per-process token.
+- **Content-Security-Policy.** Only this origin may load scripts, styles or
+  images, or be fetched.
+- **Secrets.** The model API key is DPAPI-encrypted on Windows and never logged
+  or returned.
 
-There is **no TLS**. For anything beyond a trusted LAN, put a reverse proxy in
-front of it that terminates TLS. An internet-facing deployment is not a supported
-configuration.
+There is no authentication and no TLS, so exposing SysPerf on a network is not
+supported.
 
 ### 9.5 Sharing screenshots
 
-Set `"anonymize": true` and restart. Application, device and machine names are
-replaced with stable hashes; the numbers are untouched, so the dashboard still
-renders and a bug report is still useful.
+The numbers alone identify little, but process and device names do. Crop or
+blur the Processes and Hardware panels before sharing. SSID and BSSID are
+already masked in the API.
 
 ### 9.6 Reporting a vulnerability
 
@@ -832,15 +845,19 @@ schedule it — `install-container.sh --timer` installs a daily systemd timer.
 ```
 sysperf                     Start the dashboard.
 sysperf --port 5100         Serve on another port.
-sysperf --host 0.0.0.0      Bind to all interfaces (generates and requires a token).
 sysperf --open              Open the dashboard in your browser once it is up.
-sysperf --report            Print a text report with recommendations, then exit.
+sysperf --report            Print a text summary of the current score, then exit.
 sysperf --once              Take one sample, print the raw JSON, then exit.
-sysperf --recalibrate       Reset the baseline to the current state.
-sysperf --where             Show the data directory, config path and runtime.
-sysperf --verbose           Debug logging.
+sysperf --where             Show the platform, data directory, config path and runtime.
+sysperf --mode observe      Start the loop in off, observe or auto mode.
+sysperf --supervise         Run under the supervisor (what the sign-in task uses).
+sysperf --data-dir D        Keep state in D instead of the per-user location.
+sysperf --config F          Read settings from F.
 sysperf --version           Print the version.
 ```
+
+`--host` exists for container setups, but binding off loopback is not supported:
+there is no authentication.
 
 `--report` needs no browser and is ideal for a quick check, for a support ticket,
 or for a scheduled snapshot:
@@ -850,28 +867,39 @@ sysperf --report | Out-File "$env:USERPROFILE\Desktop\sysperf-report.txt"
 ```
 
 `--once` prints everything the collector gathered, which is what to attach to a
-bug report about collection. Set `"anonymize": true` first if it contains
-application names you would rather not share.
+bug report about collection. It contains process and device names, so read it
+before you share it.
 
 ---
 
 ## 11. API reference
 
-Every endpoint is `GET` and returns JSON, on `http://127.0.0.1:5056` by default.
+Read endpoints are `GET` and return JSON, on `http://127.0.0.1:5056` by default.
+They have no side effects.
 
 | Endpoint | Returns |
 |---|---|
-| `/api/metrics` | Everything: latest sample, chart series, scorecard, browser breakdown, hardware, recommendations, profile, baseline, metadata. |
-| `/api/advice` | Just the prioritised recommendations. |
-| `/api/profile` | Machine identity, the stored baseline, and the derived criteria. |
-| `/api/health` | Liveness, sample count, whether a baseline exists, last collector error. |
-| `/api/config` | Effective configuration with the token removed. |
-| `POST /api/recalibrate` | Resets the baseline. Writes only SysPerf's own file. |
+| `/api/metrics` | Everything: latest sample, chart series, scorecard, browser breakdown, hardware, components, profile, metadata. |
+| `/api/live` | Second-fresh headline values read from Win32 APIs. |
+| `/api/health` | Liveness, platform, sample count and age, last collector error. |
+| `/api/home` | The Home view: score, next actions, what SysPerf did today. |
+| `/api/history` | One metric over time: `?key=cpu_pct&hours=24` (1–8,760 hours). |
 | `/api/trends` | Long-term daily/hourly trends per criterion, usage profile, current load regime. |
 | `/api/rca` | Root-cause analysis of the current score: weighted findings, causes, evidence, proposals. |
 | `/api/autoimprove` | Loop status, cooldowns, effectiveness ledger, open proposals, recent cycles. |
-| `POST /api/autoimprove/run` | Runs one scan/RCA cycle now (`force` also overrides mode). CSRF token required. |
-| `POST /api/autoimprove/mode` | Sets the standing mode: `off`, `observe`, `auto`. CSRF token required. |
+| `/api/fixes` | Applicable fixes, and the CSRF token for this process. |
+| `/api/diagnostics` | SysPerf's own errors, workers, probes, footprint, supervisor and deploy history. |
+| `/api/settings` | The validated settings form. |
+
+Every route that changes something is a `POST` that requires the CSRF token from
+`/api/fixes` in its JSON body, and is refused from another origin. `SECURITY.md`
+lists all 28. The most used are:
+
+| Endpoint | Effect |
+|---|---|
+| `POST /api/fix` | Previews fixes; applies them with `confirm: true`. |
+| `POST /api/autoimprove/run` | Runs one scan/RCA cycle now. |
+| `POST /api/autoimprove/mode` | Sets the standing mode: `off`, `observe`, `auto`. |
 
 A snapshot is cached for three seconds, so polling is cheap.
 
@@ -879,10 +907,9 @@ A snapshot is cached for three seconds, so polling is cheap.
 # Current overall score
 (Invoke-RestMethod http://127.0.0.1:5056/api/metrics).scorecard.overall_improvement
 
-# Just the critical and high recommendations
-(Invoke-RestMethod http://127.0.0.1:5056/api/advice).items |
-  Where-Object severity -in 'critical','high' |
-  Select-Object severity, title
+# Rows that are not yet met
+(Invoke-RestMethod http://127.0.0.1:5056/api/metrics).scorecard.rows |
+  Where-Object status -ne 'met' | Select-Object label, current, target, status
 ```
 
 ---
@@ -901,7 +928,7 @@ directly — the error it prints is the real cause:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
-  -File "$env:LOCALAPPDATA\SysPerf\app\src\sysperf\scripts\collect_win.ps1" -Full
+  -File "$env:LOCALAPPDATA\SysPerf\app\src\sysperf\collect_win.ps1" -Full
 ```
 
 **Everything reads 0%.** Expected on the first day. See
@@ -913,14 +940,14 @@ smoothed value, not the latest sample. See [section 6.3](#63-smoothing).
 **A criterion is stuck on "measuring".** The WSL trend needs six samples over ten
 minutes. Leave it running.
 
-**Samples take several seconds.** The full sweep enumerates services and drivers.
-Raise `full_every` to run it less often.
+**Samples take several seconds.** The full sweep (every fifth sample) enumerates
+services and drivers. Raise `sample_seconds` to sample less often.
 
 **A target looks unreachable.** Check whether the criterion is bounded by a
 physical floor — the browser panel shows its floor arithmetic explicitly. If a
 mandated corporate application is being counted as discretionary, add it to
 `browser_hosts` ([section 8.4](#84-browser-ownership)). Otherwise loosen the
-relevant fraction under `targets` and recalibrate.
+relevant fraction under `targets`, delete `baseline.json` and restart.
 
 **Port already in use.** Reinstall with `-Port 5100`, or set `port` in the config
 file and restart.
@@ -1249,66 +1276,62 @@ Windows, Microsoft Edge, WebView2, OneDrive, Teams and Outlook are trademarks of
 Microsoft Corporation. Other product names appear only as process names to be
 recognised and imply no affiliation or endorsement.
 
-Contributions are welcome — see `CONTRIBUTING.md`. The one rule that is not
-negotiable: SysPerf does not write to the system.
+Contributions are welcome — see `CONTRIBUTING.md`. The rule that is not
+negotiable: anything that changes the PC must be reversible, listed with how to
+undo it, and off until enabled.
 
 ---
 
 ## Appendix A. Architecture and data flow
 
-SysPerf is a small Flask application wrapped around one PowerShell collector.
-Everything platform-specific is isolated in a single module, which is what lets
-the same code run natively on Windows or inside WSL 2.
+SysPerf is one Python process (Flask on waitress) serving one self-contained
+page, with background workers that measure, score, act and record. The full
+module map, trust boundaries, state files and failure modes are in
+`docs/ARCHITECTURE.md`. This is the short version:
 
 ```
-                      ┌────────────────────────────────┐
-   Windows APIs  ───► │  scripts/collect_win.ps1       │  one JSON object
-   (CIM / WMI,        │  read-only queries only        │  on stdout
-    pnputil, netsh)   └───────────────┬────────────────┘
-                                      │
-                        platform_win.py (interpreter
-                        discovery, path translation)
-                                      │
-   ┌──────────────────────────────────▼──────────────────────────────────┐
-   │ collector.py — sampler thread, rolling history, baseline capture,   │
-   │                snapshot assembly (cached for snapshot_ttl)          │
-   └───┬───────────┬───────────┬───────────┬───────────┬────────────┬────┘
-       │           │           │           │           │            │
-   profile.py  scoring.py  browser.py  hardware.py  advisor.py  components.py
-   (baseline,  (progress,  (WebView2   (faults,     (rules →    (version
-    targets,    ceiling,    ownership)  disks,       advice)     currency)
-    criteria)   scorecard)              drivers)                netopt.py
-                                                               (Wi-Fi overlap,
-                                                                fix plan)
-       │
-   ┌───▼──────────────────────────────────────────────────────────────┐
-   │ app.py — Flask routes, token auth, security headers              │
-   │ static/index.html — Summary / Details tabs, charts (no JS deps)  │
-   └──────────────────────────────────────────────────────────────────┘
+   Windows APIs ──► collect_win.ps1 ──► pwsh_session.py (one warm PowerShell)
+   (CIM/WMI,         query-only            │
+    pnputil, netsh)                        ▼
+                   collector.py — sampler thread, SQLite history (historydb.py),
+                   snapshot assembly (cached for SNAPSHOT_TTL, 3 s)
+                                           │
+     machine_profile.py  scoring.py  adaptive.py  browser.py  hardware.py
+     (baseline, targets) (scorecard) (personal    (WebView2   (faults, disks,
+                                      bests)       ownership)  drivers)
+     trends.py  rca.py  components.py  netopt.py  livestats.py (Win32, real time)
+                                           │
+   autoimprove.py · fixes.py · optactions.py · procwatch.py · trayquit.py
+   (act within the autonomy level; verify; learn)
+                                           │
+   app.py — routes, hostguard.py (Host/Origin), CSRF, CSP and other headers
+   static/index.html — Home / Summary / Details and the expert tabs (no JS deps)
+   supervisor.py — restart on crash or stall; roll back an unhealthy patch
 ```
 
 ### A.1 Module responsibilities
 
 | Module | Responsibility |
 |---|---|
-| `platform_win.py` | Detects native Windows vs WSL 2, locates the PowerShell interpreter, translates paths with `wslpath`, runs the collector. |
-| `config.py` | Defaults, JSON overrides, `SYSPERF_*` environment overrides, data-directory resolution, carry-forward and series key lists. |
-| `collector.py` | Background sampler, JSONL history, first-run baseline capture, snapshot assembly and caching. |
-| `profile.py` | Machine profile, baseline persistence, target derivation from capacity, criteria assembly. |
-| `scoring.py` | Progress maths, rolling-median smoothing, the WSL ceiling score, scorecard assembly. |
-| `browser.py` | Attributes embedded-browser processes to host applications; computes the closability floor. |
-| `hardware.py` | Device faults, disks, battery health, driver inventory, manual watchlist. |
-| `adaptive.py` | Personal-best tracking and adaptive stretch targets. |
-| `advisor.py` | Rule engine turning measurements into prioritised recommendations. |
-| `components.py` | Version-currency advisory for components present on the machine. |
-| `netopt.py` | Wi-Fi band/channel overlap analysis and the network optimisation plan. |
-| `app.py` | HTTP layer: routes, authentication, hardening headers. |
+| `platform_paths.py` | Detects native Windows, WSL 2 or Linux; locates PowerShell; resolves paths. |
+| `config.py` | Defaults, JSON settings, `PERFDASH_*` / `SYSPERF_*` environment overrides, data-directory resolution. |
+| `collector.py`, `pwsh_session.py` | Background sampler and the warm PowerShell session it uses. |
+| `historydb.py` | SQLite history: raw samples for `history.raw_days`, hourly rollups for 400 days. |
+| `machine_profile.py` | This machine's baseline (`baseline.json`) and targets derived from its capacity. |
+| `scoring.py`, `adaptive.py` | Progress maths, smoothing, scorecard; personal-best stretch targets. |
+| `browser.py`, `hardware.py`, `netopt.py`, `components.py` | WebView2 ownership; device faults, disks, battery, drivers; Wi-Fi overlap plan; component versions. |
+| `trends.py`, `rca.py`, `learning.py` | Long-term drift; root cause of shortfalls; what the loop has learned. |
+| `autoimprove.py`, `fixes.py`, `optactions.py` | The improvement loop, the reversible fixes, the action registry and autonomy levels. |
+| `procwatch.py`, `trayquit.py`, `appctl.py`, `onedrive.py` | Explorer watchdog, tray auto-quit, App Control, OneDrive control. |
+| `health.py`, `supervisor.py`, `selftest.py` | Diagnostics and log hygiene; restart/rollback; the in-app quality gates. |
+| `codevolve.py`, `llm.py`, `evodb.py` | Opt-in AI source evolution, model providers, audit store. |
+| `app.py`, `hostguard.py` | HTTP layer: routes, Host/Origin checks, CSRF, hardening headers. |
 
 ### A.2 Sampling tiers
 
 Two tiers keep the cost low. The **fast tier** runs every `sample_seconds`
 (default 60 s) and gathers memory, CPU, process and Wi-Fi link data. The **slow
-tier** (`-Full`) runs every `full_every`-th sample (every 5th ≈ 5 min)
+tier** (`-Full`) runs every 5th sample (≈ 5 min)
 and adds services, startup entries, network, hardware, drivers, component
 versions and the Wi-Fi neighbour scan.
 
@@ -1404,14 +1427,14 @@ already better than its achievable floor at baseline time would report "met"
 alongside 0 %.
 
 **Smoothing.** Counts breathe constantly, so the *sustained* value is scored:
-the rolling median of the last `score_smooth_window` samples (default 15 ≈ 5
-min). Per-metric overrides exist (`smooth_window_overrides`); carry-forward
+the rolling median of the last 5 samples (≈ 5 min at the 60 s cadence). Remote
+connections, which burst, use a 60-minute window. Carry-forward
 metrics use the raw latest value, because a short median would only return a
 stale earlier step. Live gauges and charts always show the raw latest value.
 
-**Dead-band.** A metric within `regress_band_pct` (default 2 %) of its baseline
-counts as unchanged rather than regressed. Without it, every criterion reads
-"regress" on day one, when the baseline *is* the current value.
+**Session boundary.** Samples from before a collector gap longer than the gap
+threshold (a reboot or sleep) are left out of the median, so a stale pre-reboot
+value cannot hold a row at "regress".
 
 ### C.2 Ceiling criteria (WSL memory)
 
@@ -1511,24 +1534,23 @@ therefore tags every action by where it applies — `client`, `router` or
 
 | Property | Behaviour |
 |---|---|
-| System writes | None. Every system call is a query. The only file writes are inside SysPerf's own data directory. |
-| Bind address | `127.0.0.1` by default. |
-| Non-loopback binds | A token is generated and **required** — the API is never silently exposed unauthenticated. Sent as `X-SysPerf-Token` or `?token=`. |
-| Token comparison | Constant-time (`secrets.compare_digest`). |
-| TLS | None. Use a reverse proxy for anything beyond a trusted host. |
-| Response headers | `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Cache-Control: no-store`, and a restrictive `Content-Security-Policy`. |
-| Third-party assets | None. No CDN, no external JavaScript or CSS; the dashboard works offline. |
-| Telemetry | None. No accounts, no network egress. |
-| `anonymize` | Replaces process, host and device names with stable hashes in the API payload, so the dashboard can be screen-shared safely. |
-| Runtime data | History, baseline, adaptive state and config live in the per-user data directory and are excluded from version control. |
-| `POST /api/recalibrate` | The only non-GET route. Rewrites SysPerf's own baseline file and touches nothing else. |
+| System changes | Only through listed, reversible features (fixes, Explorer watchdog, tray auto-quit, OneDrive policy, App Control). Each is shown on Home with how to undo it, off in the Store build, and off everywhere with `fixes.enabled: false`. |
+| Bind address | `127.0.0.1`. There is no authentication, so other binds are unsupported. |
+| Host / Origin | Requests must name SysPerf in `Host`, and POSTs from other origins are refused (DNS-rebinding protection). |
+| Changes over HTTP | All 28 POST routes require the per-process CSRF token. |
+| TLS | None, so loopback only. |
+| Response headers | `Content-Security-Policy` (self only), `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Cache-Control: no-store`. |
+| Third-party assets | None. No CDN and no external JavaScript or CSS; the dashboard works offline. |
+| Outbound traffic | The daily version check (public feeds, can be turned off), and the model provider if you enable AI self-evolution. No telemetry, no accounts. |
+| Secrets | The model API key is DPAPI-encrypted on Windows (`0600` elsewhere), and never logged or returned. |
+| Runtime data | History, baseline, learned state and config live in the per-user data directory. |
 
 ### E.1 What the data contains
 
 The payload describes your machine: process names, installed drivers, startup
-entries, connection counts, hostname, model and the Wi-Fi SSID. It never leaves
-the machine unless you expose the port or share the output. Enable `anonymize`
-before sharing screenshots or bug reports.
+entries, connection counts, hostname and model. The Wi-Fi SSID and BSSID are
+masked. It never leaves the machine unless you share it, so check screenshots
+and `--once` output before posting them.
 
 ---
 
@@ -1536,11 +1558,11 @@ before sharing screenshots or bug reports.
 
 | Aspect | Typical |
 |---|---|
-| Fast sample | Well under a second |
+| Fast sample | About 2–4 s in the warm PowerShell session |
 | Full sweep | Seconds to tens of seconds, dominated by WMI/CIM and `pnputil` latency rather than by SysPerf |
 | API snapshot | Cached for `snapshot_ttl` (3 s), so polling is cheap |
-| Memory | A few tens of MB for the Python process |
-| History | Ring buffer of `max_samples` in memory; JSONL trimmed at `history_max_bytes` |
+| SysPerf itself | About 0.1% CPU and 30 MB RSS (see Diagnostics) |
+| History | 240 samples (4 h) in memory; SQLite with `history.raw_days` of raw samples and 400 days of hourly rollups |
 
 The full sweep runs on a background thread, so its duration never blocks the
 dashboard or the API. If a sweep fails, the previous slow-tier values are carried
@@ -1556,9 +1578,10 @@ forward and `meta.error` reports the reason.
   environment.
 * **Change the component targets** — edit `CATALOG` in `components.py`. Only
   components detected on the machine are listed, so adding an entry is safe.
-* **Add a criterion** — add a spec row in `profile.CRITERIA_SPEC`, derive its
-  target in `profile.derive_targets`, and collect the field in
-  `collect_win.ps1`. The scorecard, KPI cards and category score pick it up
-  automatically.
-* **Add a recommendation** — add a rule in `advisor.py`.
+* **Add a criterion** — add a row to `config.CRITERIA`, derive its target in
+  `machine_profile.targets_for`, and collect the field in `collect_win.ps1`.
+  The scorecard, KPI cards and category score pick it up automatically.
+* **Add a fix** — add a detector and remediation in `fixes.py`, and register it
+  in `optactions.py` with its risk, reversibility and rollback, so autonomy
+  levels govern it.
 * **Run the tests** — `python -m pytest` from the project root.

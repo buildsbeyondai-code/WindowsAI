@@ -204,17 +204,17 @@ footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
 <li class="lvl1"><a href="#8-configuration">#8. Configuration</a></li>
 <li class="lvl2"><a href="#81-where-the-file-is">#8.1 Where the file is</a></li>
 <li class="lvl2"><a href="#82-server-and-sampling">#8.2 Server and sampling</a></li>
-<li class="lvl2"><a href="#83-scoring">#8.3 Scoring</a></li>
+<li class="lvl2"><a href="#83-targets">#8.3 Targets</a></li>
 <li class="lvl2"><a href="#84-browser-ownership">#8.4 Browser ownership</a></li>
 <li class="lvl2"><a href="#85-hardware-watchlist">#8.5 Hardware watchlist</a></li>
-<li class="lvl2"><a href="#86-advisor-and-privacy">#8.6 Advisor and privacy</a></li>
-<li class="lvl2"><a href="#87-trends-and-autonomous-improvement">#8.7 Trends and autonomous improvement</a></li>
+<li class="lvl2"><a href="#86-fixes-and-autonomous-improvement">#8.6 Fixes and autonomous improvement</a></li>
+<li class="lvl2"><a href="#87-drivers-you-have-checked">#8.7 Drivers you have checked</a></li>
 <li class="lvl2"><a href="#88-environment-variables">#8.8 Environment variables</a></li>
 <li class="lvl1"><a href="#9-privacy-and-security">#9. Privacy and security</a></li>
-<li class="lvl2"><a href="#91-nothing-leaves-your-machine">#9.1 Nothing leaves your machine</a></li>
-<li class="lvl2"><a href="#92-read-only">#9.2 Read-only</a></li>
+<li class="lvl2"><a href="#91-what-leaves-your-machine">#9.1 What leaves your machine</a></li>
+<li class="lvl2"><a href="#92-what-it-reads-and-what-it-changes">#9.2 What it reads, and what it changes</a></li>
 <li class="lvl2"><a href="#93-treat-the-api-as-sensitive">#9.3 Treat the API as sensitive</a></li>
-<li class="lvl2"><a href="#94-if-you-expose-it-on-a-network">#9.4 If you expose it on a network</a></li>
+<li class="lvl2"><a href="#94-how-it-is-protected">#9.4 How it is protected</a></li>
 <li class="lvl2"><a href="#95-sharing-screenshots">#9.5 Sharing screenshots</a></li>
 <li class="lvl2"><a href="#96-reporting-a-vulnerability">#9.6 Reporting a vulnerability</a></li>
 <li class="lvl1"><a href="#99-where-is-it-running-and-where-is-my-data">#9.9 Where is it running, and where is my data?</a></li>
@@ -261,7 +261,12 @@ footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
   </nav>
   <main>
     <div class="inner">
-      <h2 id="1-introduction"><a class="anchor" href="#1-introduction" aria-hidden="true">#</a>1. Introduction</h2>
+      <h1 id="sysperf-user-manual">SysPerf User Manual</h1>
+<p><strong>System Performance Agent — version 5.0.0</strong></p>
+<p>A self-improving performance dashboard for Windows 11. It measures the PC, explains
+what holds it back, and changes it only in ways it lists and you can undo.</p>
+<hr>
+<h2 id="1-introduction"><a class="anchor" href="#1-introduction" aria-hidden="true">#</a>1. Introduction</h2>
 <h3 id="11-what-sysperf-is"><a class="anchor" href="#11-what-sysperf-is" aria-hidden="true">#</a>1.1 What SysPerf is</h3>
 <p>SysPerf watches how your Windows 11 machine is actually behaving, compares that
 against where it started and what it is capable of, and tells you what to change
@@ -450,9 +455,9 @@ Afterwards the full sweep runs every fifteenth sample (about every five minutes)
 <p>Because the baseline <em>is</em> the current state, no distance has been travelled yet.
 That is correct, not a bug. The numbers move when you act on the recommendations.</p>
 <p>If you would rather measure from a machine you have already tuned, act on the
-recommendations first, then run:</p>
-<pre><code class="language-powershell">sysperf --recalibrate
-</code></pre>
+recommendations first. Then delete <code>baseline.json</code> from the data directory
+(<code>sysperf --where</code> shows it) and restart SysPerf. The next settled stretch of
+samples becomes the new baseline.</p>
 <h3 id="43-the-first-ten-minutes"><a class="anchor" href="#43-the-first-ten-minutes" aria-hidden="true">#</a>4.3 The first ten minutes</h3>
 <p>Two things need history before they can say anything useful:</p>
 <ul>
@@ -728,9 +733,9 @@ move it at all. Live gauges and charts still show the raw value.</p>
 remote TCP connections use sixty minutes, because sync and scan activity can
 triple the count for several minutes before it settles.</p>
 <h3 id="64-the-noise-dead-band"><a class="anchor" href="#64-the-noise-dead-band" aria-hidden="true">#</a>6.4 The noise dead-band</h3>
-<p>On day one your baseline equals your current value, so any upward tick of noise
-would cross it and read as a regression. A metric within <strong>2%</strong> of its baseline
-counts as unchanged. Configurable as <code>regress_band_pct</code>.</p>
+<p>A row is <em>regress</em> when its smoothed value is worse than the baseline and has not
+reached the target. Smoothing (below) is what keeps one noisy sample from
+flipping it.</p>
 <h3 id="65-ceiling-criteria"><a class="anchor" href="#65-ceiling-criteria" aria-hidden="true">#</a>6.5 Ceiling criteria</h3>
 <p>WSL memory is not a reduction target. It is a ceiling: <em>at or below the cap and
 not growing</em>. The generic formula does not apply, because the cap normally sits
@@ -962,7 +967,7 @@ anything omitted keeps its default. Restart SysPerf after editing.
 <tr>
 <td><code>host</code></td>
 <td><code>127.0.0.1</code></td>
-<td>Bind address. Anything other than loopback requires a token — see <a href="#9-privacy-and-security">section 9</a>.</td>
+<td>Bind address. Loopback only: there is no authentication (see <a href="#9-privacy-and-security">section 9</a>).</td>
 </tr>
 <tr>
 <td><code>port</code></td>
@@ -970,9 +975,9 @@ anything omitted keeps its default. Restart SysPerf after editing.
 <td>Listening port.</td>
 </tr>
 <tr>
-<td><code>auth_token</code></td>
-<td><em>(empty)</em></td>
-<td>Shared secret. Generated automatically if you set a non-loopback host.</td>
+<td><code>allowed_hosts</code></td>
+<td><code>[]</code></td>
+<td>Extra Host names SysPerf answers to, for example one a local reverse proxy forwards. Any other Host gets 403.</td>
 </tr>
 <tr>
 <td><code>open_browser</code></td>
@@ -982,26 +987,26 @@ anything omitted keeps its default. Restart SysPerf after editing.
 <tr>
 <td><code>sample_seconds</code></td>
 <td><code>60</code></td>
-<td>Fast-tier cadence, clamped to 30–600.</td>
+<td>Fast-tier cadence, clamped to 30–600. The slow tier runs every 5th sample.</td>
 </tr>
 <tr>
-<td><code>full_every</code></td>
-<td><code>15</code></td>
-<td>Run the slow tier every Nth sample. Raise it if samples feel expensive.</td>
+<td><code>collector.persistent_shell</code></td>
+<td><code>true</code></td>
+<td>Reuse one PowerShell process for every sample.</td>
 </tr>
 <tr>
-<td><code>max_samples</code></td>
-<td><code>240</code></td>
-<td>Samples kept in memory (240 × 60 s = 4 hours).</td>
+<td><code>history.raw_days</code></td>
+<td><code>14</code></td>
+<td>Days of raw samples kept in SQLite (1–90). Hourly summaries are kept for 400 days.</td>
 </tr>
 <tr>
-<td><code>history_max_bytes</code></td>
-<td><code>12000000</code></td>
-<td>History file is trimmed above this size.</td>
+<td><code>version_check</code></td>
+<td><code>true</code></td>
+<td>Read public release feeds once a day for the Components view.</td>
 </tr>
 </tbody>
 </table></div>
-<h3 id="83-scoring"><a class="anchor" href="#83-scoring" aria-hidden="true">#</a>8.3 Scoring</h3>
+<h3 id="83-targets"><a class="anchor" href="#83-targets" aria-hidden="true">#</a>8.3 Targets</h3>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -1012,29 +1017,19 @@ anything omitted keeps its default. Restart SysPerf after editing.
 </thead>
 <tbody>
 <tr>
-<td><code>score_smooth_window</code></td>
-<td><code>15</code></td>
-<td>Samples in the rolling median. <code>1</code> scores the raw latest value.</td>
-</tr>
-<tr>
-<td><code>smooth_window_overrides</code></td>
-<td><code>{"net_remote": 180}</code></td>
-<td>Per-metric windows for bursty metrics.</td>
-</tr>
-<tr>
-<td><code>regress_band_pct</code></td>
-<td><code>2.0</code></td>
-<td>Noise dead-band before a metric counts as regressed.</td>
-</tr>
-<tr>
 <td><code>targets.*</code></td>
 <td>see table in <a href="#62-where-targets-come-from">6.2</a></td>
 <td>Fractions of your capacity used to derive targets. Raise to loosen, lower to tighten.</td>
 </tr>
+<tr>
+<td><code>wifi.plan_mbps</code></td>
+<td><code>{}</code></td>
+<td>Your SSID and the speed you pay for, e.g. <code>{"MyHome": 100}</code>.</td>
+</tr>
 </tbody>
 </table></div>
-<p>Editing <code>targets</code> only affects newly derived targets. Run <code>sysperf --recalibrate</code>
-to apply changes to an existing baseline.</p>
+<p>Editing <code>targets</code> only affects newly derived targets. To apply changes to an
+existing baseline, delete <code>baseline.json</code> from the data directory and restart.</p>
 <h3 id="84-browser-ownership"><a class="anchor" href="#84-browser-ownership" aria-hidden="true">#</a>8.4 Browser ownership</h3>
 <p>The setting most worth editing. It tells SysPerf which applications' embedded
 browser processes you cannot close:</p>
@@ -1073,58 +1068,28 @@ in <code>hw_watchlist.json</code> in the data directory:</p>
 <p><code>severity</code> is <code>critical</code>, <code>major</code>, <code>minor</code> or <code>low</code>. Set <code>status</code> to <code>resolved</code> to
 keep the record without counting it as open. The file is re-read on every request,
 so edits appear immediately.</p>
-<h3 id="86-advisor-and-privacy"><a class="anchor" href="#86-advisor-and-privacy" aria-hidden="true">#</a>8.6 Advisor and privacy</h3>
-<div class="tablewrap"><table>
-<thead>
-<tr>
-<th>Key</th>
-<th>Default</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>advisor.enabled</code></td>
-<td><code>true</code></td>
-<td>Turn recommendations off.</td>
-</tr>
-<tr>
-<td><code>advisor.stale_driver_years</code></td>
-<td><code>4</code></td>
-<td>Age at which a third-party driver counts as stale.</td>
-</tr>
-<tr>
-<td><code>advisor.reboot_after_hours</code></td>
-<td><code>168</code></td>
-<td>Uptime at which a restart is suggested.</td>
-</tr>
-<tr>
-<td><code>advisor.max_recommendations</code></td>
-<td><code>20</code></td>
-<td>Cap on recommendations shown.</td>
-</tr>
-<tr>
-<td><code>anonymize</code></td>
-<td><code>false</code></td>
-<td>Replace application and device names with stable hashes.</td>
-</tr>
-</tbody>
-</table></div>
-<h3 id="87-trends-and-autonomous-improvement"><a class="anchor" href="#87-trends-and-autonomous-improvement" aria-hidden="true">#</a>8.7 Trends and autonomous improvement</h3>
+<h3 id="86-fixes-and-autonomous-improvement"><a class="anchor" href="#86-fixes-and-autonomous-improvement" aria-hidden="true">#</a>8.6 Fixes and autonomous improvement</h3>
 <pre><code class="language-json">{
-  &quot;trends&quot;: { &quot;retain_days&quot;: 180, &quot;window_days&quot;: 14, &quot;chronic_days&quot;: 5 },
+  &quot;fixes&quot;: { &quot;enabled&quot;: true },
   &quot;autoimprove&quot;: {
-    &quot;enabled&quot;: true, &quot;mode&quot;: &quot;auto&quot;, &quot;interval_seconds&quot;: 300,
-    &quot;threshold&quot;: 80.0, &quot;allow_caution&quot;: false, &quot;max_actions&quot;: 2,
+    &quot;mode&quot;: &quot;auto&quot;, &quot;interval_seconds&quot;: 300, &quot;threshold&quot;: 80,
+    &quot;allow_caution&quot;: false, &quot;max_actions&quot;: 2,
     &quot;cooldown_seconds&quot;: 1800, &quot;settle_seconds&quot;: 120
   }
 }
 </code></pre>
-<p><code>trends</code> shapes the long-term horizon: how much history to keep, how many days the
-drift is measured over, and how many settled days without a single pass count as
-chronic. <code>autoimprove</code> governs the loop itself — see chapter 14, and note that
-<code>mode</code> is the <em>initial</em> mode because the value chosen in the dashboard is
-persisted. Execution additionally requires <code>fixes.enabled</code>.</p>
+<p><code>fixes.enabled: false</code> is the kill switch. Nothing that changes the PC runs
+(fixes, Explorer watchdog, tray auto-quit, OneDrive control), but everything is
+still detected and previewed. <code>autoimprove</code> governs the loop itself (see
+chapter 14). <code>mode</code> is the <em>initial</em> mode, because the value chosen in the
+dashboard is persisted. Values are clamped to safe ranges: <code>max_actions</code> 0–10,
+<code>cooldown_seconds</code> 60–86,400, <code>settle_seconds</code> 30–3,600.</p>
+<h3 id="87-drivers-you-have-checked"><a class="anchor" href="#87-drivers-you-have-checked" aria-hidden="true">#</a>8.7 Drivers you have checked</h3>
+<pre><code class="language-json">{ &quot;drivers&quot;: { &quot;verified_latest&quot;: { &quot;gscheci.inf&quot;: &quot;2026-10-24&quot; } } }
+</code></pre>
+<p>A driver's INF date is set by its vendor, and many current drivers carry
+years-old dates. List one here once you have checked that it is the newest
+available. It is then shown as verified, never hidden.</p>
 <h3 id="88-environment-variables"><a class="anchor" href="#88-environment-variables" aria-hidden="true">#</a>8.8 Environment variables</h3>
 <p>Override the config file without editing it — useful for scripts and testing.</p>
 <div class="tablewrap"><table>
@@ -1144,59 +1109,82 @@ persisted. Execution additionally requires <code>fixes.enabled</code>.</p>
 <td>Path to the configuration file.</td>
 </tr>
 <tr>
-<td><code>SYSPERF_HOST</code>, <code>SYSPERF_PORT</code></td>
+<td><code>PERFDASH_HOST</code>, <code>PERFDASH_PORT</code></td>
 <td>Bind address and port.</td>
 </tr>
 <tr>
-<td><code>SYSPERF_TOKEN</code></td>
-<td>Authentication token.</td>
+<td><code>PERFDASH_ALLOWED_HOSTS</code></td>
+<td>Comma-separated extra Host names.</td>
 </tr>
 <tr>
-<td><code>SYSPERF_SAMPLE_SECONDS</code></td>
+<td><code>PERFDASH_SAMPLE_SECONDS</code></td>
 <td>Sampling cadence.</td>
 </tr>
 <tr>
-<td><code>SYSPERF_ANONYMIZE</code></td>
-<td><code>1</code> to anonymise names.</td>
+<td><code>PERFDASH_FIX_ENABLED</code></td>
+<td><code>0</code> makes SysPerf strictly read-only.</td>
+</tr>
+<tr>
+<td><code>PERFDASH_AUTO_MODE</code></td>
+<td>Initial loop mode: <code>off</code>, <code>observe</code> or <code>auto</code>.</td>
 </tr>
 <tr>
 <td><code>SYSPERF_PS_EXE</code></td>
 <td>Full path to <code>powershell.exe</code> if it is somewhere unusual.</td>
 </tr>
+<tr>
+<td><code>SYSPERF_STORE_MODE</code></td>
+<td><code>1</code> to behave like the Store build (everything outside the app opt-in).</td>
+</tr>
 </tbody>
 </table></div>
 <hr>
 <h2 id="9-privacy-and-security"><a class="anchor" href="#9-privacy-and-security" aria-hidden="true">#</a>9. Privacy and security</h2>
-<h3 id="91-nothing-leaves-your-machine"><a class="anchor" href="#91-nothing-leaves-your-machine" aria-hidden="true">#</a>9.1 Nothing leaves your machine</h3>
-<p>SysPerf has no outbound network code beyond the local HTTP server. Nothing is
-uploaded, no telemetry is sent, and there are no accounts. The dashboard loads no
-third-party scripts, fonts or images — after installation the whole tool works
-with networking switched off.</p>
-<h3 id="92-read-only"><a class="anchor" href="#92-read-only" aria-hidden="true">#</a>9.2 Read-only</h3>
-<p>Every system call the collector makes is a query: <code>Get-CimInstance</code>,
+<h3 id="91-what-leaves-your-machine"><a class="anchor" href="#91-what-leaves-your-machine" aria-hidden="true">#</a>9.1 What leaves your machine</h3>
+<p>Two things, and only what they need. The daily version check reads public
+release feeds (GitHub, PyPI, npm, endoflife.date, winget) and sends nothing
+about your PC. Turn it off with <code>version_check: false</code>. If you enable AI
+self-evolution, source excerpts and metrics go to the model provider you
+configure. There is no telemetry and no account, and the dashboard loads no
+third-party scripts, fonts or images.</p>
+<h3 id="92-what-it-reads-and-what-it-changes"><a class="anchor" href="#92-what-it-reads-and-what-it-changes" aria-hidden="true">#</a>9.2 What it reads, and what it changes</h3>
+<p>The collector (<code>src\sysperf\collect_win.ps1</code>) only queries: <code>Get-CimInstance</code>,
 <code>Get-Process</code>, <code>Get-ItemProperty</code>, <code>pnputil /enum-drivers</code>,
-<code>powercfg /getactivescheme</code>. The collector is a single readable PowerShell file —
-<code>src\sysperf\scripts\collect_win.ps1</code> — and you are encouraged to read it.</p>
-<p>The only thing SysPerf writes is its own state, in its own data directory:
-<code>baseline.json</code>, <code>history.jsonl</code>, <code>adaptive_state.json</code>, <code>sysperf.config.json</code> and
-<code>hw_watchlist.json</code>.</p>
+<code>powercfg /getactivescheme</code>. You are encouraged to read it.</p>
+<p>SysPerf can also change the PC, but only through features that are listed on
+Home with how to undo them:</p>
+<ul>
+<li>automatic fixes: flush DNS, trim idle apps' working sets, clear standby memory;</li>
+<li>the Explorer watchdog;</li>
+<li>tray auto-quit, which asks first for each app;</li>
+<li>the OneDrive lock policy;</li>
+<li>App Control.</li>
+</ul>
+<p>Autonomy starts at <em>Observe</em>. In the Store build every one of these starts off.
+<code>fixes.enabled: false</code> turns them all off. Its own state lives in its data
+directory.</p>
 <h3 id="93-treat-the-api-as-sensitive"><a class="anchor" href="#93-treat-the-api-as-sensitive" aria-hidden="true">#</a>9.3 Treat the API as sensitive</h3>
 <p><code>/api/metrics</code> describes your machine in detail: running process names, top memory
 consumers, installed drivers, enabled startup entries, connection counts, hostname
-and model. That is a useful reconnaissance picture, which is exactly why the
-server binds to loopback by default.</p>
-<h3 id="94-if-you-expose-it-on-a-network"><a class="anchor" href="#94-if-you-expose-it-on-a-network" aria-hidden="true">#</a>9.4 If you expose it on a network</h3>
-<p>Setting <code>host</code> to anything other than loopback makes SysPerf generate an
-authentication token, store it in the configuration file, and require it on every
-request — as an <code>X-SysPerf-Token</code> header or a <code>?token=</code> parameter. It will not
-serve unauthenticated telemetry to a network.</p>
-<p>There is <strong>no TLS</strong>. For anything beyond a trusted LAN, put a reverse proxy in
-front of it that terminates TLS. An internet-facing deployment is not a supported
-configuration.</p>
+and model. Wi-Fi SSID and BSSID are masked. That is still a useful reconnaissance
+picture, which is why the server binds to loopback only.</p>
+<h3 id="94-how-it-is-protected"><a class="anchor" href="#94-how-it-is-protected" aria-hidden="true">#</a>9.4 How it is protected</h3>
+<ul>
+<li><strong>Host and Origin checks.</strong> A request whose <code>Host</code> is not SysPerf's, and a
+  POST from another origin, get 403. This stops a malicious page that rebinds
+  its domain to 127.0.0.1 (DNS rebinding).</li>
+<li><strong>CSRF token.</strong> Every one of the 28 POST routes requires a per-process token.</li>
+<li><strong>Content-Security-Policy.</strong> Only this origin may load scripts, styles or
+  images, or be fetched.</li>
+<li><strong>Secrets.</strong> The model API key is DPAPI-encrypted on Windows and never logged
+  or returned.</li>
+</ul>
+<p>There is no authentication and no TLS, so exposing SysPerf on a network is not
+supported.</p>
 <h3 id="95-sharing-screenshots"><a class="anchor" href="#95-sharing-screenshots" aria-hidden="true">#</a>9.5 Sharing screenshots</h3>
-<p>Set <code>"anonymize": true</code> and restart. Application, device and machine names are
-replaced with stable hashes; the numbers are untouched, so the dashboard still
-renders and a bug report is still useful.</p>
+<p>The numbers alone identify little, but process and device names do. Crop or
+blur the Processes and Hardware panels before sharing. SSID and BSSID are
+already masked in the API.</p>
 <h3 id="96-reporting-a-vulnerability"><a class="anchor" href="#96-reporting-a-vulnerability" aria-hidden="true">#</a>9.6 Reporting a vulnerability</h3>
 <p>See <code>SECURITY.md</code>. Please use a private security advisory rather than a public
 issue.</p>
@@ -1234,25 +1222,29 @@ schedule it — <code>install-container.sh --timer</code> installs a daily syste
 <h2 id="10-command-line-reference"><a class="anchor" href="#10-command-line-reference" aria-hidden="true">#</a>10. Command-line reference</h2>
 <pre><code>sysperf                     Start the dashboard.
 sysperf --port 5100         Serve on another port.
-sysperf --host 0.0.0.0      Bind to all interfaces (generates and requires a token).
 sysperf --open              Open the dashboard in your browser once it is up.
-sysperf --report            Print a text report with recommendations, then exit.
+sysperf --report            Print a text summary of the current score, then exit.
 sysperf --once              Take one sample, print the raw JSON, then exit.
-sysperf --recalibrate       Reset the baseline to the current state.
-sysperf --where             Show the data directory, config path and runtime.
-sysperf --verbose           Debug logging.
+sysperf --where             Show the platform, data directory, config path and runtime.
+sysperf --mode observe      Start the loop in off, observe or auto mode.
+sysperf --supervise         Run under the supervisor (what the sign-in task uses).
+sysperf --data-dir D        Keep state in D instead of the per-user location.
+sysperf --config F          Read settings from F.
 sysperf --version           Print the version.
 </code></pre>
+<p><code>--host</code> exists for container setups, but binding off loopback is not supported:
+there is no authentication.</p>
 <p><code>--report</code> needs no browser and is ideal for a quick check, for a support ticket,
 or for a scheduled snapshot:</p>
 <pre><code class="language-powershell">sysperf --report | Out-File &quot;$env:USERPROFILE\Desktop\sysperf-report.txt&quot;
 </code></pre>
 <p><code>--once</code> prints everything the collector gathered, which is what to attach to a
-bug report about collection. Set <code>"anonymize": true</code> first if it contains
-application names you would rather not share.</p>
+bug report about collection. It contains process and device names, so read it
+before you share it.</p>
 <hr>
 <h2 id="11-api-reference"><a class="anchor" href="#11-api-reference" aria-hidden="true">#</a>11. API reference</h2>
-<p>Every endpoint is <code>GET</code> and returns JSON, on <code>http://127.0.0.1:5056</code> by default.</p>
+<p>Read endpoints are <code>GET</code> and return JSON, on <code>http://127.0.0.1:5056</code> by default.
+They have no side effects.</p>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -1263,27 +1255,23 @@ application names you would rather not share.</p>
 <tbody>
 <tr>
 <td><code>/api/metrics</code></td>
-<td>Everything: latest sample, chart series, scorecard, browser breakdown, hardware, recommendations, profile, baseline, metadata.</td>
+<td>Everything: latest sample, chart series, scorecard, browser breakdown, hardware, components, profile, metadata.</td>
 </tr>
 <tr>
-<td><code>/api/advice</code></td>
-<td>Just the prioritised recommendations.</td>
-</tr>
-<tr>
-<td><code>/api/profile</code></td>
-<td>Machine identity, the stored baseline, and the derived criteria.</td>
+<td><code>/api/live</code></td>
+<td>Second-fresh headline values read from Win32 APIs.</td>
 </tr>
 <tr>
 <td><code>/api/health</code></td>
-<td>Liveness, sample count, whether a baseline exists, last collector error.</td>
+<td>Liveness, platform, sample count and age, last collector error.</td>
 </tr>
 <tr>
-<td><code>/api/config</code></td>
-<td>Effective configuration with the token removed.</td>
+<td><code>/api/home</code></td>
+<td>The Home view: score, next actions, what SysPerf did today.</td>
 </tr>
 <tr>
-<td><code>POST /api/recalibrate</code></td>
-<td>Resets the baseline. Writes only SysPerf's own file.</td>
+<td><code>/api/history</code></td>
+<td>One metric over time: <code>?key=cpu_pct&amp;hours=24</code> (1–8,760 hours).</td>
 </tr>
 <tr>
 <td><code>/api/trends</code></td>
@@ -1298,12 +1286,41 @@ application names you would rather not share.</p>
 <td>Loop status, cooldowns, effectiveness ledger, open proposals, recent cycles.</td>
 </tr>
 <tr>
+<td><code>/api/fixes</code></td>
+<td>Applicable fixes, and the CSRF token for this process.</td>
+</tr>
+<tr>
+<td><code>/api/diagnostics</code></td>
+<td>SysPerf's own errors, workers, probes, footprint, supervisor and deploy history.</td>
+</tr>
+<tr>
+<td><code>/api/settings</code></td>
+<td>The validated settings form.</td>
+</tr>
+</tbody>
+</table></div>
+<p>Every route that changes something is a <code>POST</code> that requires the CSRF token from
+<code>/api/fixes</code> in its JSON body, and is refused from another origin. <code>SECURITY.md</code>
+lists all 28. The most used are:</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /api/fix</code></td>
+<td>Previews fixes; applies them with <code>confirm: true</code>.</td>
+</tr>
+<tr>
 <td><code>POST /api/autoimprove/run</code></td>
-<td>Runs one scan/RCA cycle now (<code>force</code> also overrides mode). CSRF token required.</td>
+<td>Runs one scan/RCA cycle now.</td>
 </tr>
 <tr>
 <td><code>POST /api/autoimprove/mode</code></td>
-<td>Sets the standing mode: <code>off</code>, <code>observe</code>, <code>auto</code>. CSRF token required.</td>
+<td>Sets the standing mode: <code>off</code>, <code>observe</code>, <code>auto</code>.</td>
 </tr>
 </tbody>
 </table></div>
@@ -1311,10 +1328,9 @@ application names you would rather not share.</p>
 <pre><code class="language-powershell"># Current overall score
 (Invoke-RestMethod http://127.0.0.1:5056/api/metrics).scorecard.overall_improvement
 
-# Just the critical and high recommendations
-(Invoke-RestMethod http://127.0.0.1:5056/api/advice).items |
-  Where-Object severity -in 'critical','high' |
-  Select-Object severity, title
+# Rows that are not yet met
+(Invoke-RestMethod http://127.0.0.1:5056/api/metrics).scorecard.rows |
+  Where-Object status -ne 'met' | Select-Object label, current, target, status
 </code></pre>
 <hr>
 <h2 id="12-troubleshooting"><a class="anchor" href="#12-troubleshooting" aria-hidden="true">#</a>12. Troubleshooting</h2>
@@ -1325,7 +1341,7 @@ application names you would rather not share.</p>
 <p><strong>"collector produced no output".</strong> PowerShell could not run the collector. Try it
 directly — the error it prints is the real cause:</p>
 <pre><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass `
-  -File &quot;$env:LOCALAPPDATA\SysPerf\app\src\sysperf\scripts\collect_win.ps1&quot; -Full
+  -File &quot;$env:LOCALAPPDATA\SysPerf\app\src\sysperf\collect_win.ps1&quot; -Full
 </code></pre>
 <p><strong>Everything reads 0%.</strong> Expected on the first day. See
 <a href="#42-why-everything-reads-0">section 4.2</a>.</p>
@@ -1333,13 +1349,13 @@ directly — the error it prints is the real cause:</p>
 smoothed value, not the latest sample. See <a href="#63-smoothing">section 6.3</a>.</p>
 <p><strong>A criterion is stuck on "measuring".</strong> The WSL trend needs six samples over ten
 minutes. Leave it running.</p>
-<p><strong>Samples take several seconds.</strong> The full sweep enumerates services and drivers.
-Raise <code>full_every</code> to run it less often.</p>
+<p><strong>Samples take several seconds.</strong> The full sweep (every fifth sample) enumerates
+services and drivers. Raise <code>sample_seconds</code> to sample less often.</p>
 <p><strong>A target looks unreachable.</strong> Check whether the criterion is bounded by a
 physical floor — the browser panel shows its floor arithmetic explicitly. If a
 mandated corporate application is being counted as discretionary, add it to
 <code>browser_hosts</code> (<a href="#84-browser-ownership">section 8.4</a>). Otherwise loosen the
-relevant fraction under <code>targets</code> and recalibrate.</p>
+relevant fraction under <code>targets</code>, delete <code>baseline.json</code> and restart.</p>
 <p><strong>Port already in use.</strong> Reinstall with <code>-Port 5100</code>, or set <code>port</code> in the config
 file and restart.</p>
 <p><strong>Battery wear shows nothing.</strong> Design and full-charge capacity come from a WMI
@@ -1769,37 +1785,32 @@ installed from PyPI. The dashboard uses no third-party JavaScript or CSS.</p>
 <p>Windows, Microsoft Edge, WebView2, OneDrive, Teams and Outlook are trademarks of
 Microsoft Corporation. Other product names appear only as process names to be
 recognised and imply no affiliation or endorsement.</p>
-<p>Contributions are welcome — see <code>CONTRIBUTING.md</code>. The one rule that is not
-negotiable: SysPerf does not write to the system.</p>
+<p>Contributions are welcome — see <code>CONTRIBUTING.md</code>. The rule that is not
+negotiable: anything that changes the PC must be reversible, listed with how to
+undo it, and off until enabled.</p>
 <hr>
 <h2 id="appendix-a-architecture-and-data-flow"><a class="anchor" href="#appendix-a-architecture-and-data-flow" aria-hidden="true">#</a>Appendix A. Architecture and data flow</h2>
-<p>SysPerf is a small Flask application wrapped around one PowerShell collector.
-Everything platform-specific is isolated in a single module, which is what lets
-the same code run natively on Windows or inside WSL 2.</p>
-<pre><code>                      ┌────────────────────────────────┐
-   Windows APIs  ───► │  scripts/collect_win.ps1       │  one JSON object
-   (CIM / WMI,        │  read-only queries only        │  on stdout
-    pnputil, netsh)   └───────────────┬────────────────┘
-                                      │
-                        platform_win.py (interpreter
-                        discovery, path translation)
-                                      │
-   ┌──────────────────────────────────▼──────────────────────────────────┐
-   │ collector.py — sampler thread, rolling history, baseline capture,   │
-   │                snapshot assembly (cached for snapshot_ttl)          │
-   └───┬───────────┬───────────┬───────────┬───────────┬────────────┬────┘
-       │           │           │           │           │            │
-   profile.py  scoring.py  browser.py  hardware.py  advisor.py  components.py
-   (baseline,  (progress,  (WebView2   (faults,     (rules →    (version
-    targets,    ceiling,    ownership)  disks,       advice)     currency)
-    criteria)   scorecard)              drivers)                netopt.py
-                                                               (Wi-Fi overlap,
-                                                                fix plan)
-       │
-   ┌───▼──────────────────────────────────────────────────────────────┐
-   │ app.py — Flask routes, token auth, security headers              │
-   │ static/index.html — Summary / Details tabs, charts (no JS deps)  │
-   └──────────────────────────────────────────────────────────────────┘
+<p>SysPerf is one Python process (Flask on waitress) serving one self-contained
+page, with background workers that measure, score, act and record. The full
+module map, trust boundaries, state files and failure modes are in
+<code>docs/ARCHITECTURE.md</code>. This is the short version:</p>
+<pre><code>   Windows APIs ──► collect_win.ps1 ──► pwsh_session.py (one warm PowerShell)
+   (CIM/WMI,         query-only            │
+    pnputil, netsh)                        ▼
+                   collector.py — sampler thread, SQLite history (historydb.py),
+                   snapshot assembly (cached for SNAPSHOT_TTL, 3 s)
+                                           │
+     machine_profile.py  scoring.py  adaptive.py  browser.py  hardware.py
+     (baseline, targets) (scorecard) (personal    (WebView2   (faults, disks,
+                                      bests)       ownership)  drivers)
+     trends.py  rca.py  components.py  netopt.py  livestats.py (Win32, real time)
+                                           │
+   autoimprove.py · fixes.py · optactions.py · procwatch.py · trayquit.py
+   (act within the autonomy level; verify; learn)
+                                           │
+   app.py — routes, hostguard.py (Host/Origin), CSRF, CSP and other headers
+   static/index.html — Home / Summary / Details and the expert tabs (no JS deps)
+   supervisor.py — restart on crash or stall; roll back an unhealthy patch
 </code></pre>
 <h3 id="a1-module-responsibilities"><a class="anchor" href="#a1-module-responsibilities" aria-hidden="true">#</a>A.1 Module responsibilities</h3>
 <div class="tablewrap"><table>
@@ -1811,59 +1822,63 @@ the same code run natively on Windows or inside WSL 2.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>platform_win.py</code></td>
-<td>Detects native Windows vs WSL 2, locates the PowerShell interpreter, translates paths with <code>wslpath</code>, runs the collector.</td>
+<td><code>platform_paths.py</code></td>
+<td>Detects native Windows, WSL 2 or Linux; locates PowerShell; resolves paths.</td>
 </tr>
 <tr>
 <td><code>config.py</code></td>
-<td>Defaults, JSON overrides, <code>SYSPERF_*</code> environment overrides, data-directory resolution, carry-forward and series key lists.</td>
+<td>Defaults, JSON settings, <code>PERFDASH_*</code> / <code>SYSPERF_*</code> environment overrides, data-directory resolution.</td>
 </tr>
 <tr>
-<td><code>collector.py</code></td>
-<td>Background sampler, JSONL history, first-run baseline capture, snapshot assembly and caching.</td>
+<td><code>collector.py</code>, <code>pwsh_session.py</code></td>
+<td>Background sampler and the warm PowerShell session it uses.</td>
 </tr>
 <tr>
-<td><code>profile.py</code></td>
-<td>Machine profile, baseline persistence, target derivation from capacity, criteria assembly.</td>
+<td><code>historydb.py</code></td>
+<td>SQLite history: raw samples for <code>history.raw_days</code>, hourly rollups for 400 days.</td>
 </tr>
 <tr>
-<td><code>scoring.py</code></td>
-<td>Progress maths, rolling-median smoothing, the WSL ceiling score, scorecard assembly.</td>
+<td><code>machine_profile.py</code></td>
+<td>This machine's baseline (<code>baseline.json</code>) and targets derived from its capacity.</td>
 </tr>
 <tr>
-<td><code>browser.py</code></td>
-<td>Attributes embedded-browser processes to host applications; computes the closability floor.</td>
+<td><code>scoring.py</code>, <code>adaptive.py</code></td>
+<td>Progress maths, smoothing, scorecard; personal-best stretch targets.</td>
 </tr>
 <tr>
-<td><code>hardware.py</code></td>
-<td>Device faults, disks, battery health, driver inventory, manual watchlist.</td>
+<td><code>browser.py</code>, <code>hardware.py</code>, <code>netopt.py</code>, <code>components.py</code></td>
+<td>WebView2 ownership; device faults, disks, battery, drivers; Wi-Fi overlap plan; component versions.</td>
 </tr>
 <tr>
-<td><code>adaptive.py</code></td>
-<td>Personal-best tracking and adaptive stretch targets.</td>
+<td><code>trends.py</code>, <code>rca.py</code>, <code>learning.py</code></td>
+<td>Long-term drift; root cause of shortfalls; what the loop has learned.</td>
 </tr>
 <tr>
-<td><code>advisor.py</code></td>
-<td>Rule engine turning measurements into prioritised recommendations.</td>
+<td><code>autoimprove.py</code>, <code>fixes.py</code>, <code>optactions.py</code></td>
+<td>The improvement loop, the reversible fixes, the action registry and autonomy levels.</td>
 </tr>
 <tr>
-<td><code>components.py</code></td>
-<td>Version-currency advisory for components present on the machine.</td>
+<td><code>procwatch.py</code>, <code>trayquit.py</code>, <code>appctl.py</code>, <code>onedrive.py</code></td>
+<td>Explorer watchdog, tray auto-quit, App Control, OneDrive control.</td>
 </tr>
 <tr>
-<td><code>netopt.py</code></td>
-<td>Wi-Fi band/channel overlap analysis and the network optimisation plan.</td>
+<td><code>health.py</code>, <code>supervisor.py</code>, <code>selftest.py</code></td>
+<td>Diagnostics and log hygiene; restart/rollback; the in-app quality gates.</td>
 </tr>
 <tr>
-<td><code>app.py</code></td>
-<td>HTTP layer: routes, authentication, hardening headers.</td>
+<td><code>codevolve.py</code>, <code>llm.py</code>, <code>evodb.py</code></td>
+<td>Opt-in AI source evolution, model providers, audit store.</td>
+</tr>
+<tr>
+<td><code>app.py</code>, <code>hostguard.py</code></td>
+<td>HTTP layer: routes, Host/Origin checks, CSRF, hardening headers.</td>
 </tr>
 </tbody>
 </table></div>
 <h3 id="a2-sampling-tiers"><a class="anchor" href="#a2-sampling-tiers" aria-hidden="true">#</a>A.2 Sampling tiers</h3>
 <p>Two tiers keep the cost low. The <strong>fast tier</strong> runs every <code>sample_seconds</code>
 (default 60 s) and gathers memory, CPU, process and Wi-Fi link data. The <strong>slow
-tier</strong> (<code>-Full</code>) runs every <code>full_every</code>-th sample (every 5th ≈ 5 min)
+tier</strong> (<code>-Full</code>) runs every 5th sample (≈ 5 min)
 and adds services, startup entries, network, hardware, drivers, component
 versions and the Wi-Fi neighbour scan.</p>
 <p>Slow-tier values are <strong>carried forward</strong> between full sweeps (see
@@ -2078,13 +2093,13 @@ journey completed, clamped to 0–100:</p>
 already better than its achievable floor at baseline time would report "met"
 alongside 0 %.</p>
 <p><strong>Smoothing.</strong> Counts breathe constantly, so the <em>sustained</em> value is scored:
-the rolling median of the last <code>score_smooth_window</code> samples (default 15 ≈ 5
-min). Per-metric overrides exist (<code>smooth_window_overrides</code>); carry-forward
+the rolling median of the last 5 samples (≈ 5 min at the 60 s cadence). Remote
+connections, which burst, use a 60-minute window. Carry-forward
 metrics use the raw latest value, because a short median would only return a
 stale earlier step. Live gauges and charts always show the raw latest value.</p>
-<p><strong>Dead-band.</strong> A metric within <code>regress_band_pct</code> (default 2 %) of its baseline
-counts as unchanged rather than regressed. Without it, every criterion reads
-"regress" on day one, when the baseline <em>is</em> the current value.</p>
+<p><strong>Session boundary.</strong> Samples from before a collector gap longer than the gap
+threshold (a reboot or sleep) are left out of the median, so a stale pre-reboot
+value cannot hold a row at "regress".</p>
 <h3 id="c2-ceiling-criteria-wsl-memory"><a class="anchor" href="#c2-ceiling-criteria-wsl-memory" aria-hidden="true">#</a>C.2 Ceiling criteria (WSL memory)</h3>
 <p>"At or below the cap <strong>and not growing</strong>" cannot use the formula above, because a
 cap normally sits <em>above</em> the starting value. Instead the working-set slope is
@@ -2209,56 +2224,52 @@ therefore tags every action by where it applies — <code>client</code>, <code>r
 </thead>
 <tbody>
 <tr>
-<td>System writes</td>
-<td>None. Every system call is a query. The only file writes are inside SysPerf's own data directory.</td>
+<td>System changes</td>
+<td>Only through listed, reversible features (fixes, Explorer watchdog, tray auto-quit, OneDrive policy, App Control). Each is shown on Home with how to undo it, off in the Store build, and off everywhere with <code>fixes.enabled: false</code>.</td>
 </tr>
 <tr>
 <td>Bind address</td>
-<td><code>127.0.0.1</code> by default.</td>
+<td><code>127.0.0.1</code>. There is no authentication, so other binds are unsupported.</td>
 </tr>
 <tr>
-<td>Non-loopback binds</td>
-<td>A token is generated and <strong>required</strong> — the API is never silently exposed unauthenticated. Sent as <code>X-SysPerf-Token</code> or <code>?token=</code>.</td>
+<td>Host / Origin</td>
+<td>Requests must name SysPerf in <code>Host</code>, and POSTs from other origins are refused (DNS-rebinding protection).</td>
 </tr>
 <tr>
-<td>Token comparison</td>
-<td>Constant-time (<code>secrets.compare_digest</code>).</td>
+<td>Changes over HTTP</td>
+<td>All 28 POST routes require the per-process CSRF token.</td>
 </tr>
 <tr>
 <td>TLS</td>
-<td>None. Use a reverse proxy for anything beyond a trusted host.</td>
+<td>None, so loopback only.</td>
 </tr>
 <tr>
 <td>Response headers</td>
-<td><code>X-Content-Type-Options</code>, <code>X-Frame-Options</code>, <code>Referrer-Policy</code>, <code>Cache-Control: no-store</code>, and a restrictive <code>Content-Security-Policy</code>.</td>
+<td><code>Content-Security-Policy</code> (self only), <code>X-Content-Type-Options</code>, <code>X-Frame-Options</code>, <code>Referrer-Policy</code>, <code>Cache-Control: no-store</code>.</td>
 </tr>
 <tr>
 <td>Third-party assets</td>
-<td>None. No CDN, no external JavaScript or CSS; the dashboard works offline.</td>
+<td>None. No CDN and no external JavaScript or CSS; the dashboard works offline.</td>
 </tr>
 <tr>
-<td>Telemetry</td>
-<td>None. No accounts, no network egress.</td>
+<td>Outbound traffic</td>
+<td>The daily version check (public feeds, can be turned off), and the model provider if you enable AI self-evolution. No telemetry, no accounts.</td>
 </tr>
 <tr>
-<td><code>anonymize</code></td>
-<td>Replaces process, host and device names with stable hashes in the API payload, so the dashboard can be screen-shared safely.</td>
+<td>Secrets</td>
+<td>The model API key is DPAPI-encrypted on Windows (<code>0600</code> elsewhere), and never logged or returned.</td>
 </tr>
 <tr>
 <td>Runtime data</td>
-<td>History, baseline, adaptive state and config live in the per-user data directory and are excluded from version control.</td>
-</tr>
-<tr>
-<td><code>POST /api/recalibrate</code></td>
-<td>The only non-GET route. Rewrites SysPerf's own baseline file and touches nothing else.</td>
+<td>History, baseline, learned state and config live in the per-user data directory.</td>
 </tr>
 </tbody>
 </table></div>
 <h3 id="e1-what-the-data-contains"><a class="anchor" href="#e1-what-the-data-contains" aria-hidden="true">#</a>E.1 What the data contains</h3>
 <p>The payload describes your machine: process names, installed drivers, startup
-entries, connection counts, hostname, model and the Wi-Fi SSID. It never leaves
-the machine unless you expose the port or share the output. Enable <code>anonymize</code>
-before sharing screenshots or bug reports.</p>
+entries, connection counts, hostname and model. The Wi-Fi SSID and BSSID are
+masked. It never leaves the machine unless you share it, so check screenshots
+and <code>--once</code> output before posting them.</p>
 <hr>
 <h2 id="appendix-f-performance-characteristics"><a class="anchor" href="#appendix-f-performance-characteristics" aria-hidden="true">#</a>Appendix F. Performance characteristics</h2>
 <div class="tablewrap"><table>
@@ -2271,7 +2282,7 @@ before sharing screenshots or bug reports.</p>
 <tbody>
 <tr>
 <td>Fast sample</td>
-<td>Well under a second</td>
+<td>About 2–4 s in the warm PowerShell session</td>
 </tr>
 <tr>
 <td>Full sweep</td>
@@ -2282,12 +2293,12 @@ before sharing screenshots or bug reports.</p>
 <td>Cached for <code>snapshot_ttl</code> (3 s), so polling is cheap</td>
 </tr>
 <tr>
-<td>Memory</td>
-<td>A few tens of MB for the Python process</td>
+<td>SysPerf itself</td>
+<td>About 0.1% CPU and 30 MB RSS (see Diagnostics)</td>
 </tr>
 <tr>
 <td>History</td>
-<td>Ring buffer of <code>max_samples</code> in memory; JSONL trimmed at <code>history_max_bytes</code></td>
+<td>240 samples (4 h) in memory; SQLite with <code>history.raw_days</code> of raw samples and 400 days of hourly rollups</td>
 </tr>
 </tbody>
 </table></div>
@@ -2303,11 +2314,12 @@ forward and <code>meta.error</code> reports the reason.</p>
   environment.</li>
 <li><strong>Change the component targets</strong> — edit <code>CATALOG</code> in <code>components.py</code>. Only
   components detected on the machine are listed, so adding an entry is safe.</li>
-<li><strong>Add a criterion</strong> — add a spec row in <code>profile.CRITERIA_SPEC</code>, derive its
-  target in <code>profile.derive_targets</code>, and collect the field in
-  <code>collect_win.ps1</code>. The scorecard, KPI cards and category score pick it up
-  automatically.</li>
-<li><strong>Add a recommendation</strong> — add a rule in <code>advisor.py</code>.</li>
+<li><strong>Add a criterion</strong> — add a row to <code>config.CRITERIA</code>, derive its target in
+  <code>machine_profile.targets_for</code>, and collect the field in <code>collect_win.ps1</code>.
+  The scorecard, KPI cards and category score pick it up automatically.</li>
+<li><strong>Add a fix</strong> — add a detector and remediation in <code>fixes.py</code>, and register it
+  in <code>optactions.py</code> with its risk, reversibility and rollback, so autonomy
+  levels govern it.</li>
 <li><strong>Run the tests</strong> — <code>python -m pytest</code> from the project root.</li>
 </ul>
       <footer>
