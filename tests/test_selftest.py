@@ -248,7 +248,7 @@ def test_started_at_is_recorded(suite, monkeypatch):
 
 def test_default_timeout_is_generous_relative_to_a_real_run(tmp_path):
     assert SelfTest(tmp_path, tmp_path / "r.json").timeout_s == RUN_TIMEOUT_S
-    assert RUN_TIMEOUT_S > 300
+    assert RUN_TIMEOUT_S >= 1800      # a busy PC took over 15 min (2026-10-25)
 
 
 def test_every_documented_gate_has_a_description():
