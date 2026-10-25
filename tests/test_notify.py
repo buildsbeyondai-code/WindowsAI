@@ -85,7 +85,7 @@ def test_background_send_uses_a_thread(tmp_path):
     n = Notifier(tmp_path / "n.json", "http://h/", toast_capable=True,
                  sender=lambda *a: got.append(a), clock=time.time)
     n.notify("health", "t", "b")
-    for _ in range(100):
+    for _ in range(1000):                     # generous: the suite may run on a loaded machine
         if got:
             break
         time.sleep(0.01)

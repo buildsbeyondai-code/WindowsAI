@@ -625,7 +625,9 @@ class CodeEvolution:
             if base_tests["rc"] != 0 or not base_tests["collected"] or \
                     base_tests["failed"] or base_tests["errors"]:
                 return self._finish(cid, "skipped", "baseline test suite is not green "
-                                    f"({base_tests['summary']}); refusing to evolve on a red base")
+                                    f"({base_tests['summary']}); refusing to evolve on a red base"
+                                    + ("; failing: " + ", ".join(base_tests["failed_tests"][:3])
+                                       if base_tests.get("failed_tests") else ""))
             base_bench = self._bench(base_wt)
             profile = self._profile(base_wt, files) if base_bench else []
 
@@ -816,7 +818,9 @@ class CodeEvolution:
         return out
 
     def _tests(self, wt: Path) -> dict:
-        r = self.sandbox.run(wt, [sys.executable, "-m", "pytest", "-q", "-p",
+        # -rf lists each failure as "FAILED <test id> - <reason>", so a red run
+        # says which test broke instead of only how many.
+        r = self.sandbox.run(wt, [sys.executable, "-m", "pytest", "-q", "-rf", "-p",
                                   "no:cacheprovider", "-o", "addopts=", "tests"],
                              timeout_s=self.settings["test_timeout_s"])
         if r.get("blocked"):
@@ -827,6 +831,8 @@ class CodeEvolution:
                "errors": num("error"), "skipped": num("skipped"), "summary": tail[:200],
                "timeout": bool(r.get("timeout"))}
         res["collected"] = res["passed"] + res["failed"] + res["errors"] + res["skipped"]
+        res["failed_tests"] = [ln[7:].split(" - ")[0] for ln in r["stdout"].splitlines()
+                               if ln.startswith(("FAILED ", "ERROR "))][:10]
         if r["rc"] not in (0, 1) and not res["failed"]:
             res["errors"] = max(1, res["errors"])
             res["summary"] = (tail or r["stderr"][-200:])[:200]

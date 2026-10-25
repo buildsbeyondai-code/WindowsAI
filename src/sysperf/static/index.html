@@ -2699,6 +2699,7 @@ function render(d) {
 
   renderSummary(d);
   renderArchitecture(d);
+  if (window.perfdashHome) window.perfdashHome.paint();     // Home shares the System score
 }
 
 /* ---- Summary tab: the whole Details page distilled into 10 scored categories ---- */
@@ -2856,7 +2857,8 @@ function renderSummary(d) {
           <div class="grade" style="color:${oc}">${grade}</div></div>
       </div>
       <div class="sum-right">
-        <div class="sum-head"><h3>System scorecard</h3><p>${subline}</p></div>
+        <div class="sum-head"><h3>System scorecard</h3><p>${subline}</p>
+          ${_sc.overall_improvement != null ? `<p class="sum-agent" id="sumAgent">Improvement score <b>${fmt(_sc.overall_improvement, 0)}%</b> — average progress toward each target; the Auto-Improve agent acts below <b>${fmt(window.__agentThreshold || 80)}%</b>.</p>` : ""}</div>
         ${warmupBadge}
         <div class="sum-stats">
           <div class="sum-stat met"><div class="n">${met}</div><div class="l">On target</div></div>
@@ -5650,16 +5652,31 @@ const api41 = (() => {
   function li(icon, title, sub) {
     return `<li><span class="ico" aria-hidden="true">${icon}</span><div><div class="t">${title}</div>${sub ? `<div class="s">${sub}</div>` : ""}</div></li>`;
   }
-  function render(d) {
-    const sc = d.score, th = d.threshold || 80;
-    const cls = sc == null ? "m" : sc >= th ? "g" : sc >= th - 15 ? "a" : "r";
-    $("homeScore").innerHTML = ring(sc, cls);
+  let lastHome = null;
+  // The headline is the same System score the Summary tab shows (its 10-category
+  // average), so the two pages never disagree. The improvement score — what the
+  // agent acts on — is shown alongside it, labelled as such.
+  function paint() {
+    const d = lastHome;
+    if (!d) return;
+    const th = d.threshold || 80;
+    window.__agentThreshold = th;
+    const snap = window.__lastSnap;
+    const sys = snap ? computeCategories(snap).overall : null;
+    const cls = sys == null ? "m" : sys >= 80 ? "g" : sys >= 50 ? "a" : "r";
+    $("homeScore").innerHTML = ring(sys, cls);
     const cnt = d.counts || {};
-    const verdict = sc == null ? "Measuring this PC…" : sc >= th ? "Your PC is in good shape" : "Your PC needs attention";
+    const verdict = sys == null ? "Measuring this PC…" : sys >= 80 ? "Healthy — your PC is in good shape"
+      : sys >= 50 ? "Fair — some areas can improve" : "Needs attention";
     $("homeStatus").innerHTML = `<p class="home-big">${esc(verdict)}</p>
-      <div class="chips"><span>On target <b>${fmt(cnt.met || 0)}</b></span><span>Partial <b>${fmt(cnt.partial || 0)}</b></span>
-      <span>Regressed <b>${fmt(cnt.regress || 0)}</b></span><span>Last measured <b>${esc(api41.ago(d.last_sample_age_s))}</b></span>
-      <span>Act below <b>${fmt(th)}%</b></span></div>`;
+      <div class="chips"><span>System score <b>${sys == null ? "—" : fmt(sys) + "%"}</b></span>
+      <span title="Average progress toward each target. The Auto-Improve agent investigates and acts when this drops below the threshold.">Improvement score <b>${d.score == null ? "—" : fmt(d.score) + "%"}</b> · agent acts below <b>${fmt(th)}%</b></span>
+      <span>Targets met <b>${fmt(cnt.met || 0)}</b> · partial <b>${fmt(cnt.partial || 0)}</b> · regressed <b>${fmt(cnt.regress || 0)}</b></span>
+      <span>Last measured <b>${esc(api41.ago(d.last_sample_age_s))}</b></span></div>`;
+  }
+  function render(d) {
+    lastHome = d;
+    paint();
     const todo = [];
     (d.consent || []).forEach(n => todo.push(li("🙋", `Decide whether SysPerf may quit <b>${esc(n)}</b>`,
       `It is waiting in the tray. <a href="#app-control">Open App Control</a> and choose Allow or Never.`)));
@@ -5736,7 +5753,7 @@ const api41 = (() => {
   $("homeSimple").addEventListener("change", () => applySimple($("homeSimple").checked));
   $("homeHistKey").addEventListener("change", chart);
   $("homeHistRange").addEventListener("change", chart);
-  window.perfdashHome = {refresh};
+  window.perfdashHome = {refresh, paint};
   if (view.style.display !== "none") refresh();
   setInterval(() => { if (view.style.display !== "none") refresh(); }, 30000);
 })();
