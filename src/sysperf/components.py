@@ -12,6 +12,7 @@ the periodic full sweep stays cheap.
 """
 from __future__ import annotations
 
+import glob
 import json
 import logging
 import os
@@ -86,9 +87,9 @@ def _linux_versions() -> dict:
         # The Linux-side catalog rows (distro, kernel, apt packages) describe a
         # WSL deployment. Probing the Windows PATH for them reports unrelated
         # binaries against apt channels, so only the WSL platform is checked.
-        _cache["linux"] = _wsl_version(v)
+        _cache["linux"] = _toolchain_versions(_wsl_version(v))
         _cache["t"] = now
-        return v
+        return _cache["linux"]
     try:
         for ln in Path("/etc/os-release").read_text().splitlines():
             if ln.startswith("VERSION_ID="):
@@ -116,9 +117,45 @@ def _linux_versions() -> dict:
     # WSL interop, at the mount path otherwise. Hardcoding /mnt/c meant this
     # probe could only ever work from inside WSL.
     _wsl_version(v)
-    _cache["linux"] = v
+    _cache["linux"] = _toolchain_versions(v)
     _cache["t"] = now
-    return v
+    return _cache["linux"]
+
+
+def _toolchain_versions(v: dict) -> dict:
+    """SysPerf's own toolchain: the interpreter and packages it runs on, the
+    test tools behind the quality gates, and the WSL-side pieces self-evolution
+    uses (Claude Code, the bubblewrap sandbox, the Ubuntu distro, Chromium)."""
+    import platform
+    from importlib import metadata
+    v["python"] = platform.python_version()
+    for dist in ("flask", "waitress", "pytest", "playwright"):
+        try:
+            v[dist] = metadata.version(dist)
+        except metadata.PackageNotFoundError:
+            pass
+    if PLATFORM == "windows":
+        v["git-windows"] = _ver(_run(["git", "--version"]))
+        wsl_exe = shutil.which("wsl.exe") or shutil.which("wsl")
+        if wsl_exe:
+            probe = ('echo "bwrap=$(bwrap --version 2>/dev/null)"; '
+                     'echo "claude=$("$HOME/.local/bin/claude" --version 2>/dev/null)"; '
+                     'grep "^VERSION=" /etc/os-release | sed "s/^/ubuntu=/"; '
+                     'echo "chromium=$(ls -d "$HOME"/.cache/ms-playwright/chromium-* 2>/dev/null | tail -1)"')
+            out = _run([wsl_exe, "-e", "sh", "-c", probe], timeout=25).replace("\x00", "")
+            for line in out.splitlines():
+                key, _, val = line.strip().partition("=")
+                if key == "chromium" and val:
+                    v["chromium"] = "build " + val.rsplit("-", 1)[-1]
+                elif key in ("bwrap", "claude", "ubuntu") and _ver(val):
+                    v[{"bwrap": "bubblewrap", "claude": "claude-code"}.get(key, key)] = _ver(val)
+    else:
+        chrome = sorted(glob.glob(os.path.join(_HOME, ".cache", "ms-playwright", "chromium-*")))
+        if chrome:
+            v["chromium"] = "build " + chrome[-1].rsplit("-", 1)[-1]
+        v["bubblewrap"] = _ver(_run(["bwrap", "--version"]))
+        v["claude-code"] = _ver(_run([f"{_HOME}/.local/bin/claude", "--version"]))
+    return {k: val for k, val in v.items() if val}
 
 
 def _wsl_version(v: dict) -> dict:
@@ -157,8 +194,11 @@ def build_components(latest: dict) -> dict:
     for c in cat.get("catalog", []):
         key = c.get("key", "")
         mode = c.get("compare", "version")
-        # A component this machine does not have is not an upgrade candidate.
-        if not cur_map.get(key):
+        # A component this machine does not have is not an upgrade candidate —
+        # unless the catalog marks it as something SysPerf itself relies on, in
+        # which case "not installed" is the useful thing to show.
+        missing = not cur_map.get(key)
+        if missing and not c.get("show_missing"):
             continue
         name = c.get("name", key)
         if live_names.get(key):
@@ -169,7 +209,9 @@ def build_components(latest: dict) -> dict:
             "owner": c.get("owner", ""), "why": c.get("why", ""),
             "channel": c.get("channel", ""), "upstream": c.get("upstream", ""),
         }
-        if mode == "date":
+        if missing:
+            row.update(current="not installed", missing=True, outdated=False)
+        elif mode == "date":
             row["current"] = cur_map.get(key, "") or "—"
             dt = latest.get(c.get("date_key", ""), "")
             mo = _months_old(dt)

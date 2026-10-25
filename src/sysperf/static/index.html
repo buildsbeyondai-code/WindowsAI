@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SysPerf 4.0 — Self-Improving AI Agent for Windows</title>
+<title>SysPerf 4.1 — Self-Improving AI Agent for Windows</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzBmMTQyMCIvPjxyZWN0IHg9IjYiIHk9IjE2IiB3aWR0aD0iNCIgaGVpZ2h0PSIxMCIgcng9IjEiIGZpbGw9IiM0ZGEzZmYiLz48cmVjdCB4PSIxNCIgeT0iOSIgd2lkdGg9IjQiIGhlaWdodD0iMTciIHJ4PSIxIiBmaWxsPSIjNGRkMDhhIi8+PHJlY3QgeD0iMjIiIHk9IjUiIHdpZHRoPSI0IiBoZWlnaHQ9IjIxIiByeD0iMSIgZmlsbD0iI2ZmOWYyZSIvPjwvc3ZnPg==">
 <style>
   :root{
@@ -440,14 +440,15 @@
       radial-gradient(1000px 520px at 50% 118%, rgba(64,200,224,.09), transparent 60%),
       #ffffff;
     border:1px solid var(--line);
-    border-radius:16px;padding:14px;overflow:hidden}
+    border-radius:16px;padding:6px;overflow:hidden}
   body.dark .arch-wrap{background:radial-gradient(1200px 520px at 15% -10%,rgba(41,151,255,.10),transparent 60%),
     linear-gradient(160deg,#141a28,#0d111b)}
   .arch-wrap{display:block}
-  /* the schematic is a wide landscape canvas — fill the page width and only
-     cap height on short screens so it never forces scroll. width:100% on the
-     inline SVG must NOT sit in a flex container or it collapses to intrinsic size. */
-  .arch-wrap svg{display:block;width:100%;height:auto;max-height:calc(100vh - 190px)}
+  /* the schematic always fills the page width. A height cap (100vh - 190px) used
+     to shrink it on wide screens, leaving empty bands left and right and tiny
+     text; scrolling down to see the third layer is the better trade. width:100%
+     on the inline SVG must NOT sit in a flex container or it collapses. */
+  .arch-wrap svg{display:block;width:100%;height:auto}
   .arch-node{transition:transform .2s}
   .arch-node:hover{transform:translateY(-2px)}
   .an-title{font:700 13.5px 'Segoe UI',sans-serif;fill:var(--ink)}
@@ -2922,7 +2923,7 @@ function renderArchitecture(d) {
   // ---- component card (neon border + header + sub-item pills) ----
   function group(id, x, y, w, colorKey, icon, title, items, health) {
     const col = NEON[colorKey] || NEON.blue;
-    const HH = 46, IH = 40, GAP = 6, PAD = 12;
+    const HH = 46, IH = 46, GAP = 6, PAD = 12;
     const h = HH + PAD + items.length * (IH + GAP) - GAP + PAD;
     const hue = health === "red" ? RED : health === "amber" ? AMBER : GREEN;
     let inner = "";
@@ -2932,7 +2933,10 @@ function renderArchitecture(d) {
     inner += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="15" fill="${cardFill}" stroke="${col}" stroke-width="1.6"/>`;
     // header
     inner += ico(icon, x + 14, y + 13, 20, col);
-    inner += `<text x="${x + 44}" y="${y + 28}" style="font:800 13px 'Segoe UI',sans-serif;letter-spacing:.6px;fill:${col}">${esc(title.toUpperCase())}</text>`;
+    // Long labels are squeezed to their box rather than spilling past the card.
+    const fit = (txt, perChar, avail) => (String(txt).length * perChar > avail
+      ? ` textLength="${avail}" lengthAdjust="spacingAndGlyphs"` : "");
+    inner += `<text x="${x + 44}" y="${y + 29}"${fit(title, 10.4, w - 76)} style="font:800 15px 'Segoe UI',sans-serif;letter-spacing:.6px;fill:${col}">${esc(title.toUpperCase())}</text>`;
     inner += `<circle cx="${x + w - 18}" cy="${y + 23}" r="5" fill="${hue}"/>`;
     if (health !== "red") inner += `<circle cx="${x + w - 18}" cy="${y + 23}" r="5" fill="none" stroke="${hue}" stroke-width="1.5" opacity=".6"><animate attributeName="r" values="5;9;5" dur="2.2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".6;0;.6" dur="2.2s" repeatCount="indefinite"/></circle>`;
     inner += `<line x1="${x + 12}" y1="${y + HH}" x2="${x + w - 12}" y2="${y + HH}" stroke="${divider}"/>`;
@@ -2941,8 +2945,8 @@ function renderArchitecture(d) {
       const iy = y + HH + PAD + i * (IH + GAP);
       inner += `<rect x="${x + 12}" y="${iy}" width="${w - 24}" height="${IH}" rx="9" fill="${subFill}" stroke="${subStroke}"/>`;
       inner += ico(it.ico, x + 22, iy + 11, 17, col);
-      inner += `<text x="${x + 48}" y="${iy + 17}" style="font:600 12.5px 'Segoe UI',sans-serif;fill:${ink}">${esc(it.name)}</text>`;
-      if (it.sub) inner += `<text x="${x + 48}" y="${iy + 31}" style="font:10.5px 'Cascadia Code',Consolas,monospace;fill:${muted}">${esc(it.sub)}</text>`;
+      inner += `<text x="${x + 48}" y="${iy + 20}"${fit(it.name, 7.6, w - 64)} style="font:600 14px 'Segoe UI',sans-serif;fill:${ink}">${esc(it.name)}</text>`;
+      if (it.sub) inner += `<text x="${x + 48}" y="${iy + 37}"${fit(it.sub, 7.25, w - 64)} style="font:12px 'Cascadia Code',Consolas,monospace;fill:${muted}">${esc(it.sub)}</text>`;
     });
     parts.push(`<g class="arch-node">${inner}</g>`);
     geo[id] = { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
@@ -5875,5 +5879,60 @@ const api41 = (() => {
   setInterval(() => { if (view.style.display !== "none") diagnostics(); }, 30000);
 })();
 </script>
+<style>
+  /* ==================================================================
+     4.1 DESIGN SYSTEM — one type scale for every tab.
+     Each tab grew its own fonts and sizes (Segoe, Cascadia, 10.5–30px, ad-hoc
+     letter-spacing). This block is last in the cascade so it normalises them:
+     one UI family, one mono family, six sizes, consistent headings, tables,
+     buttons, notes and chips. Charts and SVG schematics keep their own sizing.
+     ================================================================== */
+  :root{
+    --font-ui:"Segoe UI Variable Text","Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:"Cascadia Mono","Cascadia Code",Consolas,"SFMono-Regular",Menlo,monospace;
+    --fs-xs:11.5px; --fs-sm:12.5px; --fs-base:14px; --fs-md:15px; --fs-lg:18px; --fs-xl:22px;
+    --lh:1.55;
+  }
+  body, button, input, select, textarea, .tab, .fixbtn, .bell{font-family:var(--font-ui)}
+  body{font-size:var(--fs-base);line-height:var(--lh)}
+  code, pre, kbd, samp, .mono{font-family:var(--font-mono);font-size:.9em}
+
+  /* headings */
+  header h1{font-size:var(--fs-xl);font-weight:700;letter-spacing:-.2px}
+  [id^="view-"] h2, .chapter h2{font-size:var(--fs-lg);font-weight:700;letter-spacing:-.1px;margin:18px 0 10px}
+  .card h3, .ac-ctl h3, #view-evo .evo-card h3{font-size:var(--fs-sm);font-weight:700;
+    letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
+  .set-sec legend{font-size:var(--fs-md);font-weight:700;color:var(--ink)}
+  .card h4{font-size:var(--fs-base);font-weight:600}
+  details.sect > summary, details.collapse > summary{font-size:var(--fs-md);font-weight:600}
+  .hint{font-size:var(--fs-xs);font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)}
+
+  /* navigation and controls */
+  .tab{font-size:var(--fs-base);font-weight:500}
+  .tab.active{font-weight:600}
+  .fixbtn, #view-evo button, .set-bar .fixbtn, .as-open{font-size:var(--fs-sm);font-weight:600;letter-spacing:0}
+  input, select, textarea{font-size:var(--fs-sm)}
+  .toggle{font-size:var(--fs-sm)}
+
+  /* body copy */
+  .summary-lead, #view-evo .evo-lead{font-size:var(--fs-sm);line-height:var(--lh);color:var(--muted)}
+  .note, .evo-note, .fix-note, .sub, .home-list .s, .set-row .h{font-size:var(--fs-sm);line-height:var(--lh)}
+  .home-list .t, .set-row label, .notif-item b{font-size:var(--fs-base)}
+  .home-big{font-size:var(--fs-lg)}
+
+  /* chips, tags, status strip */
+  .chips span, .auto-strip, .auto-strip .as-k, .auto-strip .as-v{font-size:var(--fs-sm)}
+  .tag, .pill, .fix-risk{font-size:var(--fs-xs);font-weight:600;letter-spacing:.2px}
+
+  /* tables, on every tab */
+  [id^="view-"] table{font-size:var(--fs-sm);border-collapse:collapse}
+  [id^="view-"] th{font-size:var(--fs-xs);font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
+  [id^="view-"] td{font-size:var(--fs-sm)}
+  td.num, .num{font-variant-numeric:tabular-nums}
+
+  /* key/value lists and diagnostics */
+  .diag-kv, .diag-err, #view-evo .evo-k, #view-evo .evo-v{font-size:var(--fs-sm)}
+  #view-evo .evo-v{font-weight:600}
+</style>
 </body>
 </html>
