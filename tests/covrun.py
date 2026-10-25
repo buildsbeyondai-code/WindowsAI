@@ -37,6 +37,7 @@ TARGETS = [
     "pwsh_session.py", "historydb.py", "health.py", "notify.py",  # 4.1
     "settings_hub.py", "supervisor.py", "desktop.py", "store_mode.py",
     "version_check.py",
+    "hostguard.py",                                       # 4.1.1
 ]
 # Two layouts: the development repo keeps the modules at the root, an exported
 # distribution keeps them in src/sysperf/. Resolving here means one runner covers

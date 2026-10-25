@@ -166,6 +166,13 @@ STATIC_DIR = BASE / "static"
 # without adding authentication — the API serves read-only telemetry with none.
 HOST = str(_setting("PERFDASH_HOST", "host", default="127.0.0.1"))
 PORT = int(_setting("PERFDASH_PORT", "port", default=5056))
+# Extra Host names the dashboard may be reached by (e.g. the name a reverse
+# proxy forwards). Everything else is refused, which blocks DNS rebinding; see
+# hostguard.py. Comma-separated in PERFDASH_ALLOWED_HOSTS, or a JSON list.
+_extra_hosts = _setting("PERFDASH_ALLOWED_HOSTS", "allowed_hosts", default=())
+ALLOWED_HOSTS = tuple(
+    str(h).strip() for h in (_extra_hosts.split(",") if isinstance(_extra_hosts, str)
+                             else _extra_hosts) if str(h).strip())
 
 # --- common-fix engine ---------------------------------------------------
 # The fix endpoints are the only ones that can mutate system state. Execution

@@ -2,8 +2,8 @@
 """
 System Performance Dashboard — Flask entry point.
 
-Read-only by design: every route is GET and no endpoint mutates system state.
-Wiring only — the real work lives in focused modules:
+Telemetry routes are GET and side-effect free. Wiring only — the real work
+lives in focused modules:
 
     config.py     constants, paths, criteria, thresholds
     scoring.py    progress / vmmemWSL trend / scorecard
@@ -15,9 +15,10 @@ Wiring only — the real work lives in focused modules:
     rca.py        root-cause analysis for score shortfalls
     autoimprove.py 5-minute scan -> RCA -> fix -> verify -> learn loop
 
-Mutating endpoints are limited to the fix engine (POST /api/fix) and the
-auto-improve controls (POST /api/autoimprove/*); both require the CSRF token and
-only ever run reversible, non-disruptive remediations.
+Every state-changing route is a POST that requires the per-process CSRF token,
+and every request must name this service in its Host header (hostguard.py) so a
+DNS-rebound page cannot read that token. SECURITY.md lists the POST routes; a
+test keeps that list in step with the route table.
 """
 from __future__ import annotations
 
@@ -39,6 +40,7 @@ from . import evodb as evodb_mod
 from . import fixes as fixes_mod
 from . import health as health_mod
 from . import historydb as historydb_mod
+from . import hostguard
 from . import livestats as livestats_mod
 from . import llm as llm_mod
 from . import notify as notify_mod
@@ -60,6 +62,7 @@ from .collector import Collector
 from .config import (
     ACTIONS_STATE_FILE,
     ADAPTIVE_FILE,
+    ALLOWED_HOSTS,
     APP_VERSION,
     AUTO_INTERVAL_S,
     AUTO_LOG_FILE,
@@ -327,6 +330,22 @@ app = Flask(__name__, static_folder=None)
 # Per-process CSRF token: required on POST /api/fix so a mutating action cannot
 # be triggered by a blind cross-origin request. Handed to the page via /api/fixes.
 FIX_TOKEN = secrets.token_urlsafe(24)
+_HOST_NAMES = hostguard.allowed_names(HOST, ALLOWED_HOSTS)
+CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; "
+       "style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; "
+       "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'")
+
+
+@app.before_request
+def guard_host():
+    """Refuse requests not addressed to this service (blocks DNS rebinding)."""
+    why = hostguard.check(request.method, request.headers.get("Host", ""),
+                          request.headers.get("Origin"), _HOST_NAMES, PORT)
+    if why:
+        logging.warning("refused %s %s: %s (Host=%r)", request.method, request.path,
+                        why, request.headers.get("Host", "")[:80])
+        return jsonify({"error": why}), 403
+    return None
 
 
 @app.after_request
@@ -335,6 +354,9 @@ def harden(resp):
     resp.headers["X-Frame-Options"] = "SAMEORIGIN"
     resp.headers["Referrer-Policy"] = "no-referrer"
     resp.headers["Cache-Control"] = "no-store"
+    # The page is one self-contained file (inline script/style, data: icon) and
+    # talks only to this origin; nothing else may load, frame or be posted to.
+    resp.headers["Content-Security-Policy"] = CSP
     return resp
 
 
