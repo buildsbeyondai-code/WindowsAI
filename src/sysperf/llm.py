@@ -24,6 +24,7 @@ Security
 """
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
@@ -85,8 +86,85 @@ class RedactingFilter(logging.Filter):
 
 
 # --------------------------------------------------------------- credentials --
+# On Windows chmod cannot make a file private, so the key file holds a DPAPI
+# blob instead: only the same Windows user on the same PC can decrypt it.
+DPAPI_PREFIX = "dpapi:"
+
+
+class _WinDpapi:                     # pragma: no cover - Windows only (test_llm_win.py)
+    """CryptProtectData / CryptUnprotectData for the current user."""
+
+    UI_FORBIDDEN = 0x1
+
+    def __init__(self) -> None:
+        import ctypes
+        from ctypes import wintypes
+
+        class Blob(ctypes.Structure):
+            _fields_ = [("cbData", wintypes.DWORD),
+                        ("pbData", ctypes.POINTER(ctypes.c_char))]
+
+        self._c, self._Blob = ctypes, Blob
+        # A private WinDLL, so these argtypes cannot clash with another module's
+        # (the 4.1.0 tray-quit crash came from shared ctypes function objects).
+        crypt = ctypes.WinDLL("crypt32", use_last_error=True)
+        self._kernel = ctypes.WinDLL("kernel32")
+        self._kernel.LocalFree.argtypes = [ctypes.c_void_p]
+        self._kernel.LocalFree.restype = ctypes.c_void_p
+        p_blob = ctypes.POINTER(Blob)
+        args = [p_blob, ctypes.c_void_p, p_blob, ctypes.c_void_p, ctypes.c_void_p,
+                wintypes.DWORD, p_blob]
+        self._protect, self._unprotect = crypt.CryptProtectData, crypt.CryptUnprotectData
+        for fn in (self._protect, self._unprotect):
+            fn.argtypes, fn.restype = args, wintypes.BOOL
+
+    def _call(self, fn, data: bytes) -> bytes:
+        c = self._c
+        buf = c.create_string_buffer(data, len(data))
+        inp = self._Blob(len(data), c.cast(buf, c.POINTER(c.c_char)))
+        out = self._Blob()
+        if not fn(c.byref(inp), None, None, None, None, self.UI_FORBIDDEN, c.byref(out)):
+            raise OSError(c.get_last_error(), "DPAPI call failed")
+        try:
+            return c.string_at(out.pbData, out.cbData)
+        finally:
+            self._kernel.LocalFree(c.cast(out.pbData, c.c_void_p))
+
+    def protect(self, data: bytes) -> bytes:
+        return self._call(self._protect, data)
+
+    def unprotect(self, blob: bytes) -> bytes:
+        return self._call(self._unprotect, blob)
+
+
+def _dpapi():
+    """The DPAPI wrapper on Windows, else None. Tests replace this."""
+    return _WinDpapi() if OS_NAME == "nt" else None
+
+
+def _read_key_file(p: Path) -> tuple:
+    """(key or None, source) from a key file, decrypting a DPAPI blob."""
+    text = p.read_text(encoding="utf-8").strip()
+    if not text.startswith(DPAPI_PREFIX):
+        return (text or None), "file"
+    dp = _dpapi()
+    if dp is None:
+        log.warning("ignoring %s: it is DPAPI-encrypted and this is not Windows", p.name)
+        return None, "file:unreadable"
+    try:
+        key = dp.unprotect(base64.b64decode(text[len(DPAPI_PREFIX):])).decode("utf-8")
+    except (OSError, ValueError) as exc:
+        log.warning("ignoring %s: cannot decrypt it as this user (%s)", p.name, exc)
+        return None, "file:unreadable"
+    return (key.strip() or None), "file:dpapi"
+
+
 def load_api_key(key_file: Path | None, env=None) -> tuple:
-    """(key or None, source). Refuses a key file other users can read."""
+    """(key or None, source). Refuses a key file other users can read.
+
+    A plaintext key file on Windows (written before 4.1.1) is encrypted in
+    place the first time it is read.
+    """
     env = os.environ if env is None else env
     for var in ("SYSPERF_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY"):
         if env.get(var):
@@ -96,16 +174,26 @@ def load_api_key(key_file: Path | None, env=None) -> tuple:
         if OS_NAME != "nt" and (p.stat().st_mode & (stat.S_IRWXG | stat.S_IRWXO)):
             log.warning("ignoring %s: readable by other users (chmod 600 it)", p.name)
             return None, "file:insecure-permissions"
-        key = p.read_text(encoding="utf-8").strip()
-        return (key or None), "file"
+        key, source = _read_key_file(p)
+        if key and source == "file" and _dpapi() is not None:
+            try:
+                store_api_key(p, key)
+                source = "file:dpapi"
+                log.info("encrypted %s with DPAPI", p.name)
+            except OSError as exc:
+                log.warning("could not encrypt %s: %s", p.name, exc)
+        return key, source
     return None, "none"
 
 
 def store_api_key(key_file: Path, key: str) -> None:
-    """Write the key with owner-only permissions (atomic, never logged)."""
+    """Write the key privately: DPAPI on Windows, else mode 0600 (atomic, never logged)."""
     key = (key or "").strip()
     if not key or len(key) > 512 or any(c.isspace() for c in key):
         raise ValueError("API key must be a single non-empty token")
+    dp = _dpapi()
+    payload = (DPAPI_PREFIX + base64.b64encode(dp.protect(key.encode("utf-8"))).decode("ascii")
+               if dp is not None else key)
     key_file = Path(key_file)
     key_file.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -115,7 +203,7 @@ def store_api_key(key_file: Path, key: str) -> None:
     tmp = key_file.with_suffix(".tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
-        fh.write(key)
+        fh.write(payload)
     os.replace(tmp, key_file)
 
 
