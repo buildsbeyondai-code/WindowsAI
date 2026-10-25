@@ -29,13 +29,19 @@ See `CHANGELOG.md`. In short:
 
 ## Verification status
 
-The 5.0.0 release record (the filled-in `RELEASE_CHECKLIST.md`) lists each
-gate with the command run and its result. Open items:
+Full evidence: `docs/releases/5.0.0.md`. On release commit ad5cdd1:
+
+- Linux: 1,173 passed, 0 failed. Windows: 1,250 passed, 0 failed.
+  Evolution sandbox: 1,173 passed, 0 failed.
+- In-app Self-test: 8/8 gates, 100% line coverage (9,339 lines), 100% UI coverage.
+- Live 5.0.0: Host/Origin/CSRF probes refused, CSP present, values match
+  Windows, UI clean in a real browser.
 
 | Item | State |
 |---|---|
-| Clean-machine MSIX install / upgrade / uninstall | UNVERIFIED: tested on the developer PC only |
+| Clean-machine MSIX install / upgrade / uninstall | UNVERIFIED: package built and inspected only |
 | 24-hour `tools/soak.py` run on 5.0.0 | UNVERIFIED: not yet run |
+| Real side effect of standby clear, Explorer watchdog, App Control, OneDrive stop | UNVERIFIED: tested with fakes (see FEATURE_AUDIT.md) |
 | Screen-reader walk-through of the dashboard | UNVERIFIED: static checks only |
 
 ## Next steps
