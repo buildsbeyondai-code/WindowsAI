@@ -327,11 +327,17 @@ def test_prompt_skips_files_over_the_budget(tmp_path):
 
 
 def _crlf_repo(repo):
-    """Turn the fixture checkout into what Git for Windows produces (CRLF)."""
+    """Turn the fixture checkout into what Git for Windows produces (CRLF).
+
+    On a Windows checkout the fixture is CRLF already, so there may be nothing
+    to commit; --allow-empty keeps the helper working there (without it, both
+    CRLF tests failed in the self-evolution sandbox, whose git has no config).
+    """
     src = (repo / "dedupe.py").read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
     (repo / "dedupe.py").write_bytes(src)
     subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@x",
-                    "-c", "core.autocrlf=false", "commit", "-qam", "crlf"], check=True)
+                    "-c", "core.autocrlf=false", "commit", "-qa", "--allow-empty", "-m", "crlf"],
+                   check=True)
 
 
 def test_noop_edit_on_a_crlf_checkout_leaves_no_diff(tmp_path, repo):

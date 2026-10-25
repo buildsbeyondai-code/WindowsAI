@@ -80,6 +80,21 @@ Security problems go through SECURITY.md, not this log.
 - **Guard.** `tests/test_trayquit_win.py::test_health_memory_read_does_not_break_trayquit`,
   `tests/test_health.py::test_repeat_filter_lets_a_burst_through_then_reports_the_rest`.
 
+### 2026-10-25 · Self-evolution blocked all day by a red sandbox baseline
+
+- **Impact.** Every scheduled cycle since 09:26 refused to run: "baseline test
+  suite is not green", with two CRLF tests failing. That is the correct
+  refusal, but it meant no evolution at all.
+- **Root cause.** The test helper rewrote the fixture to CRLF and committed it.
+  On a Windows checkout the file is CRLF already, so there was nothing to
+  commit and `git commit` failed. Developer machines hid this, because their
+  git configuration normalises line endings; the sandbox clears that
+  configuration.
+- **Fix.** `--allow-empty` in the helper (5.0.0). The full suite now passes inside
+  the real `wsl-bwrap` sandbox: 1,169 passed.
+- **Guard.** The same two tests, now passing in the sandbox. The release
+  checklist runs the suite inside the evolution sandbox as well as directly.
+
 ### 2026-10-25 · Memory grew with every Diagnostics poll (Windows)
 
 - **Impact.** About 1 KB of heap per `/api/diagnostics` call on Windows, which
