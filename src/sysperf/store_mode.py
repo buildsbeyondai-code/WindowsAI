@@ -48,8 +48,9 @@ FEATURES = {
     "self_evolution": (
         "AI self-evolution",
         "Asks an AI model to propose code improvements, tests them in a sandbox and keeps "
-        "them for your review. Needs your own SysPerf source checkout and AI key; patches "
-        "go to that checkout, never into the installed app.",
+        "each one on a review branch of your SysPerf source checkout. Needs that checkout "
+        "and an AI key. Nothing reaches the running app until you choose Apply & restart, "
+        "and an applied patch can be rolled back.",
         "Set Autonomy below Self-evolve in AI Self-Evolution."),
 }
 
