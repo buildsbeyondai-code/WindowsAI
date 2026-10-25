@@ -3877,11 +3877,18 @@
   ],
   "todo": [
    {
-    "key": "fix:handles",
-    "title": "Restart Windows Explorer to release leaked handles",
+    "key": "fix:clear_standby",
+    "title": "Clear standby (cached) memory list",
     "kind": "fix",
-    "why_code": "session_killing",
-    "command": "Stop-Process -Name explorer -Force; Start-Process explorer",
+    "why_code": "needs_elevation",
+    "why_headline": "Needs administrator rights",
+    "simple_ask": "Run the short command in the steps once, in an Administrator PowerShell - then click \"I did this\".",
+    "steps": [
+     "Download Sysinternals RAMMap and unblock the zip before extracting.",
+     "Open Windows PowerShell as Administrator.",
+     "Run: RAMMap.exe -Et"
+    ],
+    "effort": "5 min, one-off download",
     "priority": 1
    },
    {
@@ -3889,7 +3896,10 @@
     "title": "Decide what to do about Browser processes",
     "kind": "decision",
     "why_code": "needs_judgement",
-    "command": "",
+    "why_headline": "Needs your judgement",
+    "simple_ask": "Choose which apps may keep their browser processes.",
+    "steps": [],
+    "effort": "",
     "priority": 2
    }
   ]

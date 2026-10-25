@@ -5668,8 +5668,14 @@ const api41 = (() => {
       `It will be confirmed automatically once the restarted service is healthy.`));
     if (evo.awaiting_review) todo.push(li("🧬", `${fmt(evo.awaiting_review)} AI patch(es) waiting for review`,
       `<a href="#self-evolution">Review in AI Self-Evolution</a>`));
-    (d.todo || []).forEach(t => todo.push(li(t.kind === "fix" ? "🔧" : "🧭", esc(t.title || t.key),
-      t.command ? `<code>${esc(t.command)}</code>` : `<a href="#auto-improve">See the action queue</a>`)));
+    (d.todo || []).forEach(t => {
+      const why = t.why_headline ? `<b>${esc(t.why_headline)}</b>` : "";
+      const ask = t.simple_ask ? esc(t.simple_ask) : "";
+      const steps = (t.steps || []).length ? `<details><summary>How to do it${t.effort ? " · " + esc(t.effort) : ""}</summary>
+        <ol>${t.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol></details>` : "";
+      todo.push(li(t.kind === "fix" ? "🔧" : "🧭", esc(t.title || t.key),
+        [why, ask].filter(Boolean).join(" — ") + steps + ` <a href="#auto-improve">Action queue</a>`));
+    });
     $("homeTodo").innerHTML = todo.length ? todo.join("") : li("✅", "Nothing needs you right now", "SysPerf will notify you when something does.");
     const today = d.today || [];
     $("homeToday").innerHTML = today.length ? today.map(e => li(ICON[e.kind] || "•", esc(e.text),
