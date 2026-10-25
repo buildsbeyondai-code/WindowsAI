@@ -330,6 +330,14 @@ app = Flask(__name__, static_folder=None)
 # be triggered by a blind cross-origin request. Handed to the page via /api/fixes.
 FIX_TOKEN = secrets.token_urlsafe(24)
 _HOST_NAMES = hostguard.allowed_names(HOST, ALLOWED_HOSTS)
+
+
+def _csrf(body):
+    """The 403 response when ``body`` lacks this process's CSRF token, else None."""
+    return None if body.get("token") == FIX_TOKEN else (
+        jsonify({"error": "invalid or missing CSRF token"}), 403)
+
+
 CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; "
        "style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; "
        "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'")
@@ -452,8 +460,8 @@ def api_fix():
         return jsonify({"mode": "preview",
                         "results": fix_engine.preview(ids, snap)})
 
-    if body.get("token") != FIX_TOKEN:
-        return jsonify({"error": "invalid or missing CSRF token"}), 403
+    if (bad := _csrf(body)):
+        return bad
     if not FIX_ENABLED:
         return jsonify({"error": "fix execution disabled (PERFDASH_FIX_ENABLED=0)"}), 403
 
@@ -481,8 +489,8 @@ def api_onedrive_toggle():
     FIX_ENABLED (the same read-only kill switch the fix engine uses).
     """
     body = request.get_json(silent=True) or {}
-    if body.get("token") != FIX_TOKEN:
-        return jsonify({"error": "invalid or missing CSRF token"}), 403
+    if (bad := _csrf(body)):
+        return bad
     if not FIX_ENABLED:
         return jsonify({"error": "fix execution disabled (PERFDASH_FIX_ENABLED=0)"}), 403
     if od_control.disabled():
@@ -516,8 +524,8 @@ def api_onedrive_control_set():
     policy switch only — it never itself starts or stops OneDrive.
     """
     body = request.get_json(silent=True) or {}
-    if body.get("token") != FIX_TOKEN:
-        return jsonify({"error": "invalid or missing CSRF token"}), 403
+    if (bad := _csrf(body)):
+        return bad
     if "disabled" not in body:
         return jsonify({"error": "body must include boolean 'disabled'"}), 400
     disabled = od_control.set(bool(body.get("disabled")))
@@ -552,8 +560,8 @@ def api_appctl_toggle():
     critical system/security processes are never controllable.
     """
     body = request.get_json(silent=True) or {}
-    if body.get("token") != FIX_TOKEN:
-        return jsonify({"error": "invalid or missing CSRF token"}), 403
+    if (bad := _csrf(body)):
+        return bad
     if not FIX_ENABLED:
         return jsonify({"error": "fix execution disabled (PERFDASH_FIX_ENABLED=0)"}), 403
     action = str(body.get("action"))
@@ -594,8 +602,8 @@ def api_procwatch_set():
     Windows relaunches it immediately. The choice is persisted across restarts.
     """
     body = request.get_json(silent=True) or {}
-    if body.get("token") != FIX_TOKEN:
-        return jsonify({"error": "invalid or missing CSRF token"}), 403
+    if (bad := _csrf(body)):
+        return bad
     if "enabled" not in body:
         return jsonify({"error": "body must include boolean 'enabled'"}), 400
     return jsonify({"enabled": proc_watchdog.set_enabled(bool(body.get("enabled")))})
@@ -616,8 +624,8 @@ def api_trayquit_set():
     ``reopen`` starts again the executable recorded when that app was quit.
     """
     body = request.get_json(silent=True) or {}
-    if body.get("token") != FIX_TOKEN:
-        return jsonify({"error": "invalid or missing CSRF token"}), 403
+    if (bad := _csrf(body)):
+        return bad
     try:
         if body.get("reopen"):
             return jsonify({**tray_quitter.reopen(str(body["reopen"])),
@@ -642,8 +650,8 @@ def api_procwatch_run():
     note when nothing needed doing.
     """
     body = request.get_json(silent=True) or {}
-    if body.get("token") != FIX_TOKEN:
-        return jsonify({"error": "invalid or missing CSRF token"}), 403
+    if (bad := _csrf(body)):
+        return bad
     if not FIX_ENABLED:
         return jsonify({"error": "fix execution disabled (PERFDASH_FIX_ENABLED=0)"}), 403
     result = proc_watchdog.tick()
@@ -718,8 +726,8 @@ def api_autoimprove_run():
     ask for remediation explicitly without changing the standing mode.
     """
     body = request.get_json(silent=True) or {}
-    if body.get("token") != FIX_TOKEN:
-        return jsonify({"error": "invalid or missing CSRF token"}), 403
+    if (bad := _csrf(body)):
+        return bad
     record = improver.cycle(force=bool(body.get("force")))
     _analysis_cache.clear()      # the cycle may have changed what RCA would say
     return jsonify(record)
@@ -729,8 +737,8 @@ def api_autoimprove_run():
 def api_autoimprove_mode():
     """Set the standing mode. Body: {"mode": off|observe|auto, "token": "<csrf>"}."""
     body = request.get_json(silent=True) or {}
-    if body.get("token") != FIX_TOKEN:
-        return jsonify({"error": "invalid or missing CSRF token"}), 403
+    if (bad := _csrf(body)):
+        return bad
     try:
         mode = improver.set_mode(str(body.get("mode")))
     except ValueError as exc:
@@ -764,8 +772,8 @@ def api_selftest_run():
     run is in flight; a second request is refused, not queued.
     """
     body = request.get_json(silent=True) or {}
-    if body.get("token") != FIX_TOKEN:
-        return jsonify({"error": "invalid or missing CSRF token"}), 403
+    if (bad := _csrf(body)):
+        return bad
     result = self_test.run(live=bool(body.get("live")),
                            quick=bool(body.get("quick")))
     return jsonify({**result, "status": self_test.status()})
@@ -788,8 +796,8 @@ def api_actions_status():
     like every other mutating call here.
     """
     body = request.get_json(silent=True) or {}
-    if body.get("token") != FIX_TOKEN:
-        return jsonify({"error": "invalid or missing CSRF token"}), 403
+    if (bad := _csrf(body)):
+        return bad
     try:
         result = action_queue.set_status(str(body.get("key") or ""),
                                         str(body.get("status") or "closed"),
@@ -814,8 +822,8 @@ def api_evolution_run():
     execute without a separate, explicit promotion.
     """
     body = request.get_json(silent=True) or {}
-    if body.get("token") != FIX_TOKEN:
-        return jsonify({"error": "invalid or missing CSRF token"}), 403
+    if (bad := _csrf(body)):
+        return bad
     result = evolution.run_pass(force=True)
     return jsonify({**result, "status": evolution.status()})
 
@@ -830,8 +838,8 @@ def api_evolution_promote():
     may choose, so it must not be reachable by accident.
     """
     body = request.get_json(silent=True) or {}
-    if body.get("token") != FIX_TOKEN:
-        return jsonify({"error": "invalid or missing CSRF token"}), 403
+    if (bad := _csrf(body)):
+        return bad
     candidate_id = str(body.get("id") or "")
     action = str(body.get("action") or "promote")
     if action == "reject":
@@ -847,8 +855,8 @@ def api_evolution_promote():
 def api_evolution_rollback():
     """Undo the most recent evolution. Body: {"token": "<csrf>"}."""
     body = request.get_json(silent=True) or {}
-    if body.get("token") != FIX_TOKEN:
-        return jsonify({"error": "invalid or missing CSRF token"}), 403
+    if (bad := _csrf(body)):
+        return bad
     result = evolution.rollback_last()
     return jsonify({**result, "status": evolution.status()})
 
@@ -956,11 +964,6 @@ def _startup_onedrive_policy():
 
 
 # ------------------------------------------------------------- 4.0 API ----
-def _csrf(body):
-    return None if body.get("token") == FIX_TOKEN else (
-        jsonify({"error": "invalid or missing CSRF token"}), 403)
-
-
 @app.get("/api/codevolve")
 def api_codevolve():
     return jsonify(code_evolution.status(action_policy.level))
