@@ -7,9 +7,11 @@ second concurrent run is refused rather than queued.
 """
 import json
 import sys
+import time
 
 import pytest
 
+from sysperf import selftest
 from sysperf.selftest import GATES, RUN_TIMEOUT_S, STALE_AFTER_S, SelfTest
 
 
@@ -271,3 +273,41 @@ def test_store_app_runs_the_suite_from_the_source_checkout(tmp_path):
     assert SelfTest(pkg, tmp_path / "r.json", fallback_root=lambda: None).root == pkg
     # A root that ships its own suite never falls back.
     assert SelfTest(repo, tmp_path / "r.json", fallback_root=lambda: str(pkg)).root == repo
+
+
+def test_a_run_that_writes_no_report_says_so(tmp_path):
+    """5.0.0: every in-app run left the board 'unknown' with no reason."""
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "testrunner.py").write_text("x", encoding="utf-8")
+    st = selftest.SelfTest(tmp_path, tmp_path / "r.json", runner=lambda argv: 1)
+    st._last_output = "...\nOSError: [WinError 50] The request is not supported"
+    st.run(background=False)
+    err = st.status()["last_error"]
+    assert "exited with code 1 without writing a report" in err and "WinError 50" in err
+
+
+def test_a_run_that_writes_a_report_records_no_error(tmp_path):
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "testrunner.py").write_text("x", encoding="utf-8")
+    report = tmp_path / "r.json"
+
+    def runner(argv):
+        report.write_text(json.dumps({"finished_at": time.time(), "gates": []}),
+                          encoding="utf-8")
+        return 0
+    st = selftest.SelfTest(tmp_path, report, runner=runner)
+    st.run(background=False)
+    assert st.status()["last_error"] is None
+
+
+def test_pythonw_is_swapped_for_the_console_interpreter(tmp_path):
+    (tmp_path / "pythonw.exe").write_bytes(b"")
+    (tmp_path / "python.exe").write_bytes(b"")
+    assert selftest.console_python(str(tmp_path / "pythonw.exe")) == str(tmp_path / "python.exe")
+    lonely = tmp_path / "solo"
+    lonely.mkdir()
+    (lonely / "pythonw.exe").write_bytes(b"")
+    assert selftest.console_python(str(lonely / "pythonw.exe")) == str(lonely / "pythonw.exe")
+    assert selftest.console_python("/usr/bin/python3") == "/usr/bin/python3"
+    st = selftest.SelfTest(tmp_path, tmp_path / "r.json", python=str(tmp_path / "pythonw.exe"))
+    assert st.python == str(tmp_path / "python.exe")
