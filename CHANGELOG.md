@@ -65,8 +65,9 @@ A normal desktop install behaves exactly as before.
 - The rendered HTML manual was four days behind `USER_MANUAL.md`.
 
 ### Known limitations
-- MSIX install, upgrade and uninstall have been tested on this developer PC
-  only, not on a clean machine.
+- MSIX install, upgrade from 4.1.0 and uninstall passed on the developer PC
+  (test-signed copies), not yet on a clean machine. With a scripted install
+  present, the Store app shares its data folder (see PRIVACY.md).
 - `tools/soak.py` has not yet completed a 24-hour run on this release.
 - Metrics are polled every 60 s, not event-driven (see DECISIONS.md ADR-005).
 - There is no authentication. Binding off loopback remains unsupported.
