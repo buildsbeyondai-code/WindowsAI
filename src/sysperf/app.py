@@ -215,8 +215,11 @@ EVO_SETTINGS_FILE = DATA_DIR / "evolution_settings.json"
 LLM_KEY_FILE = DATA_DIR / "secrets" / "anthropic.key"
 logging.getLogger().addFilter(llm_mod.RedactingFilter())
 evo_db = evodb_mod.EvoDB(EVO_DB_FILE)
-action_policy = optactions_mod.ActionPolicy(DATA_DIR / "autonomy.json", evo_db,
-                                            improver_mode=getattr(improver, "state", {}).get("mode"))
+# The 3.x "auto" migration only applies to an install someone upgraded; a Store
+# install is new, so it starts at Observe like every other opt-in feature.
+action_policy = optactions_mod.ActionPolicy(
+    DATA_DIR / "autonomy.json", evo_db,
+    improver_mode=None if STORE_MODE else getattr(improver, "state", {}).get("mode"))
 improver.action_gate = action_policy.unattended_block
 improver.action_hook = action_policy.record_executions
 

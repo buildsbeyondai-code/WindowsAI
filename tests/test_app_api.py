@@ -502,3 +502,4 @@ def test_store_apply_lands_in_the_checkout_and_restart_relaunches(client, monkey
     app._relaunch(spawn=lambda argv, close_fds: calls.append(argv),
                   exit_fn=lambda code: calls.append(code))
     assert calls == [[app.sys.executable, "--relaunch"], 0]
+
