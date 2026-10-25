@@ -49,6 +49,15 @@ A normal desktop install behaves exactly as before.
 - Dev dependency `markdown` 3.7 → 3.11.2 (PYSEC-2026-89).
 
 ### Fixed
+- **Memory leak on Windows.** Every `/api/diagnostics` call leaked about 1 KB
+  (ctypes types rebuilt per call), and tray-quit did the same every 15 s.
+  The new soak test found it.
+- The in-app frontend gate looked for Node with `which`, so it could never pass
+  on Windows. It now uses `shutil.which`, with Playwright's bundled Node as a
+  fallback.
+- `autoimprove.allow_caution`, `max_actions`, `cooldown_seconds` and
+  `settle_seconds` in the settings file were ignored; the *Keep winning
+  patches for review* switch did nothing. Both now work.
 - The tray auto-quit "add app" field had no accessible name.
 - The rendered HTML manual was four days behind `USER_MANUAL.md`.
 

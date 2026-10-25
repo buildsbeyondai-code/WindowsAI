@@ -740,8 +740,9 @@ Override the config file without editing it — useful for scripts and testing.
 ### 9.1 What leaves your machine
 
 Two things, and only what they need. The daily version check reads public
-release feeds (GitHub, PyPI, npm, endoflife.date, winget) and sends nothing
-about your PC. Turn it off with `version_check: false`. If you enable AI
+release feeds: GitHub (including the winget index), PyPI, npm, Ubuntu,
+Microsoft Edge and endoflife.date. It sends nothing about your PC; turn it off
+with `version_check: false`. If you enable AI
 self-evolution, source excerpts and metrics go to the model provider you
 configure. There is no telemetry and no account, and the dashboard loads no
 third-party scripts, fonts or images.
