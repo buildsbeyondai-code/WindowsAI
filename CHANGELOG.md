@@ -58,6 +58,9 @@ A normal desktop install behaves exactly as before.
 - `autoimprove.allow_caution`, `max_actions`, `cooldown_seconds` and
   `settle_seconds` in the settings file were ignored; the *Keep winning
   patches for review* switch did nothing. Both now work.
+- Self-evolution's sandboxed baseline was red on Windows checkouts: a CRLF test
+  helper failed with "nothing to commit". The suite now passes inside the
+  real sandbox (1,169 passed).
 - The tray auto-quit "add app" field had no accessible name.
 - The rendered HTML manual was four days behind `USER_MANUAL.md`.
 
