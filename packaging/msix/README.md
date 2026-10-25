@@ -10,7 +10,8 @@ dashboard in-process and closes it when the window closes.
 cd packaging\msix
 .\build-msix.ps1 -IdentityName "<Package/Identity/Name>" `
                  -Publisher "<Package/Identity/Publisher>" `
-                 -PublisherDisplayName "<Package/Properties/PublisherDisplayName>"
+                 -PublisherDisplayName "<Package/Properties/PublisherDisplayName>" `
+                 -DisplayName "<the product name you reserved>"
 ```
 
 Output: `%LOCALAPPDATA%\SysPerf\msix-build\SysPerf_<version>_x64.msix`.
