@@ -17,7 +17,8 @@ from sysperf import cli
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ["README.md", "docs/USER_MANUAL.md", "START-HERE.txt", "CONTRIBUTING.md",
         "docs/AI_EVOLUTION.md", "docs/ARCHITECTURE.md", "docs/OPERATIONS.md",
-        "docs/REQUIREMENTS.md", "SECURITY.md", "packaging/msix/README.md"]
+        "docs/REQUIREMENTS.md", "docs/DECISIONS.md", "docs/FEATURE_AUDIT.md",
+        "docs/RELEASE_CHECKLIST.md", "SECURITY.md", "CLAUDE.md", "packaging/msix/README.md"]
 
 # Features that were removed; naming them in docs misleads readers.
 RETIRED = {

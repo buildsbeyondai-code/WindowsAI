@@ -25,7 +25,9 @@ your consent it makes the safe changes itself, and every one can be undone.
   [requirements and acceptance criteria](docs/REQUIREMENTS.md),
   [decisions](docs/DECISIONS.md), [operations and incidents](docs/OPERATIONS.md),
   [release checklist](docs/RELEASE_CHECKLIST.md),
-  [project state](docs/PROJECT_STATE.md), [security policy](SECURITY.md).
+  [project state](docs/PROJECT_STATE.md), [feature audit](docs/FEATURE_AUDIT.md),
+  [security policy](SECURITY.md). The project follows the
+  [Universal AI Software Engineering Standard](docs/UNIVERSAL_AI_SOFTWARE_ENGINEERING_STANDARD.md).
 
 ```
 System score        : 46%  [#############...............]
