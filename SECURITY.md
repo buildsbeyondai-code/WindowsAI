@@ -99,8 +99,8 @@ masked in that response.
 
 | Version | Supported |
 |---|---|
-| 4.1.x | Yes |
-| 4.0.x and older | No. Upgrade to 4.1. |
+| 5.0.x | Yes |
+| 4.1.x and older | No. Upgrade to 5.0 (4.1 is exposed to DNS rebinding). |
 
 ## Mutating surface
 

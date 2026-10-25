@@ -162,7 +162,7 @@ def _read_key_file(p: Path) -> tuple:
 def load_api_key(key_file: Path | None, env=None) -> tuple:
     """(key or None, source). Refuses a key file other users can read.
 
-    A plaintext key file on Windows (written before 4.1.1) is encrypted in
+    A plaintext key file on Windows (written before 5.0.0) is encrypted in
     place the first time it is read.
     """
     env = os.environ if env is None else env
