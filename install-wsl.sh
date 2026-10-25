@@ -35,8 +35,8 @@ grep -qi microsoft /proc/version 2>/dev/null \
   || die "Not running under WSL. On native Windows use install.ps1 instead."
 command -v python3 >/dev/null || die "python3 not found. Install it with your distro's package manager."
 PYV=$(python3 -c 'import sys;print("%d.%d"%sys.version_info[:2])')
-python3 -c 'import sys;sys.exit(0 if sys.version_info>=(3,9) else 1)' \
-  || die "Python 3.9+ required, found ${PYV}."
+python3 -c 'import sys;sys.exit(0 if sys.version_info>=(3,10) else 1)' \
+  || die "Python 3.10+ required, found ${PYV}."
 python3 -c 'import venv' 2>/dev/null || die "The venv module is missing. Install python3-venv."
 ok "WSL detected, Python ${PYV}"
 

@@ -100,7 +100,7 @@ REQUIREMENTS
 --------------------------------------------------------------------------------
   Windows 11 (build 22000+). Windows 10 works but is not the test target.
   PowerShell 5.1, which ships with Windows.
-  Python 3.9 or later - the installer can fetch it via winget.
+  Python 3.10 or later - the installer can fetch it via winget.
   A standard user account. Nothing needs elevation.
   Network access once, to download two Python packages. Offline after that.
 
@@ -120,7 +120,7 @@ IF SOMETHING GOES WRONG
 --------------------------------------------------------------------------------
   Section 12 of the PDF manual covers the common cases. The two most frequent:
 
-  "Python 3.9 or later is required"
+  "Python 3.10 or later is required"
       Install from https://www.python.org/downloads/windows/ ticking
       "Add python.exe to PATH", then open a NEW terminal and re-run install.ps1.
 

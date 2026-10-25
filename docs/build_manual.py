@@ -252,7 +252,7 @@ def main(argv: list[str] | None = None) -> int:
         third-party scripts. It works offline.</div>
     </div>
     <div class="meta">Version {VERSION} &middot; Apache License 2.0 &middot;
-      Windows 11 &middot; Python 3.9+ &middot; built {built}</div>
+      Windows 11 &middot; Python 3.10+ &middot; built {built}</div>
   </div>
 </header>
 
