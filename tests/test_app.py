@@ -888,5 +888,8 @@ def test_main_guard(monkeypatch):
             pass
 
     monkeypatch.setattr("threading.Thread", FakeThread)
+    # On Windows the sandbox probe runs wsl.exe, and subprocess reads its output
+    # on threads, which FakeThread would break; the probe is not under test here.
+    monkeypatch.setattr("sysperf.codevolve.Sandbox._detect", lambda self: "none")
     # executes the module as __main__, covering `if __name__ == "__main__": main()`
     runpy.run_module("sysperf.app", run_name="__main__", alter_sys=True)

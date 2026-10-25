@@ -170,6 +170,10 @@ trend_store.backfill_from_adaptive_file(ADAPTIVE_FILE)
 # telemetry (never asks the user) and auto-revises goals it proves unreachable.
 auto_target_store = AutoTargetStore(AUTO_TARGETS_FILE)
 collector.target_store = auto_target_store      # scorecard uses honest overrides
+# Only an install upgraded from 3.x has a saved auto-improve mode that the 4.0
+# autonomy migration should honour. Read before the improver creates the file:
+# a fresh install's default "auto" is not a choice anyone made.
+_UPGRADED_FROM_3X = AUTO_STATE_FILE.exists()
 improver = AutoImprover(collector, trend_store, fix_engine,
                         AUTO_STATE_FILE, AUTO_LOG_FILE,
                         target_store=auto_target_store)
@@ -215,11 +219,20 @@ EVO_SETTINGS_FILE = DATA_DIR / "evolution_settings.json"
 LLM_KEY_FILE = DATA_DIR / "secrets" / "anthropic.key"
 logging.getLogger().addFilter(llm_mod.RedactingFilter())
 evo_db = evodb_mod.EvoDB(EVO_DB_FILE)
-# The 3.x "auto" migration only applies to an install someone upgraded; a Store
-# install is new, so it starts at Observe like every other opt-in feature.
+
+
+def _carried_mode(upgraded: bool, store_mode: bool, imp) -> str | None:
+    """The 3.x auto-improve mode the 4.0 autonomy migration should honour.
+
+    Only an install someone upgraded made that choice; a new install (and every
+    Store install) starts at Observe.
+    """
+    return getattr(imp, "state", {}).get("mode") if upgraded and not store_mode else None
+
+
 action_policy = optactions_mod.ActionPolicy(
     DATA_DIR / "autonomy.json", evo_db,
-    improver_mode=None if STORE_MODE else getattr(improver, "state", {}).get("mode"))
+    improver_mode=_carried_mode(_UPGRADED_FROM_3X, STORE_MODE, improver))
 improver.action_gate = action_policy.unattended_block
 improver.action_hook = action_policy.record_executions
 

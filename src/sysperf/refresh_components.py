@@ -215,7 +215,7 @@ def _preserve_suffix(old_latest: str, new_ver: str) -> str:
 
 def refresh() -> int:
     try:
-        catalog = json.loads(COMPONENTS_FILE.read_text())
+        catalog = json.loads(COMPONENTS_FILE.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         log.error("cannot read %s: %s", COMPONENTS_FILE, exc)
         return 1
@@ -264,7 +264,7 @@ def refresh() -> int:
     # Atomic write, preserving pretty formatting.
     fd, tmp = tempfile.mkstemp(dir=str(BASE), prefix=".components.", suffix=".tmp")
     try:
-        with os.fdopen(fd, "w") as fh:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump(catalog, fh, indent=2, ensure_ascii=False)
             fh.write("\n")
         os.replace(tmp, COMPONENTS_FILE)

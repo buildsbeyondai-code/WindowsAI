@@ -170,7 +170,7 @@ def _wsl_version(v: dict) -> dict:
 def build_components(latest: dict) -> dict:
     """Assemble the upgrade-advisory table from the catalog + live versions."""
     try:
-        cat = json.loads(COMPONENTS_FILE.read_text())
+        cat = json.loads(COMPONENTS_FILE.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         log.warning("components.json unreadable: %s", exc)
         return {"rows": [], "error": str(exc), "upgrades": 0, "total": 0}

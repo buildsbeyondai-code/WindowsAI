@@ -503,3 +503,13 @@ def test_store_apply_lands_in_the_checkout_and_restart_relaunches(client, monkey
                   exit_fn=lambda code: calls.append(code))
     assert calls == [[app.sys.executable, "--relaunch"], 0]
 
+
+
+def test_only_an_upgraded_install_carries_its_auto_mode_into_autonomy():
+    """A fresh install's default "auto" mode is not a choice anyone made; running
+    `sysperf --where` once used to opt every new install into safe_auto."""
+    class Imp:
+        state = {"mode": "auto"}
+    assert app._carried_mode(True, False, Imp()) == "auto"
+    assert app._carried_mode(False, False, Imp()) is None
+    assert app._carried_mode(True, True, Imp()) is None

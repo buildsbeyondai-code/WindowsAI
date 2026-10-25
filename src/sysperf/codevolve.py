@@ -55,6 +55,9 @@ from .background_process import run_hidden
 from .llm import LLMClient, LLMError
 
 log = logging.getLogger("sysperf.codevolve")
+# Read through this name (not os.name) so tests can simulate the other OS
+# without patching the global os module, which breaks pathlib on Windows.
+OS_NAME = os.name
 
 PROTECTED = ("tests/*", "tests/**", "*/tests/*", "evo_bench.py", "codevolve.py", "llm.py",
              "evodb.py", "optactions.py", ".github/*", ".github/**", "packaging/*",
@@ -235,7 +238,7 @@ class Sandbox:
             "evolution.docker_image; generated code will not be executed")
 
     def _detect(self) -> str:
-        if os.name != "nt" and shutil.which("bwrap"):
+        if OS_NAME != "nt" and shutil.which("bwrap"):
             try:
                 r = run_hidden(["bwrap", "--ro-bind", "/", "/", "--unshare-all",
                                     "--die-with-parent", "true"], capture_output=True,
@@ -244,7 +247,7 @@ class Sandbox:
                     return "bwrap"
             except (OSError, subprocess.SubprocessError):
                 pass
-        if os.name == "nt" and shutil.which("wsl.exe"):
+        if OS_NAME == "nt" and shutil.which("wsl.exe"):
             try:
                 r = run_hidden(["wsl.exe", "-e", "bwrap", "--ro-bind", "/", "/",
                                 "--unshare-all", "--die-with-parent", "true"],
@@ -553,7 +556,10 @@ class CodeEvolution:
         if self._state not in ("idle", "completed", "failed", "blocked", "skipped",
                                "awaiting_approval"):
             return f"a cycle is already {self._state}"
-        day_start = time.mktime(time.localtime(self.clock())[:3] + (0, 0, 0, 0, 0, -1))
+        # Local midnight without mktime, which overflows for early epochs on Windows.
+        now = self.clock()
+        lt = time.localtime(now)
+        day_start = int(now) - (lt.tm_hour * 3600 + lt.tm_min * 60 + lt.tm_sec)
         if self.db.cycles_since(day_start) >= self.settings["max_per_day"]:
             return f"daily limit reached ({self.settings['max_per_day']})"
         if self.llm is None or not self.llm.available:

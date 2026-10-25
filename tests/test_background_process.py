@@ -6,7 +6,7 @@ from sysperf import background_process
 
 def test_windows_adds_the_no_window_flag(monkeypatch):
     seen = {}
-    monkeypatch.setattr(background_process.os, "name", "nt")
+    monkeypatch.setattr(background_process, "OS_NAME", "nt")
     monkeypatch.setattr(subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: seen.update(a=a, k=k) or "r")
     assert background_process.run_hidden(["x"], creationflags=0x10) == "r"
@@ -14,6 +14,6 @@ def test_windows_adds_the_no_window_flag(monkeypatch):
 
 
 def test_elsewhere_arguments_are_untouched(monkeypatch):
-    monkeypatch.setattr(background_process.os, "name", "posix")
+    monkeypatch.setattr(background_process, "OS_NAME", "posix")
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: k)
     assert background_process.run_hidden(["x"], timeout=3) == {"timeout": 3}
