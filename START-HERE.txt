@@ -1,165 +1,100 @@
-SysPerf 5.0.0 — quick start
-===========================
-Easiest: run the graphical installer
-  * double-click  SysPerf-Setup-5.0.0.exe   (self-extracting; opens a wizard), OR
-  * right-click   install-wizard.ps1  ->  Run with PowerShell
-No administrator rights are needed; everything installs under your user profile.
-
+SysPerf 5.0.0 - START HERE
 ================================================================================
-  SysPerf - System Performance Agent 5.0.0
-  START HERE
-================================================================================
-
-  A self-improving performance dashboard for Windows 11.
-  Free and open-source software, Apache License 2.0.
+A performance dashboard for Windows 11. It measures your PC from Windows' own
+counters, learns this PC's normal, and shows what is slowing it down and why.
+Free and open-source software (Apache License 2.0).
+https://github.com/buildsbeyondai-code/WindowsAI
 
 
-WHAT IT DOES
+INSTALL (about two minutes, no administrator rights)
 --------------------------------------------------------------------------------
-  Measures how your Windows machine is behaving, compares it against where it
-  started and what it is capable of, and tells you what to change to make it
-  faster.
+  1. If you received a .zip: right-click it -> Properties -> tick "Unblock"
+     (if shown) -> OK. Then right-click -> Extract All.
 
-  It never changes a setting on your behalf. Every system call it makes is a
-  query. Recommendations are text: what was measured, why it matters, and the
-  step to take. You decide and you act, so you always know what changed.
+  2. In the extracted folder, double-click   Install SysPerf.cmd
+     A small setup wizard opens. Click Install.
+     (Or: right-click install-wizard.ps1 -> Run with PowerShell.)
 
+  3. When it finishes, click "Open dashboard", or open  http://127.0.0.1:5056/
 
-INSTALL (about two minutes)
---------------------------------------------------------------------------------
-  1. Copy the SysPerf folder to the machine (or unzip SysPerf-2.0.0.zip).
+  Needs Python 3.10 or later. If it is missing, the installer offers to fetch
+  it with winget. It also downloads two small Python packages once, so an
+  internet connection is needed during install.
 
-  2. Right-click the Start button and choose "Terminal" or "Windows PowerShell".
+  Everything goes into %LOCALAPPDATA%\SysPerf and your own Start Menu. No
+  Windows service is created and nothing is installed for other users.
 
-  3. Change to the folder, for example:
-
-         cd "$env:USERPROFILE\Downloads\SysPerf"
-
-  4. Run:
-
-         powershell -ExecutionPolicy Bypass -File install.ps1
-
-  5. When it finishes, open:  http://127.0.0.1:5056/
-
-  No administrator rights are needed. If Python is missing the installer offers
-  to fetch it. Everything is written to %LOCALAPPDATA%\SysPerf and your own
-  Start Menu - no Windows service, no system settings, nothing shared.
+  Command-line alternative:
+      powershell -ExecutionPolicy Bypass -File install.ps1
 
 
 FIRST MINUTE
 --------------------------------------------------------------------------------
-  Live values appear within seconds. Scores and recommendations appear after the
-  first full sweep, about a minute in, which is when SysPerf records your
-  baseline.
-
-  Everything will read 0% at first. That is correct: progress is measured from
-  where YOU started, and you have not changed anything yet. The numbers move as
-  you act on the recommendations.
+  Live values appear within seconds. Scores appear after the first full sample,
+  about a minute in, which is when SysPerf records this PC's baseline. Many
+  rows read 0% progress at first: progress is measured from where this PC
+  started.
 
 
-WITHOUT INSTALLING
+WHAT IT CAN CHANGE ON YOUR PC
 --------------------------------------------------------------------------------
-  For a one-off report on a machine you would rather not install anything on:
+  SysPerf can make a few reversible changes: flush DNS, trim idle apps'
+  memory, restart a stuck Explorer, and quit tray apps you have allowed (it
+  asks first for each app). Each one is listed on the Home tab with what it
+  does and how to undo it.
 
-         powershell -ExecutionPolicy Bypass -File run.ps1 -Report
-
-  Prints the scorecard and recommendations to the console. Creates a .venv
-  folder in this directory and touches nothing else.
-
-
-UNINSTALL
---------------------------------------------------------------------------------
-         powershell -ExecutionPolicy Bypass -File uninstall.ps1
-
-  Add -Purge to delete collected history as well. Because SysPerf never changed
-  a Windows setting, there is nothing to revert.
-
-
-WHAT IS IN THIS FOLDER
---------------------------------------------------------------------------------
-  SysPerf-User-Manual.html     Full manual (open in any browser) - read this one
-  README.md                    Full technical documentation
-  install.ps1                  Installer (no admin rights required)
-  uninstall.ps1                Uninstaller
-  run.ps1                      Run from source without installing
-  install-wsl.sh               Optional: run inside WSL 2 instead
-  container\                   Optional: run in a hardened Docker container
-                               under WSL 2 (container/README.md)
-  sysperf.config.example.json  Annotated configuration reference
-  src\                         Source code
-  tests\                       Test suite (98 tests)
-  docs\                        Manual source and the PDF build script
-  LICENSE, NOTICE              Apache License 2.0
-  CONTRIBUTING.md              How to contribute
-  SECURITY.md                  Security posture and how to report an issue
-  CHANGELOG.md                 Release notes
-  SysPerf-2.0.0.zip            The whole package, zipped for distribution
-
-
-REQUIREMENTS
---------------------------------------------------------------------------------
-  Windows 11 (build 22000+). Windows 10 works but is not the test target.
-  PowerShell 5.1, which ships with Windows.
-  Python 3.10 or later - the installer can fetch it via winget.
-  A standard user account. Nothing needs elevation.
-  Network access once, to download two Python packages. Offline after that.
+  To make SysPerf only measure and recommend, set  "fixes": {"enabled": false}
+  in %LOCALAPPDATA%\SysPerf\sysperf.config.json and restart it.
 
 
 PRIVACY
 --------------------------------------------------------------------------------
-  No telemetry, no upload, no account, and the dashboard loads no third-party
-  scripts. Two things go out, and only what they need: a daily check of public
-  release feeds for the Components view (sends nothing about this PC), and, only
-  if you turn on AI self-evolution, code excerpts to the model provider you chose.
+  No account, no ads, no telemetry. The dashboard answers only on this PC
+  (127.0.0.1) and refuses requests from other websites. Once a day it reads
+  public release pages to check component versions; it sends nothing about
+  your PC. The optional AI features are off until you add your own AI key.
 
-  Treat http://127.0.0.1:5056/api/metrics as sensitive: it lists running
-  processes, installed drivers and startup entries. That is why the server answers
-  only on this machine, and only to requests addressed to it. Check screenshots
-  for app and device names before sharing them.
+  The dashboard shows process, driver and device names. Check screenshots
+  before you share them.
 
-  SysPerf can change the PC (flush DNS, trim memory, restart a stuck Explorer,
-  quit tray apps you allow). Each change is listed on Home with how to undo it.
+
+UNINSTALL
+--------------------------------------------------------------------------------
+      powershell -ExecutionPolicy Bypass -File uninstall.ps1
+  Add -Purge to delete the collected history as well.
+
+
+WITHOUT INSTALLING
+--------------------------------------------------------------------------------
+  For a one-off text report:
+      powershell -ExecutionPolicy Bypass -File run.ps1 -Report
 
 
 IF SOMETHING GOES WRONG
 --------------------------------------------------------------------------------
-  Section 12 of the PDF manual covers the common cases. The two most frequent:
-
   "Python 3.10 or later is required"
-      Install from https://www.python.org/downloads/windows/ ticking
-      "Add python.exe to PATH", then open a NEW terminal and re-run install.ps1.
+      Install Python from https://www.python.org/downloads/windows/ and tick
+      "Add python.exe to PATH". Open a new window and run the installer again.
 
   "Dependency installation failed"
-      Usually a corporate proxy. Set it and retry:
+      Check the internet connection. Behind a company proxy, set it first:
           $env:HTTPS_PROXY = 'http://proxy.example.com:8080'
 
+  The dashboard does not open
+      Open http://127.0.0.1:5056/ in a browser. If nothing answers, run
+      %LOCALAPPDATA%\SysPerf\sysperf.cmd to see the error.
 
-================================================================================
-  SysPerf only reads. It never changes a setting on your behalf.
-================================================================================
+  More help: docs\SysPerf-User-Manual.html (open in any browser).
 
-NEW IN 4.0 - AI SELF-EVOLUTION
-  A new "AI Self-Evolution" tab. SysPerf can propose and validate improvements
-  to its own source code with an AI model, in an isolated sandbox, and keeps
-  them as review branches for your approval. Autonomy defaults to "observe"
-  (recommend only). Guide: docs\AI_EVOLUTION.md.
-  Validate on Windows:  powershell -ExecutionPolicy Bypass -File tools\validate-windows.ps1
 
-NEW IN 2.2.0 - AUTO-IMPROVE
-  The dashboard's fourth tab runs an autonomous loop: it scans every 5 minutes,
-  and when the score is under 80% it works out WHY (short-term spike, usage,
-  long-term regression, or an unreachable target), fixes what is safely fixable,
-  then measures whether that helped and learns from it.
-
-  It only acts when fixes.enabled is true in the config, and it only ever runs
-  reversible, non-disruptive fixes. Choose "observe" in the tab to see the full
-  diagnosis and plan without anything being executed. Manual: chapter 14.
-
-NEW IN 3.2.0 - CONTAINER DEPLOYMENT
-  Optional, for WSL 2 + Docker users: the dashboard runs in an unprivileged,
-  read-only container and reaches Windows only through an allowlisted,
-  logged host-exec broker.
-
-         bash container/install-container.sh
-
-  See container/README.md. The native Windows install is unchanged.
+WHAT IS IN THIS FOLDER
+--------------------------------------------------------------------------------
+  Install SysPerf.cmd          Double-click to install (opens the wizard)
+  install-wizard.ps1           The setup wizard
+  install.ps1 / uninstall.ps1  Command-line install and uninstall
+  run.ps1                      Run without installing
+  docs\SysPerf-User-Manual.html  The full manual
+  README.md, CHANGELOG.md      Technical documentation and release notes
+  SECURITY.md                  What SysPerf can change and how it is protected
+  src\, tests\                 Source code and its test suite
+  LICENSE, NOTICE              Apache License 2.0
