@@ -1202,7 +1202,10 @@ def api_home():
     try:
         report = _cached("actions", lambda: action_queue.report(
             rca_mod.analyze(snap, trend_store, fix_engine, improver.threshold)))
-        todo = [{k: i.get(k) for k in ("key", "title", "kind", "why_code", "command", "priority")}
+        # The human-facing fields, not "command": for an elevation-gated fix that is
+        # the service's own helper script, which is meaningless to run by hand.
+        todo = [{k: i.get(k) for k in ("key", "title", "kind", "why_code", "why_headline",
+                                       "simple_ask", "steps", "effort", "priority")}
                 for i in report.get("items", []) if i.get("status") == "open"][:3]
     except Exception:
         logging.exception("home: action queue unavailable")

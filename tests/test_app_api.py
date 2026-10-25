@@ -279,6 +279,7 @@ def test_home_aggregates_everything(client, monkeypatch, tray, notes, store):
     notes.notify("health", "n", "b")
     j = client.get("/api/home").get_json()
     assert [t["key"] for t in j["todo"]] == ["k1", "k3", "k4"]
+    assert "command" not in j["todo"][0] and "why_headline" in j["todo"][0]
     assert [e["kind"] for e in j["today"]] == ["fix", "trayquit", "evolution"] or \
         {e["kind"] for e in j["today"]} == {"fix", "trayquit", "evolution"}
     assert j["evolution"]["awaiting_review"] == 1 and j["notifications"]["unread"] == 1

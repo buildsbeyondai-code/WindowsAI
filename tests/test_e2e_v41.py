@@ -44,7 +44,10 @@ def test_home_is_the_default_view_and_renders_every_panel(browser, site):
     assert "72%" in page.inner_text("#homeScore")
     assert "needs attention" in page.inner_text("#homeStatus")
     todo = page.inner_text("#homeTodo")
-    assert "ChatGPT" in todo and "waiting for review" in todo and "Restart Windows Explorer" in todo
+    assert "ChatGPT" in todo and "waiting for review" in todo and "Clear standby" in todo
+    assert "Needs administrator rights" in todo and "ErrorActionPreference" not in todo
+    page.click("#homeTodo details summary")
+    assert "RAMMap.exe -Et" in page.inner_text("#homeTodo")
     assert "Flush DNS" in page.inner_text("#homeToday")
     assert "DEGRADED" in page.inner_text("#homeHealth")
     assert "AI patch ready for review" in page.inner_text("#homeNotes")
