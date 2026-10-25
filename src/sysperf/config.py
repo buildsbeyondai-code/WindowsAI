@@ -29,7 +29,7 @@ from .platform_paths import detect_platform, resolve_data_dir, resolve_powershel
 # Where the code lives. Read-only: nothing is ever written here.
 BASE = Path(__file__).resolve().parent
 # Shown in the dashboard header and /api/health; stamped by scripts/build_release.py.
-APP_VERSION = "4.1.0"
+APP_VERSION = "5.0.0"
 
 PLATFORM = detect_platform()
 # Microsoft Store mode (store_mode.py): the frozen SysPerf.exe of the MSIX build,
@@ -248,13 +248,17 @@ AUTO_THRESHOLD = _bounded("PERFDASH_AUTO_THRESHOLD", ("autoimprove", "threshold"
 AUTO_MODE = str(_setting("PERFDASH_AUTO_MODE", "autoimprove", "mode", default="auto"))
 if AUTO_MODE not in ("off", "observe", "auto"):
     AUTO_MODE = "auto"
-_ALLOW_CAUTION = _os.environ.get("PERFDASH_AUTO_ALLOW_CAUTION", "0") in ("1", "true", "yes")
+_ALLOW_CAUTION = _flag("PERFDASH_AUTO_ALLOW_CAUTION", "autoimprove", "allow_caution",
+                       default=False)
 AUTO_ALLOW_RISKS = ("safe", "caution") if _ALLOW_CAUTION else ("safe",)
-AUTO_MAX_ACTIONS = int(_os.environ.get("PERFDASH_AUTO_MAX_ACTIONS", 2))
-AUTO_COOLDOWN_S = float(_os.environ.get("PERFDASH_AUTO_COOLDOWN", 1800))
+AUTO_MAX_ACTIONS = int(_bounded("PERFDASH_AUTO_MAX_ACTIONS", ("autoimprove", "max_actions"),
+                                2, 0, 10))
+AUTO_COOLDOWN_S = _bounded("PERFDASH_AUTO_COOLDOWN", ("autoimprove", "cooldown_seconds"),
+                           1800, 60, 86400)
 # Wait at least this long after applying a fix before measuring its effect, so
 # the scorecard's rolling median has refreshed with post-fix samples.
-AUTO_SETTLE_S = float(_os.environ.get("PERFDASH_AUTO_SETTLE", 120))
+AUTO_SETTLE_S = _bounded("PERFDASH_AUTO_SETTLE", ("autoimprove", "settle_seconds"),
+                         120, 30, 3600)
 AUTO_LOG_MAX_LINES = 500
 # Effectiveness ledger: EMA smoothing of a fix's measured benefit per metric,
 # and how many verified attempts are needed before the loop trusts a verdict
