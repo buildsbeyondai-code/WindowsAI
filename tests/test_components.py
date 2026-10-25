@@ -259,3 +259,38 @@ def test_wsl_probe_prefers_path(monkeypatch):
     components._cache["t"] = 0
     components._linux_versions()
     assert ["/usr/bin/wsl.exe", "--version"] in seen
+
+
+def test_effective_latest_prefers_live_and_never_trails_the_installed_version():
+    eff = components.effective_latest
+    assert eff("2.6.2.0", "3.0.3", "2.6.1.0") == ("3.0.3", "live")
+    assert eff("7.6.7", "", "7.6.8") == ("7.6.8", "installed")     # stale catalog
+    assert eff("latest (pip install playwright)", "1.64.1", "") == ("1.64.1", "live")
+    assert eff("2.6.2.0", "3.0.3", "3.1.0.0") == ("3.1.0.0", "installed")   # preview
+    assert eff("26.04.1", "", "24.04") == ("26.04.1", "catalog")
+
+
+def test_build_components_uses_live_versions(tmp_path, monkeypatch):
+    cat = {"assessment_date": "2026-10-21", "catalog": [
+        {"key": "wsl", "name": "WSL", "compare": "version", "latest": "2.6.2.0", "perf": 25},
+        {"key": "powershell", "name": "PowerShell", "compare": "version", "latest": "7.6.7",
+         "perf": 15},
+        {"key": "flask", "name": "Flask", "compare": "version", "latest": "3.0.3",
+         "show_missing": True, "perf": 3}]}
+    f = tmp_path / "c.json"
+    f.write_text(json.dumps(cat))
+    live = tmp_path / "live.json"
+    live.write_text(json.dumps({"checked_at": 123.0, "latest": {"wsl": "3.0.3",
+                                                                "flask": "3.1.3"}}))
+    monkeypatch.setattr(components, "COMPONENTS_FILE", f)
+    monkeypatch.setattr(components, "LATEST_FILE", live)
+    monkeypatch.setattr(components, "_linux_versions",
+                        lambda: {"wsl": "3.0.3.0"})
+    out = build_components({"pwsh_version": "7.6.8"})
+    by = {r["key"]: r for r in out["rows"]}
+    assert by["wsl"]["latest"] == "3.0.3" and by["wsl"]["outdated"] is False
+    assert by["powershell"]["latest"] == "7.6.8" and by["powershell"]["latest_source"] == "installed"
+    assert by["flask"]["latest"] == "3.1.3" and by["flask"]["missing"]
+    assert out["latest_checked_at"] == 123.0 and out["upgrades"] == 0
+    live.write_text("[1]")
+    assert build_components({"pwsh_version": "7.6.8"})["latest_checked_at"] is None

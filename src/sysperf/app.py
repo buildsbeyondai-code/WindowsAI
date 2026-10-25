@@ -52,6 +52,7 @@ from . import session_policy as session_policy_mod
 from . import settings_hub as settings_mod
 from . import store_mode as store_mode_mod
 from . import trayquit as trayquit_mod
+from . import version_check as version_check_mod
 from .actions import ActionQueue
 from .adaptive import AdaptiveScorer
 from .autoimprove import AutoImprover
@@ -110,6 +111,7 @@ from .config import (
     TRAYQUIT_LOG_FILE,
     TRAYQUIT_STATE_FILE,
     TRENDS_FILE,
+    VERSION_CHECK,
 )
 from .evolve import EvolutionEngine
 from .fixes import FixEngine
@@ -311,6 +313,10 @@ def _tray_event(kind: str, d: dict) -> None:
 tray_quitter = trayquit_mod.TrayQuitter(TRAYQUIT_STATE_FILE, TRAYQUIT_LOG_FILE,
                                         fix_enabled=FIX_ENABLED, on_event=_tray_event,
                                         default_enabled=not STORE_MODE)
+# Newest public version of each component, so the Components view's targets
+# never fall behind what is installed (components.py reads the file it writes).
+latest_versions = version_check_mod.LatestVersions(
+    DATA_DIR / "components_latest.json", enabled=VERSION_CHECK)
 # Store mode: everything that acts outside the app is opt-in and listed on Home.
 store_features = store_mode_mod.StoreFeatures(
     DATA_DIR / "store_features.json", store_mode=STORE_MODE, action_policy=action_policy,
@@ -1569,6 +1575,8 @@ def main() -> None:
     _start("self-evolution", code_evolution.loop, lambda: action_policy.level)
     _start("action-verification", _verify_actions_loop)
     _start("housekeeping", _housekeeping_loop)
+    if VERSION_CHECK:
+        _start("version-check", latest_versions.loop)
     if PLATFORM == "windows":
         _start("tray-quit", tray_quitter.loop, TRAYQUIT_INTERVAL_S)
         health_monitor.add_probe("tray-quit", lambda: tray_quitter.last_view.get("at"),

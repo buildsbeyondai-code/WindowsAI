@@ -2653,6 +2653,9 @@ function render(d) {
 
   /* component upgrades — performance improvement advisory */
   const CP = d.components || {};
+  // Where each target came from: the vendor's release feed (checked daily), or the
+  // installed build when it is newer than any public release (preview/Insider).
+  const SRC = {live: "newest public release", installed: "installed build is newer than any public release"};
   const cprows = (CP.rows || []).map(c => {
     const pcls = c.perf >= 20 ? "b-g" : c.perf >= 10 ? "b-a" : "b-r";
     const pbar = `<div class="bar ${pcls}"><i style="width:${Math.max(4, Math.min(100, c.perf))}%"></i>
@@ -2667,7 +2670,7 @@ function render(d) {
         <div class="note" style="margin:2px 0 0">${esc(c.why || "")}</div></td>
       <td>${esc(c.category || "")}</td>
       <td class="num">${curTxt}</td>
-      <td class="num">${esc(c.latest || "—")}${c.channel ? `<div class="hint">via ${esc(c.channel)}</div>` : ""}${c.upstream ? `<div class="hint">upstream ${esc(c.upstream)}</div>` : ""}</td>
+      <td class="num">${esc(c.latest || "—")}${SRC[c.latest_source] ? `<div class="hint">${SRC[c.latest_source]}</div>` : ""}${c.channel ? `<div class="hint">via ${esc(c.channel)}</div>` : ""}${c.upstream ? `<div class="hint">upstream ${esc(c.upstream)}</div>` : ""}</td>
       <td style="width:120px">${pbar}</td>
       <td>${esc(c.owner || "")}</td>
       <td>${status}</td></tr>`;
@@ -2684,7 +2687,8 @@ function render(d) {
           <div class="t">mean score across recommended upgrades</div></div></div></div></div>
       <div class="card"><h3>Assessment</h3>
         <div class="note keep">Dated <b>${esc(CP.assessment_date || "—")}</b>.<br>
-          Current versions are measured live; "latest" is a reviewed reference target.
+          Current versions are measured live. "Latest" is each vendor's newest public release,
+          checked daily${CP.latest_checked_at ? ` (last ${esc(new Date(CP.latest_checked_at * 1000).toLocaleString())})` : ""}; rows without a public feed use the reviewed catalog.
           Driver freshness is judged by age (recommend at ≥9 months).</div></div>
     </div>
     <div class="card">
