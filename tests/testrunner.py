@@ -41,6 +41,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -255,6 +256,26 @@ def gate_unit_and_coverage() -> tuple:
 # --------------------------------------------------------------------------- #
 # 6. frontend                                                                 #
 # --------------------------------------------------------------------------- #
+def find_node() -> str | None:
+    """A node binary: on PATH, else the one Playwright bundles for its driver.
+
+    This used ``which node``, which does not exist on Windows, so the frontend
+    gate could never pass there, the platform the in-app self-test runs on.
+    """
+    found = shutil.which("node")
+    if found:
+        return found
+    try:
+        import playwright
+    except ImportError:
+        return None
+    driver = Path(playwright.__file__).parent / "driver"
+    for name in ("node.exe", "node"):
+        if (driver / name).is_file():
+            return str(driver / name)
+    return None
+
+
 def gate_frontend() -> Gate:
     gate = Gate("frontend", "page JS parses, ids resolve, strings are escaped")
     if not INDEX.is_file():
@@ -266,11 +287,11 @@ def gate_frontend() -> Gate:
         gate.fail("no inline <script> block found")
         return gate
 
-    node = subprocess.run(["which", "node"], capture_output=True, text=True)
-    if node.returncode == 0:
+    node = find_node()
+    if node:
         for i, block in enumerate(scripts):
-            proc = subprocess.run([node.stdout.strip(), "--check", "-"],
-                                  input=block, text=True, capture_output=True)
+            proc = subprocess.run([node, "--check", "-"], input=block, text=True,
+                                  encoding="utf-8", capture_output=True)
             if proc.returncode != 0:
                 gate.fail(f"script block {i} fails node --check: "
                           f"{proc.stderr.strip().splitlines()[0][:160]}")
