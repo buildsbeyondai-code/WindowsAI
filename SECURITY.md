@@ -25,24 +25,26 @@ dashboard is a local web server with no login.
   input reaches a shell. Process names for App Control must be in the
   server-computed allowlist. Candidate ids are matched against
   `[A-Za-z0-9_.-]{1,80}`.
-- **Outbound traffic is limited and opt-in.** The daily version check reads
-  public release feeds (GitHub, PyPI, npm, endoflife.date, winget). AI
-  self-evolution, when you enable it, sends source excerpts and metrics to the
-  model provider you configure. Nothing else leaves the PC.
+- **Outbound traffic is limited.** The daily version check reads public release
+  feeds: GitHub (including the winget index), PyPI, npm, Ubuntu, Microsoft Edge
+  and endoflife.date. It sends nothing about the PC, and `version_check: false`
+  turns it off. AI self-evolution, when you enable it, sends source excerpts and
+  metrics to the model provider you configure. Nothing else leaves the PC.
 - **Elevation is optional and separate.** The service runs as a standard user.
   The standby-memory helper (`standby_broker.ps1`) is the only part that runs
   as Administrator, and only if you start it yourself.
 
 ## Changes SysPerf can make to your PC
 
-These are real system changes. Each one is listed on **Home** with what it
-does and how to undo it (`GET /api/store`). In a scripted install the
+These are real system changes. Each one is listed on **Home → Optional features** with
+what it does and how to undo it (`GET /api/store`). In a scripted install the
 background features start on, because the owner set them up on purpose. In
-the Microsoft Store build each one starts **off** until you turn it on.
+the Microsoft Store build each one starts **off** until you turn it on. In both,
+automatic fixes need you to raise Autonomy above *Observe*.
 
 | Feature | What it does | Scripted install | Store build |
 |---|---|---|---|
-| Automatic fixes | Flushes DNS, trims idle apps' working sets, clears standby memory | on | off |
+| Automatic fixes | Flushes DNS, trims idle apps' working sets, clears standby memory | off: autonomy starts at Observe | off |
 | Explorer watchdog | Restarts Explorer when it holds heavy CPU | on | off |
 | Tray auto-quit | Quits listed tray apps after their window has been closed for a while, asking first per app | on | off |
 | OneDrive lock policy | Pauses OneDrive while you use the PC | environment flag | off |
