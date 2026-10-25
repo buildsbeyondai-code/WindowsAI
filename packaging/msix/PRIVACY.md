@@ -36,5 +36,9 @@ yourself. Each one says what it does and how to undo it.
 ## Deleting your data
 Uninstall SysPerf. Windows removes its data folder with it.
 
+If you also use the scripted (non-Store) SysPerf on the same PC, both share
+its data folder (`%LOCALAPPDATA%\SysPerf\data`). Uninstalling the Store app
+leaves that folder in place; delete it yourself to remove the data.
+
 ## Contact
 jude.s.finney@gmail.com

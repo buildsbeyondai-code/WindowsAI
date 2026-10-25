@@ -39,7 +39,7 @@ Full evidence: `docs/releases/5.0.0.md`. On release commit ad5cdd1:
 
 | Item | State |
 |---|---|
-| Clean-machine MSIX install / upgrade / uninstall | UNVERIFIED: package built and inspected only |
+| MSIX install / upgrade from 4.1.0 / uninstall | PASS on the developer PC (see the release record's packaging test); clean machine still UNVERIFIED |
 | 24-hour `tools/soak.py` run on 5.0.0 | UNVERIFIED: not yet run |
 | Real side effect of standby clear, Explorer watchdog, App Control, OneDrive stop | UNVERIFIED: tested with fakes (see FEATURE_AUDIT.md) |
 | Screen-reader walk-through of the dashboard | UNVERIFIED: static checks only |
@@ -47,8 +47,9 @@ Full evidence: `docs/releases/5.0.0.md`. On release commit ad5cdd1:
 ## Next steps
 
 1. Run `tools/soak.py --hours 24` on the live service and record the result here.
-2. Install the 5.0.0 MSIX on a clean Windows 11 VM: install, first launch,
-   upgrade from 4.1.0, uninstall.
+2. Repeat the packaging test on a clean Windows 11 machine (Windows Sandbox
+   or a VM). It passed on the developer PC, but there the Store app shares
+   the scripted install's data folder.
 3. Consider event-driven triggers for any metric that gains a cheap event
    source (ADR-005).
 4. Split `app.py` (about 1,650 lines) into blueprints by area.
