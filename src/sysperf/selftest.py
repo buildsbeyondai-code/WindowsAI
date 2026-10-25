@@ -53,6 +53,22 @@ STALE_AFTER_S = 6 * 3600
 RUN_TIMEOUT_S = 900
 
 
+def console_python(exe: str) -> str:
+    """The console interpreter next to ``pythonw.exe``, else ``exe`` unchanged.
+
+    The sign-in task runs SysPerf under pythonw.exe, which has no console.
+    Child processes the test suite starts then fail with WinError 50, so the
+    in-app Self-test could never pass. run_hidden still keeps python.exe
+    windowless.
+    """
+    p = Path(exe)
+    if p.name.lower() == "pythonw.exe":
+        console = p.with_name("python.exe")
+        if console.is_file():
+            return str(console)
+    return exe
+
+
 class SelfTest:
     """Reads and triggers the repo's own test suite.
 
@@ -65,7 +81,7 @@ class SelfTest:
                  fallback_root=None) -> None:
         self._root = Path(root)
         # The Store app's sys.executable is SysPerf.exe, which cannot run a script.
-        self.python = python or sys.executable
+        self.python = console_python(python or sys.executable)
         # () -> path or None: where to run when ``root`` ships no suite.
         self.fallback_root = fallback_root
         self.report_file = Path(report_file)
@@ -75,6 +91,7 @@ class SelfTest:
         self._running = False
         self._started_at = None
         self._last_error = None
+        self._last_output = ""
 
     # --------------------------------------------------------------- reading
     def _report(self) -> dict:
@@ -178,6 +195,7 @@ class SelfTest:
     def _default_runner(self, argv: list) -> int:   # pragma: no cover - subprocess
         proc = run_hidden(argv, cwd=str(self.root), capture_output=True,
                               text=True, timeout=self.timeout_s)
+        self._last_output = ((proc.stdout or "") + (proc.stderr or ""))[-1500:]
         return proc.returncode
 
     @property
@@ -222,8 +240,14 @@ class SelfTest:
 
     def _work(self, argv: list) -> None:
         error = None
+        before = self._report().get("finished_at")
         try:
-            self._runner(argv)
+            rc = self._runner(argv)
+            # A run that leaves no new report must say so, not leave the board
+            # silently 'unknown' (as every in-app run did before 5.0.0).
+            if self._report().get("finished_at") == before:
+                tail = self._last_output.strip().splitlines()[-1:] or [""]
+                error = f"the gate runner exited with code {rc} without writing a report: {tail[0][:300]}"
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
         with self._lock:

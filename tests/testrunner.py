@@ -575,26 +575,46 @@ def main() -> int:
 
     started = time.time()
     gates: list[Gate] = []
+
+    def run(name: str, description: str, fn) -> list:
+        """A gate's result, or a failed gate if it crashed.
+
+        One crashing gate used to abort the run before the JSON report was
+        written, so the in-app Self-test showed every gate as 'unknown' with no
+        reason. Now the crash is a finding and the report is always written.
+        """
+        try:
+            result = fn()
+        except Exception as exc:                     # pragma: no cover - defensive
+            crashed = Gate(name, description)
+            crashed.fail(f"gate crashed: {type(exc).__name__}: {exc}")
+            return [crashed]
+        return list(result) if isinstance(result, tuple) else [result]
+
     if not args.quick:
-        gates.append(gate_discover())
-        gates.append(gate_compile())
-        gates.append(gate_lint())
-    unit, cov = gate_unit_and_coverage()
-    gates.extend([unit, cov])
+        gates += run("discover", "every module is registered", gate_discover)
+        gates += run("compile", "modules byte-compile", gate_compile)
+        gates += run("lint", "AST checks", gate_lint)
+    unit_cov = run("unit", "pytest suite", gate_unit_and_coverage)
+    if len(unit_cov) == 1:                           # crashed: coverage never ran
+        cov = Gate("coverage", "100% line coverage on every target module")
+        cov.fail("not measured: the unit gate crashed")
+        unit_cov.append(cov)
+    gates += unit_cov
     if not args.quick:
-        gates.append(gate_frontend())
+        gates += run("frontend", "page JS parses", gate_frontend)
         if args.no_browser:
             browser = Gate("browser", "real-browser rendering + UI coverage")
             browser.skip("--no-browser")
             gates.append(browser)
         else:
-            gates.append(gate_browser())
+            gates += run("browser", "real-browser rendering", gate_browser)
         if args.no_live:
             live = Gate("live", "running service")
             live.skip("--no-live")
             gates.append(live)
         else:
-            gates.append(gate_live())
+            gates += run("live", "running service", gate_live)
 
     width = 62
     print("\n" + "=" * width)
