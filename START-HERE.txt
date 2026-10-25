@@ -1,7 +1,7 @@
-SysPerf 4.1.0 — quick start
+SysPerf 5.0.0 — quick start
 ===========================
 Easiest: run the graphical installer
-  * double-click  SysPerf-Setup-4.1.0.exe   (self-extracting; opens a wizard), OR
+  * double-click  SysPerf-Setup-5.0.0.exe   (self-extracting; opens a wizard), OR
   * right-click   install-wizard.ps1  ->  Run with PowerShell
 No administrator rights are needed; everything installs under your user profile.
 
