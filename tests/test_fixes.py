@@ -1,11 +1,16 @@
 """Full-coverage tests for fixes.py."""
 import subprocess
 
-import pytest
-
 import sysperf.fixes as fixes
-from sysperf.fixes import (Fix, FixEngine, build_registry, default_runner,
-                   _detect_dns, _detect_wsl, _detect_wsl_boot)
+from sysperf.fixes import (
+    Fix,
+    FixEngine,
+    _detect_dns,
+    _detect_wsl,
+    _detect_wsl_boot,
+    build_registry,
+    default_runner,
+)
 
 
 # ------------------------------------------------------------- Fix dataclass --

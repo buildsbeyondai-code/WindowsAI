@@ -108,7 +108,7 @@ def _evidence(key: str, latest: dict) -> list:
 
 def classify(row: dict, trend: dict, regime: dict) -> tuple:
     """Return (cause, confidence, explanation) for one under-target row."""
-    key = row["key"]
+    row["key"]
     hib = bool(row.get("higher_is_better"))
     scored = row.get("scored_typical")
     if scored is None:

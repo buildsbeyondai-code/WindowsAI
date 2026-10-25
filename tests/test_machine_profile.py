@@ -3,7 +3,8 @@ import json
 
 import pytest
 
-from sysperf import config, machine_profile as mp
+from sysperf import config
+from sysperf import machine_profile as mp
 from sysperf.scoring import build_scorecard
 
 

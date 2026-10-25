@@ -45,8 +45,8 @@ class _Session:
 
 
 def _make(tmp_path, store=True, level="observe"):
-    deps = dict(action_policy=_Policy(level), improver=_Improver(), proc_watchdog=_Watchdog(),
-                tray_quitter=_Tray(), session_policy=_Session())
+    deps = {"action_policy": _Policy(level), "improver": _Improver(), "proc_watchdog": _Watchdog(),
+                "tray_quitter": _Tray(), "session_policy": _Session()}
     return store_mode.StoreFeatures(tmp_path / "sf.json", store_mode=store, **deps), deps
 
 

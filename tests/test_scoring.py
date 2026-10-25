@@ -1,7 +1,13 @@
 """Full-coverage tests for scoring.py."""
 import sysperf.scoring as scoring
-from sysperf.scoring import (_smoothed_current, progress_pct, score_vmmem,
-                     vmmem_trend, _row_note, build_scorecard)
+from sysperf.scoring import (
+    _row_note,
+    _smoothed_current,
+    build_scorecard,
+    progress_pct,
+    score_vmmem,
+    vmmem_trend,
+)
 
 
 # --------------------------------------------------------------- smoothing ---

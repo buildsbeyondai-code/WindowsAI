@@ -5,10 +5,8 @@ the user: a goal met on >=1 settled day is realistic (kept); a goal never met
 across a settled window is unreachable (auto-revised to the proven-achievable
 value). The revision is a reversible runtime override, not a config edit.
 """
-import json
 
-import sysperf.target_review as tr
-from sysperf.target_review import adjudicate, AutoTargetStore
+from sysperf.target_review import AutoTargetStore, adjudicate
 
 
 def _trend(key="committed_app_mb", met_days=0, settled=14, target=9000,
@@ -103,7 +101,7 @@ def test_build_scorecard_honours_an_override():
                                  target_overrides={key: 1234})
     row = next(r for r in sc["rows"] if r["key"] == key)
     assert row["target"] == 1234 and row["target_source"] == "auto"
-    assert row["plan_target"] == [c for c in CRITERIA if c[0] == key][0][3]
+    assert row["plan_target"] == next(c for c in CRITERIA if c[0] == key)[3]
 
 
 class _NullScorer:

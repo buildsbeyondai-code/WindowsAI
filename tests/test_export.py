@@ -78,7 +78,7 @@ def test_no_module_flat_imports_a_sibling():
     A missed rewrite works in the repo and fails once installed, so it is gated
     here rather than discovered by a user."""
     names = [f[:-3] for f in os.listdir(SRC) if f.endswith(".py")]
-    pattern = re.compile(r"^(?:import|from) (%s)\b" % "|".join(names), re.M)
+    pattern = re.compile(r"^(?:import|from) ({})\b".format("|".join(names)), re.M)
     for name in names:
         with open(os.path.join(SRC, name + ".py"), encoding="utf-8") as fh:
             hit = pattern.search(fh.read())
@@ -237,8 +237,7 @@ def test_feature_no_hardcoded_user_profile_is_shipped():
                     "testuser", "alice", "USERNAME", "user")
     profile = re.compile(
         r"(?:[A-Za-z]:\\\\|/mnt/[a-z]/)Users[\\\\/]"
-        r"(?!(?:%s)\b|<|%%|\$|\{|\*)([A-Za-z0-9._-]+)"
-        % "|".join(re.escape(n) for n in PLACEHOLDERS), re.I)
+        r"(?!(?:{})\b|<|%|\$|\{{|\*)([A-Za-z0-9._-]+)".format("|".join(re.escape(n) for n in PLACEHOLDERS)), re.I)
     suffixes = (".py", ".ps1", ".json", ".html", ".md", ".txt", ".sh", ".toml")
     checked, leaks = 0, []
     for directory in (SRC, os.path.join(SRC, "static"), ROOT,
@@ -346,7 +345,7 @@ def test_feature_sticky_subnav_with_strategy_first():
 
 def test_feature_launch_collection_pipeline_shipped():
     broker = _read("src", "sysperf", "standby_broker.ps1")
-    assert "Publish-LaunchTimes" in broker and "launch_times.json" in broker
+    assert "Publish-LaunchTime" in broker and "launch_times.json" in broker
     assert "launch_times.json" in _read("src", "sysperf", "collect_win.ps1")
 
 
@@ -389,7 +388,7 @@ def test_feature_component_refresh_dir_is_configurable(tmp_path, monkeypatch):
     import sysperf.refresh_components as rc
     rc = importlib.reload(rc)
     try:
-        assert rc.COMPONENTS_FILE == tmp_path / "components.json"
+        assert tmp_path / "components.json" == rc.COMPONENTS_FILE
     finally:
         import logging
         for h in list(logging.getLogger().handlers):

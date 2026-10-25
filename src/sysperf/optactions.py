@@ -28,7 +28,6 @@ import threading
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional
 
 LEVELS = ("off", "observe", "safe_auto", "self_evolve")
 
@@ -50,7 +49,7 @@ class ActionSpec:
     risk: str                 # low | medium | high
     reversible: bool
     permissions: str          # user | admin
-    metric: Optional[str]     # metric the action is expected to improve
+    metric: str | None     # metric the action is expected to improve
     higher_is_better: bool
     expected_benefit: str
     execution: str            # handler that runs it
@@ -123,7 +122,7 @@ class ActionPolicy:
     SETTLE_S = 600            # wait this long before judging an action's effect
     NOISE_FRACTION = 0.03     # changes smaller than 3 % count as "no change"
 
-    def __init__(self, state_file: Path, db=None, improver_mode: Optional[str] = None,
+    def __init__(self, state_file: Path, db=None, improver_mode: str | None = None,
                  clock=time.time):
         self.file = Path(state_file)
         self.db = db
@@ -196,7 +195,7 @@ class ActionPolicy:
         """The autoimprove mode implied by the autonomy level."""
         return {"off": "off", "observe": "observe"}.get(self.level, "auto")
 
-    def unattended_block(self, action_id: str) -> Optional[str]:
+    def unattended_block(self, action_id: str) -> str | None:
         """None if the loop may run ``action_id`` unattended now, else why not."""
         spec = REGISTRY.get(action_id)
         if self.level in ("off", "observe"):

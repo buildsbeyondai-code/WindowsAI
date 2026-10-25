@@ -24,8 +24,9 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-from .background_process import run_hidden
 from pathlib import Path
+
+from .background_process import run_hidden
 
 WINDOWS = "windows"
 WSL = "wsl"
@@ -101,7 +102,7 @@ def powershell_candidates(platform: str, env: dict | None = None,
         out += [which("pwsh.exe") or ""]
         finder = glob or _glob_paths
         out += list(_WSL_PS[:2]) + finder(_WSL_WINDOWSAPPS)
-        out += [which("powershell.exe") or ""] + list(_WSL_PS[2:])
+        out += [which("powershell.exe") or "", *list(_WSL_PS[2:])]
     return [p for p in out if p]
 
 

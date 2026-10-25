@@ -3,11 +3,11 @@ import runpy
 
 import flask
 import pytest
+from tests.test_rca import FakeStore
 
 import sysperf.autoimprove as automod
 import sysperf.collector as colmod
 import sysperf.trends as trendmod
-from tests.test_rca import FakeStore
 
 
 class FakeCollector:
@@ -74,7 +74,8 @@ class FakeImprover:
 _orig = (colmod.Collector, trendmod.TrendStore, automod.AutoImprover)
 colmod.Collector, trendmod.TrendStore, automod.AutoImprover = (
     FakeCollector, FakeTrendStore, FakeImprover)
-import sysperf.app as app                        # noqa: E402
+import sysperf.app as app  # noqa: E402
+
 colmod.Collector, trendmod.TrendStore, automod.AutoImprover = _orig
 
 

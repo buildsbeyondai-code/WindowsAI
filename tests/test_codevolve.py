@@ -255,8 +255,8 @@ def test_sandbox_hides_home_and_network(tmp_path):
 def test_interleaved_rounds_need_full_separation():
     eng = codevolve.CodeEvolution.__new__(codevolve.CodeEvolution)
     eng.settings = dict(codevolve.CodeEvolution.DEFAULTS)
-    mk = lambda meds: {"median": sorted(meds)[len(meds) // 2], "mad": 0.0, "n": 12,
-                       "min": min(meds), "round_medians": meds, "round_spread_s": 0}
+    def mk(meds):
+        return {"median": sorted(meds)[len(meds) // 2], "mad": 0.0, "n": 12, "min": min(meds), "round_medians": meds, "round_spread_s": 0}
     base = {"b": mk([1.00, 1.30, 1.05, 1.20])}       # one loaded baseline round
     assert eng.compare(base, {"b": mk([0.50, 0.55, 0.60, 0.52])}, False)["accept"]
     # medians differ by 15 % but a candidate round overlaps the fast baseline round

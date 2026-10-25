@@ -84,7 +84,6 @@ from .config import (
     ONEDRIVE_LOCK_POLICY,
     PERSISTENT_SHELL,
     PLATFORM,
-    PYTHON,
     PORT,
     PROCWATCH_COOLDOWN_S,
     PROCWATCH_CPU_PCT,
@@ -94,6 +93,7 @@ from .config import (
     PROCWATCH_STATE_FILE,
     PROCWATCH_SUSTAIN,
     PS_EXE,
+    PYTHON,
     SAMPLE_SECONDS,
     SELFTEST_REPORT_FILE,
     SELFTEST_ROOT,
@@ -1048,7 +1048,7 @@ def api_autonomy_set():
         return bad
     try:
         if "level" in body:
-            level = action_policy.set_level(str(body["level"]))
+            action_policy.set_level(str(body["level"]))
             improver.set_mode(action_policy.improver_mode())
         if "action" in body:
             action_policy.set_enabled(str(body["action"]), bool(body.get("enabled")))

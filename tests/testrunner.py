@@ -292,8 +292,8 @@ def gate_frontend() -> Gate:
         for field in UNSAFE_IF_RAW:
             # Only property reads count: obj.field or obj["field"]. A bare
             # "field" string (e.g. class="note") is markup, not data.
-            if re.search(r"\.%s\b" % field, body) or \
-                    re.search(r"""\[["']%s["']\]""" % field, body):
+            if re.search(rf"\.{field}\b", body) or \
+                    re.search(rf"""\[["']{field}["']\]""", body):
                 gate.fail(f"unescaped interpolation of a string field: "
                           f"${{{body[:70]}}}")
                 break
@@ -317,7 +317,7 @@ def gate_browser() -> Gate:
         gate.skip("no browser suites found")
         return gate
     try:
-        import playwright.sync_api                  # noqa: F401
+        import playwright.sync_api  # noqa: F401
     except ImportError:
         gate.skip("playwright is not installed")
         return gate
@@ -485,7 +485,7 @@ def write_report(path: Path, gates: list, started: float, verdict: str,
     def counts(detail: str, *names: str) -> dict:
         found = {}
         for name in names:
-            match = re.search(r"(\d+)\s+%s\b" % name, detail)
+            match = re.search(rf"(\d+)\s+{name}\b", detail)
             if match:
                 found[name] = int(match.group(1))
         return found

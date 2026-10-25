@@ -77,15 +77,15 @@ Write-Ok "Windows build $($osVer.Build), PowerShell $($PSVersionTable.PSVersion)
 # ---------------------------------------------------------------------------
 # 2. Locate a usable Python
 # ---------------------------------------------------------------------------
-Write-Step 'Locating Python 3.9 or later'
+Write-Step 'Locating Python 3.10 or later'
 
-function Get-PythonCandidates {
+function Get-PythonCandidate {
     $found = New-Object System.Collections.Generic.List[string]
     if ($PythonExe) { $found.Add($PythonExe) }
     try {
         $resolved = & py.exe -3 -c "import sys; print(sys.executable)" 2>$null
         if ($LASTEXITCODE -eq 0 -and $resolved) { $found.Add(($resolved | Select-Object -Last 1).Trim()) }
-    } catch {}
+    } catch { $null = $_ }
     # The py launcher is the most reliable way to find a real install.
     $py = Get-Command 'py.exe' -ErrorAction SilentlyContinue
     if ($py) {
@@ -94,7 +94,7 @@ function Get-PythonCandidates {
             foreach ($line in $listed) {
                 if ($line -match '([A-Za-z]:\\.+?python\.exe)') { $found.Add($Matches[1]) }
             }
-        } catch {}
+        } catch { $null = $_ }
     }
     foreach ($name in 'python3.exe', 'python.exe') {
         foreach ($cmd in (Get-Command $name -All -ErrorAction SilentlyContinue)) {
@@ -112,27 +112,27 @@ function Test-PythonVersion {
         $v = & $Exe -c "import sys, venv, ensurepip;print('%d.%d' % sys.version_info[:2])" 2>$null
         if ($LASTEXITCODE -ne 0 -or -not $v) { return $false }
         $parts = $v.Trim().Split('.')
-        return ([int]$parts[0] -eq 3 -and [int]$parts[1] -ge 9)
+        return ([int]$parts[0] -eq 3 -and [int]$parts[1] -ge 10)
     } catch { return $false }
 }
 
 $python = $null
 if ($PythonExe) {
-    if (-not (Test-PythonVersion $PythonExe)) { throw 'The Python interpreter passed by setup is not usable (Python 3.9+, pip and venv required).' }
+    if (-not (Test-PythonVersion $PythonExe)) { throw 'The Python interpreter passed by setup is not usable (Python 3.10+, pip and venv required).' }
     $python = $PythonExe
 } else {
-    foreach ($candidate in (Get-PythonCandidates)) {
+    foreach ($candidate in (Get-PythonCandidate)) {
         if (Test-PythonVersion $candidate) { $python = $candidate; break }
     }
 }
 
 if (-not $python) {
-    if ($NonInteractive) { throw 'Python could not be validated. Install Python 3.9+ with pip and venv, then reopen setup. No changes were made.' }
-    Write-Warn 'No Python 3.9+ found.'
+    if ($NonInteractive) { throw 'Python could not be validated. Install Python 3.10+ with pip and venv, then reopen setup. No changes were made.' }
+    Write-Warn 'No Python 3.10+ found.'
     $winget = Get-Command 'winget.exe' -ErrorAction SilentlyContinue
     if (-not $winget) {
         throw @'
-Python 3.9 or later is required and winget is unavailable to install it.
+Python 3.10 or later is required and winget is unavailable to install it.
 
 Install Python from https://www.python.org/downloads/windows/ (tick
 "Add python.exe to PATH"), then run this installer again.
@@ -152,7 +152,7 @@ Install Python from https://www.python.org/downloads/windows/ (tick
     # A fresh install is not on this session's PATH yet.
     $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' +
                 [Environment]::GetEnvironmentVariable('Path', 'Machine')
-    foreach ($candidate in (Get-PythonCandidates)) {
+    foreach ($candidate in (Get-PythonCandidate)) {
         if (Test-PythonVersion $candidate) { $python = $candidate; break }
     }
     if (-not $python) {
@@ -364,7 +364,7 @@ if (-not $NoStart) {
             $metrics = Invoke-WebRequest -Uri "${url}api/metrics" -UseBasicParsing -TimeoutSec 10
             $payload = $metrics.Content | ConvertFrom-Json
             if ($r.StatusCode -eq 200 -and $health.version -eq '4.1.0' -and $metrics.StatusCode -eq 200 -and $payload.latest -and $payload.latest._t -and -not $payload.meta.error) { $ok = $true; break }
-        } catch {}
+        } catch { $null = $_ }
     }
     if ($ok) {
         Write-Ok "Dashboard and live metrics responding at $url"

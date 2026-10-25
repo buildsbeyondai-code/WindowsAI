@@ -321,12 +321,7 @@ class Sandbox:
                    f"--fsize={64 << 20}", "--core=0", "--"]
             return a + lim + [self.wsl_python if c == sys.executable else c for c in cmd]
         if self.backend == "docker":
-            return ["docker", "run", "--rm", "--network", "none", "--read-only",
-                    "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
-                    "--pids-limit", "128", "--memory", f"{self.mem_mb}m", "--cpus", "1",
-                    "--tmpfs", "/tmp:rw,size=256m", "-e", "PYTHONDONTWRITEBYTECODE=1",
-                    "-e", "HOME=/tmp", "-v", f"{w}:/w:ro", "-w", "/w",
-                    "--entrypoint", "", self.docker_image] + cmd
+            return ["docker", "run", "--rm", "--network", "none", "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true", "--pids-limit", "128", "--memory", f"{self.mem_mb}m", "--cpus", "1", "--tmpfs", "/tmp:rw,size=256m", "-e", "PYTHONDONTWRITEBYTECODE=1", "-e", "HOME=/tmp", "-v", f"{w}:/w:ro", "-w", "/w", "--entrypoint", "", self.docker_image, *cmd]
         raise RuntimeError(self.why_none)
 
     def run(self, workdir: Path, cmd: list, timeout_s: float | None = None) -> dict:
@@ -849,7 +844,8 @@ class CodeEvolution:
         if r.get("blocked"):
             return {"blocked": True, "summary": r["stderr"]}
         tail = (r["stdout"].strip().splitlines() or [""])[-1]
-        num = lambda w: int(m.group(1)) if (m := re.search(rf"(\d+) {w}", tail)) else 0
+        def num(w):
+            return int(m.group(1)) if (m := re.search(f"(\\d+) {w}", tail)) else 0
         res = {"rc": r["rc"], "passed": num("passed"), "failed": num("failed"),
                "errors": num("error"), "skipped": num("skipped"), "summary": tail[:200],
                "timeout": bool(r.get("timeout"))}

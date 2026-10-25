@@ -2,7 +2,7 @@
 import json
 
 import sysperf.adaptive as adaptive
-from sysperf.adaptive import AdaptiveScorer, _today, _clamp
+from sysperf.adaptive import AdaptiveScorer, _clamp, _today
 
 
 def _scorer(tmp_path, name="state.json"):

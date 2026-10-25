@@ -1,13 +1,12 @@
 """Coverage + sanity tests for config.py."""
 import importlib
-
 import json
 
 import sysperf.config as config
 
 
 def test_criteria_shape():
-    for key, label, base, target, hib, unit in config.CRITERIA:
+    for key, label, _base, _target, hib, _unit in config.CRITERIA:
         assert isinstance(key, str) and isinstance(label, str)
         assert isinstance(hib, bool)
 
@@ -40,7 +39,7 @@ def test_ps_exe_is_a_path():
     importlib.reload(config)
     # None is the designed answer where no PowerShell exists (Linux, the sandbox).
     assert config.PS_EXE is None or (isinstance(config.PS_EXE, str) and config.PS_EXE)
-    assert config.CAN_COLLECT == (config.PS_EXE is not None)
+    assert (config.PS_EXE is not None) == config.CAN_COLLECT
 
 
 # --------------------------------------------- settings file + precedence -----
@@ -185,7 +184,7 @@ def test_store_mode_turns_background_actions_off_by_default(monkeypatch):
     try:
         _reload_with(monkeypatch, SYSPERF_STORE_MODE="0")
         assert config.STORE_MODE is False and config.PROCWATCH_ENABLED is True
-        assert config.PYTHON == config._sys.executable
+        assert config._sys.executable == config.PYTHON
         _reload_with(monkeypatch, SYSPERF_STORE_MODE="1")
         assert config.STORE_MODE is True and config.PROCWATCH_ENABLED is False
         monkeypatch.setattr(config._sys, "frozen", True, raising=False)

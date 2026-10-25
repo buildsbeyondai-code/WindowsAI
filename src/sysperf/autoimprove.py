@@ -47,10 +47,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import rca
-from .config import (AUTO_ALLOW_RISKS, AUTO_COOLDOWN_S, AUTO_INTERVAL_S,
-                    AUTO_LOG_MAX_LINES, AUTO_MAX_ACTIONS, AUTO_MODE,
-                    AUTO_SETTLE_S, AUTO_THRESHOLD, FIX_ENABLED,
-                    LEDGER_ALPHA, LEDGER_MIN_N, SCORE_TREND_MIN_DAYS)
+from .config import (
+    AUTO_ALLOW_RISKS,
+    AUTO_COOLDOWN_S,
+    AUTO_INTERVAL_S,
+    AUTO_LOG_MAX_LINES,
+    AUTO_MAX_ACTIONS,
+    AUTO_MODE,
+    AUTO_SETTLE_S,
+    AUTO_THRESHOLD,
+    FIX_ENABLED,
+    LEDGER_ALPHA,
+    LEDGER_MIN_N,
+    SCORE_TREND_MIN_DAYS,
+)
 from .trends import HIB
 
 log = logging.getLogger("perfdash.auto")

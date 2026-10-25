@@ -3,7 +3,7 @@ import json
 import subprocess
 
 import sysperf.components as components
-from sysperf.components import _run, _ver, _cmp, _months_old, build_components
+from sysperf.components import _cmp, _months_old, _run, _ver, build_components
 
 
 # ------------------------------------------------------------------- helpers --

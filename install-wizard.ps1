@@ -26,9 +26,9 @@ function Find-Python {
     foreach ($cmd in @('py -3', 'python', 'python3')) {
         $parts = $cmd.Split(' ')
         try {
-            $extra = @(); if ($parts.Count -gt 1) { $extra = @($parts[1..($parts.Count-1)]) }; $v = & $parts[0] @extra -c "import sys; assert sys.version_info >= (3,9); import venv, ensurepip; print(sys.executable); print(sys.version.split()[0])" 2>&1
+            $extra = @(); if ($parts.Count -gt 1) { $extra = @($parts[1..($parts.Count-1)]) }; $v = & $parts[0] @extra -c "import sys; assert sys.version_info >= (3,10); import venv, ensurepip; print(sys.executable); print(sys.version.split()[0])" 2>&1
             if ($LASTEXITCODE -eq 0 -and "$v" -match '(\d+\.\d+\.\d+)') { return [pscustomobject]@{ Path = [string](@($v)[0]); Version = $Matches[1] } }
-        } catch {}
+        } catch { $null = $_ }
     }
     return $null
 }
@@ -84,7 +84,7 @@ function New-Label($text,$x,$y,$w,$color,$font) {
 # prerequisite line
 $preIcon = if ($py) { '✓' } else { '!' }
 $preCol  = if ($py) { [System.Drawing.Color]::FromArgb(29,135,74) } else { [System.Drawing.Color]::FromArgb(200,120,0) }
-$preText = if ($py) { "Python detected: $($py.Path) ($($py.Version))" } else { 'Python not found — install Python 3.9+ from python.org, then re-run.' }
+$preText = if ($py) { "Python detected: $($py.Path) ($($py.Version))" } else { 'Python not found — install Python 3.10+ from python.org, then re-run.' }
 New-Label "$preIcon  $preText" 24 92 580 $preCol $fontN | Out-Null
 
 # options
@@ -153,14 +153,14 @@ $btnInstall.Add_Click({
     $port = 0; if (-not [int]::TryParse($portBox.Text, [ref]$port) -or $port -lt 1 -or $port -gt 65535) { $log.AppendText("Enter a port from 1 to 65535.`r`n"); return }
     $script:url = "http://127.0.0.1:$port/"
     $script:statusFile = [IO.Path]::GetTempFileName()
-    $args = @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',"`"$installer`"",'-Port',"$port",'-StatusFile', ('"' + $script:statusFile + '"'),'-PythonExe', ('"' + $py.Path + '"'))
-    if (-not $cbAuto.Checked) { $args += '-NoAutoStart' }
+    $psArgs = @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',"`"$installer`"",'-Port',"$port",'-StatusFile', ('"' + $script:statusFile + '"'),'-PythonExe', ('"' + $py.Path + '"'))
+    if (-not $cbAuto.Checked) { $psArgs += '-NoAutoStart' }
     $btnInstall.Enabled = $false; $portBox.Enabled = $false
     $cbAuto.Enabled = $false; $cbLaunch.Enabled = $false
     $bar.Visible = $true
     $log.AppendText("Installing on port $port ...`r`n")
     $script:outFile = [System.IO.Path]::GetTempFileName()
-    $script:proc = Start-Process -FilePath 'powershell.exe' -ArgumentList $args `
+    $script:proc = Start-Process -FilePath 'powershell.exe' -ArgumentList $psArgs `
         -RedirectStandardOutput $script:outFile -RedirectStandardError "$($script:outFile).err" `
         -WindowStyle Hidden -PassThru
     $script:lastLen = 0
@@ -176,7 +176,7 @@ $timer.Add_Tick({
         }
         $txt = $chunks -join "`r`n"
         if ($txt) { $log.Text = $txt; $log.SelectionStart = $log.Text.Length; $log.ScrollToCaret() }
-    } catch {}
+    } catch { $null = $_ }
     if ($script:proc -and $script:proc.HasExited) {
         $timer.Stop(); $bar.Visible = $false; $script:proc.WaitForExit()
         $exitStatus = 'unknown'

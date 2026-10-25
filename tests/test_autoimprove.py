@@ -2,12 +2,12 @@
 import json
 
 import pytest
+from tests.test_rca import FakeStore
 
 import sysperf.autoimprove as autoimprove
 import sysperf.rca as rca
-from sysperf.autoimprove import AutoImprover, MODES, _typicals, normalised_delta
+from sysperf.autoimprove import MODES, AutoImprover, _typicals, normalised_delta
 from sysperf.fixes import FixEngine
-from tests.test_rca import FakeStore
 
 
 class Clock:
@@ -358,7 +358,7 @@ def test_cycle_applies_then_verifies_and_learns(tmp_path):
     assert second["verification"]["verdicts"]["net_remote"] == "improved"
     assert imp.state["ledger"]["flush_dns"]["net_remote"]["ema"] > 0
     assert imp.state["cycles"] == 2
-    log = [json.loads(l) for l in
+    log = [json.loads(ln) for ln in
            (tmp_path / "auto.jsonl").read_text().splitlines()]
     assert len(log) == 2 and log[0]["breach"] is True
 

@@ -183,8 +183,8 @@ def test_the_summary_view_renders_its_cards(browser, site):
     # The countdown is written by a once-per-second interval, so it is empty for
     # the first tick after render. The old blanket 1.2s sleep hid that.
     _wait_filled(page, "refreshIn", timeout=4000)
-    empty = set(["kpis", "charts", "selfimprove", "alerts", "liveTxt",
-                 "refreshIn", "footMeta"]) - set(_filled(page, [
+    empty = {"kpis", "charts", "selfimprove", "alerts", "liveTxt",
+                 "refreshIn", "footMeta"} - set(_filled(page, [
                      "kpis", "charts", "selfimprove", "liveTxt", "refreshIn",
                      "footMeta"]))
     # `alerts` is empty when nothing is wrong, which is the stubbed state.

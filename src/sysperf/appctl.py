@@ -22,10 +22,9 @@ Safety
 from __future__ import annotations
 
 import re
-from typing import Callable, Optional
+from typing import Callable
 
-from . import cpuwatch
-from . import onedrive
+from . import cpuwatch, onedrive
 
 # Processes with a reliable known launcher, used when the collector could not
 # observe an executable path (e.g. OneDrive's Win32_Process ExecutablePath comes
@@ -53,14 +52,14 @@ def is_controllable(name: str) -> bool:
     return bool(name) and bool(NAME_RE.match(name)) and name.lower() not in CRITICAL
 
 
-def _can_start(name: str, exe: Optional[str]) -> bool:
+def _can_start(name: str, exe: str | None) -> bool:
     """Startable if controllable and we have either an observed path or a known
     launcher for it (e.g. OneDrive)."""
     return is_controllable(name) and (exe is not None
                                       or name.lower() in KNOWN_START)
 
 
-def last_exe(history, name: str) -> Optional[str]:
+def last_exe(history, name: str) -> str | None:
     """Most recently observed executable path for a process name, or None."""
     for s in reversed(list(history)):
         if not isinstance(s, dict):
@@ -108,7 +107,7 @@ def controllable_names(history, *, top: int = TOP_N) -> set:
             if a["controllable"]}
 
 
-def total_cpu(cpu_row: Optional[dict], current) -> dict:
+def total_cpu(cpu_row: dict | None, current) -> dict:
     """Overall-CPU health indicator for the App Control tab.
 
     Judged the same way the dashboard scores ``cpu_pct``: against its target,
@@ -179,7 +178,7 @@ def wsl_shutdown(runner: Callable[[str, str], tuple],
 
 
 def start(runner: Callable[[str, str], tuple], name: str,
-          exe: Optional[str]) -> dict:
+          exe: str | None) -> dict:
     """Relaunch `name`. Uses a known launcher (e.g. OneDrive) when available,
     else the observed executable `exe`. Rejects bad/critical names."""
     if not is_controllable(name):

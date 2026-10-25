@@ -19,7 +19,7 @@ jobs:
         # Linux proves the core is platform-independent; Windows is the real
         # target and the only place the PowerShell collector can be exercised.
         os: [ubuntu-latest, windows-latest]
-        python: ['3.9', '3.12']
+        python: ['3.10', '3.13']
     steps:
       - uses: actions/checkout@v4
 

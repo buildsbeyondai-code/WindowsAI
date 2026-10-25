@@ -24,8 +24,7 @@ import shutil as _shutil
 import sys as _sys
 from pathlib import Path
 
-from .platform_paths import (detect_platform, resolve_data_dir,
-                            resolve_powershell)
+from .platform_paths import detect_platform, resolve_data_dir, resolve_powershell
 
 # Where the code lives. Read-only: nothing is ever written here.
 BASE = Path(__file__).resolve().parent
@@ -600,7 +599,7 @@ PROFILE_PENDING: frozenset = frozenset()
 # and archive state that another computer left in the data directory. Must run
 # last, after CRITERIA exists, and before any other module builds from it.
 try:
-    from .machine_profile import startup as _profile_startup   # noqa: E402
+    from .machine_profile import startup as _profile_startup
 except ImportError:
     # machine_profile itself is mid-import (it was imported first and pulled
     # config in); it runs startup() once it has finished defining it.

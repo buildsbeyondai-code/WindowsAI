@@ -8,10 +8,19 @@ precisely because the platform code could not be tested.
 from pathlib import Path
 
 import sysperf.platform_paths as pp
-from sysperf.platform_paths import (LINUX, STATE_MARKERS, WINDOWS, WSL, describe,
-                            detect_platform, legacy_has_state,
-                            powershell_candidates, resolve_data_dir,
-                            resolve_powershell, to_host_path)
+from sysperf.platform_paths import (
+    LINUX,
+    STATE_MARKERS,
+    WINDOWS,
+    WSL,
+    describe,
+    detect_platform,
+    legacy_has_state,
+    powershell_candidates,
+    resolve_data_dir,
+    resolve_powershell,
+    to_host_path,
+)
 
 
 # ----------------------------------------------------------------- detect ----

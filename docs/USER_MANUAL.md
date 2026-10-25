@@ -62,7 +62,7 @@ rather than an impression.
 |---|---|
 | Operating system | Windows 11 (build 22000 or later). Windows 10 works but is not the test target. |
 | PowerShell | 5.1, which ships with Windows. PowerShell 7 also works. |
-| Python | 3.9 or later. The installer can fetch it via `winget` if it is missing. |
+| Python | 3.10 or later. The installer can fetch it via `winget` if it is missing. |
 | Privileges | Standard user. Nothing requires administrator rights. |
 | Disk space | About 60 MB including the private Python environment, plus up to 12 MB of history. |
 | Network | Needed once, to download two Python packages. After installation SysPerf works entirely offline. |
@@ -90,7 +90,7 @@ machine's script policy.
 The installer will:
 
 1. confirm your Windows and PowerShell versions;
-2. find Python 3.9+, offering to install it with `winget` if none is present;
+2. find Python 3.10+, offering to install it with `winget` if none is present;
 3. create a private virtual environment in `%LOCALAPPDATA%\SysPerf\venv`;
 4. copy the application to `%LOCALAPPDATA%\SysPerf\app`;
 5. write a starter configuration file;
@@ -174,7 +174,7 @@ the two without losing history. Full notes: `container/README.md`.
 
 ### 3.6 If installation fails
 
-**"Python 3.9 or later is required and winget is unavailable."** Install Python
+**"Python 3.10 or later is required and winget is unavailable."** Install Python
 from <https://www.python.org/downloads/windows/>, ticking *Add python.exe to
 PATH*, then run the installer again.
 
