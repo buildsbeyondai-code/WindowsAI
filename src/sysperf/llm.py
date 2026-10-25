@@ -178,7 +178,7 @@ def load_api_key(key_file: Path | None, env=None) -> tuple:
             return env[var].strip(), f"env:{var}"
     if key_file and Path(key_file).is_file():
         p = Path(key_file)
-        if OS_NAME != "nt" and (p.stat().st_mode & (stat.S_IRWXG | stat.S_IRWXO)):
+        if OS_NAME != "nt" and (p.stat().st_mode & (stat.S_IRWXG | stat.S_IRWXO)):   # pragma: posix only
             log.warning("ignoring %s: readable by other users (chmod 600 it)", p.name)
             return None, "file:insecure-permissions"
         key, source = _read_key_file(p)
