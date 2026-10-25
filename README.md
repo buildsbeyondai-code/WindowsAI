@@ -555,8 +555,9 @@ let it. Its defences assume the attacker is another web page in your browser:
 - **No shell from HTTP.** The collector path is fixed in code, and App Control
   accepts only allow-listed process names.
 - **System changes are listed and reversible.** Automatic fixes, the Explorer
-  watchdog, tray auto-quit and the OneDrive policy are each described on Home
-  with how to undo them, and are off by default in the Store build.
+  watchdog, tray auto-quit and the OneDrive policy each have a switch and say how
+  to undo them: on Home in the Store build (where they start off), and on the
+  App Control, Auto-Improve and AI Self-Evolution tabs in a scripted install.
   `fixes.enabled: false` turns off everything that changes the PC.
 - **Outbound traffic:** only the daily version check (public release feeds)
   and, if you enable self-evolution, the model provider you configure.
@@ -603,7 +604,7 @@ Before a release, follow [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). The rules
 that are not negotiable: anything that changes the PC must be reversible,
-opt-in or individually enabled, listed on Home with how to undo it, and
+opt-in or individually enabled, shown in the app with how to undo it, and
 covered by tests. No feature may show a value that is not measured.
 
 ---
@@ -661,7 +662,9 @@ provider you configured. Nothing else leaves the PC.
 
 **Does it change my PC?** Only in ways it lists. Automatic fixes (DNS flush,
 memory trims), the Explorer watchdog, tray auto-quit and the OneDrive policy are
-each shown on Home with how to undo them. Autonomy starts at *Observe*, and the
+each have a switch and say how to undo them (Home → Optional features in the
+Store build; App Control, Auto-Improve and AI Self-Evolution tabs otherwise).
+Autonomy starts at *Observe*, and the
 Store build starts with every one of them off. Set `fixes.enabled` to `false` and
 SysPerf only measures and recommends.
 
