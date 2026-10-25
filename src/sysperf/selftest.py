@@ -49,8 +49,10 @@ GATES = {
 STALE_AFTER_S = 6 * 3600
 
 # Hard ceiling on a run. The coverage gate line-traces the whole pytest suite,
-# which is the slow part; 15 minutes is ~30x the observed duration.
-RUN_TIMEOUT_S = 900
+# which is the slow part. Measured 2026-10-25 on the reference laptop: about 6
+# minutes idle, and over 15 while the PC was busy, which hit the old 900 s
+# ceiling. 45 minutes leaves room for a busy machine and still ends a hung run.
+RUN_TIMEOUT_S = 2700
 
 
 def console_python(exe: str) -> str:
