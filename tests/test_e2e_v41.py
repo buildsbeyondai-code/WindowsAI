@@ -41,8 +41,9 @@ def test_home_is_the_default_view_and_renders_every_panel(browser, site):
     page = _open(browser, site)
     page.wait_for_function("() => document.getElementById('homeTodo').innerText.includes('quit')")
     assert page.eval_on_selector("#view-home", "e => e.style.display") != "none"
-    assert "72%" in page.inner_text("#homeScore")
-    assert "needs attention" in page.inner_text("#homeStatus")
+    page.wait_for_function("() => /\\d+%/.test(document.getElementById('homeScore').innerText)")
+    status = page.inner_text("#homeStatus")
+    assert "Improvement score 72%" in status and "agent acts below 80%" in status
     todo = page.inner_text("#homeTodo")
     assert "ChatGPT" in todo and "waiting for review" in todo and "Clear standby" in todo
     assert "Needs administrator rights" in todo and "ErrorActionPreference" not in todo
@@ -94,7 +95,7 @@ def test_home_with_nothing_to_do(browser, site):
                 evolution={"pending": {"id": "c-1", "title": "Faster"}, "awaiting_review": 0},
                 notifications={"items": [], "unread": 0}, health={"status": "ok", "problems": []})
     page = _open(browser, site, overrides={"api/home": calm})
-    page.wait_for_function("() => document.getElementById('homeStatus').innerText.includes('good shape')")
+    page.wait_for_function("() => document.getElementById('homeStatus').innerText.includes('Improvement score 93%')")
     assert "Verifying the applied AI patch" in page.inner_text("#homeTodo")
     assert "Nothing yet today" in page.inner_text("#homeToday")
     assert "No notifications yet" in page.inner_text("#homeNotes")
@@ -330,4 +331,17 @@ def test_header_version_baseline_strip_and_launch_times(browser, site):
     page.wait_for_function("() => document.getElementById('pillLaunch').innerText !== '—'")
     assert page.inner_text("#pillLaunch") in ("no data yet",) or "tracked" in page.inner_text("#pillLaunch")
     assert "Windows boot" in page.inner_text("#autoLaunch")
+    page.close()
+
+
+def test_home_and_summary_always_show_the_same_system_score(browser, site):
+    """Both headline rings come from computeCategories(snapshot), so they can't drift."""
+    page = _open(browser, site)
+    page.wait_for_function("() => /\\d+%/.test(document.getElementById('homeScore').innerText)")
+    home = page.inner_text("#homeScore").strip()
+    page.click("#tab-summary")
+    page.wait_for_selector("#view-summary .sum-ring")
+    summary = page.inner_text("#view-summary .sum-ring").split()[0].strip()
+    assert home.rstrip("%") == summary.rstrip("%"), (home, summary)
+    assert "Improvement score" in page.inner_text("#sumAgent")
     page.close()

@@ -215,10 +215,12 @@ def test_no_eligible_files_is_skipped(tmp_path, repo):
     assert e.run_cycle("manual", "self_evolve")["state"] == "skipped"
 
 
-def test_red_baseline_is_refused(tmp_path, repo):
-    e, db = eng(tmp_path, repo, box=Box(tests="1 failed, 3 passed", rc=1))
+def test_red_baseline_is_refused_and_names_the_failing_test(tmp_path, repo):
+    out = "FAILED tests/test_x.py::test_slow - AssertionError: boom\n1 failed, 3 passed"
+    e, db = eng(tmp_path, repo, box=Box(tests=out, rc=1))
     r = e.run_cycle("manual", "self_evolve")
     assert r["state"] == "skipped" and "refusing to evolve" in r["explanation"]
+    assert "failing: tests/test_x.py::test_slow" in r["explanation"]
 
 
 def test_crashing_test_run_counts_as_an_error(tmp_path, repo):

@@ -104,7 +104,7 @@ def test_codevolve_run_gated_and_started(client, monkeypatch):
     monkeypatch.setattr(app.code_evolution, "gate", lambda trig, lvl: None)
     monkeypatch.setattr(app.code_evolution, "run_cycle", lambda *a: ran.append(a))
     assert client.post("/api/codevolve/run", json=T).get_json() == {"started": True}
-    for _ in range(100):
+    for _ in range(1000):                     # generous: the suite may run on a loaded machine
         if ran:
             break
         time.sleep(0.01)
