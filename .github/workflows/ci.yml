@@ -67,7 +67,7 @@ jobs:
           $obj = $json | ConvertFrom-Json
           foreach ($key in 'committed_mb','available_mb','total_ram_mb','handles',
                            'processes','c_free_gb','startup_apps','net_remote',
-                           'hostname','os_build','drv_total') {
+                           'win_build','cpu_pct','drv_total') {
             if ($null -eq $obj.$key) { throw "collector did not emit $key" }
           }
           Write-Host "collector OK — $($obj.PSObject.Properties.Name.Count) keys"
