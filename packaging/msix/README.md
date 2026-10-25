@@ -30,28 +30,33 @@ No Windows SDK or admin rights needed; makeappx is fetched from the
 5. Start a submission. **Packages**: upload the .msix (unsigned is fine, because the
    Store signs it). **Store listings**: description, at least 1 screenshot (1366x768 or
    larger), and the app icon. **Properties**: category *Utilities & tools*, plus a
-   privacy policy URL (required because the app collects system data, even locally).
+   privacy policy URL (publish `PRIVACY.md` and paste its link).
 6. **Submission options > Restricted capabilities**: explain `runFullTrust`:
    *"SysPerf is a desktop performance monitor. It runs PowerShell and WMI
    queries to measure CPU, memory, disk and network, which needs a full-trust
    Win32 process."*
 7. Submit. Certification usually takes 1–3 business days.
 
-## Certification risks to settle before submitting
+## Store policy compliance (built in)
 
-Store policy 10.2/10.8 reviewers check that an app doesn't change the system
-in unexpected ways. These SysPerf features act outside the app and should be off by
-default in the Store build, or clearly opt-in:
+The packaged app runs in **Store mode** automatically (`config.STORE_MODE`, true
+for the frozen `SysPerf.exe`). No feature is removed. Everything that acts
+outside the app starts **off** and is listed on Home under *Optional features*,
+with what it does, how to undo it, and a one-click switch:
 
-- stopping OneDrive at start-up and on unlock (session policy)
-- restarting Explorer (runaway-CPU watchdog)
-- tray auto-quit (ends other apps' processes)
-- editing Edge policies and other HKCU tweaks
-- AI self-evolution: it needs git, WSL and Claude Code, and patches its own source,
-  which a packaged (read-only, signed) app can't do. It shows as unavailable.
+| Feature | Scripted install | Store app |
+|---|---|---|
+| Automatic fixes (autonomy) | Observe | Observe (opt-in) |
+| Explorer watchdog | on | **off** (opt-in) |
+| Tray auto-quit (asks per app) | on | **off** (opt-in) |
+| OneDrive lock-state policy | env flag | **off** (opt-in, remembered) |
+| AI self-evolution | off | off; patches go to *your* source checkout, never into the signed package |
 
-Inside the package, writes to `%LOCALAPPDATA%` are virtualized per package, so the
-Store app keeps its own data separate from a scripted install.
+Other Store-specific behaviour:
+- **Restart** relaunches the app; there's no supervisor to do it.
+- **Self-test** runs from your source checkout, using the installed Python (`py`).
+- **Privacy:** `PRIVACY.md` is the policy. Publish it (for example in the GitHub
+  repo) and paste its URL into Partner Center.
 
 ## Local test install
 

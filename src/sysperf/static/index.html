@@ -1238,6 +1238,9 @@
     <div id="homeScore" class="home-ring-wrap"></div>
     <div style="flex:1;min-width:240px"><div id="homeStatus">Loading…</div></div>
   </div></div>
+  <div class="card" id="homeOptionalCard" style="margin-bottom:12px;display:none"><h3>Optional features</h3>
+    <p class="hint">These act outside SysPerf, so they stay off until you turn them on. Each can be
+      turned off again at any time.</p><ul class="home-list" id="homeOptional"></ul></div>
   <div class="home-grid">
     <div class="card"><h3>Do these next</h3><ul class="home-list" id="homeTodo"><li>Loading…</li></ul></div>
     <div class="card"><h3>What SysPerf did today</h3><ul class="home-list" id="homeToday"><li>Loading…</li></ul></div>
@@ -5483,8 +5486,8 @@ tick();
       if (!confirm("Apply this patch to SysPerf now? The previous version is kept and restored automatically if the patched service is not healthy.")) return;
       try {
         const d = await post("api/codevolve/apply", {id: c.id});
-        reviewNote[c.id] = d.restarting ? "Applied — SysPerf is restarting; the patch is confirmed once the service is healthy."
-          : "Applied to the repository — restart SysPerf to load it.";
+        reviewNote[c.id] = d.note || (d.restarting ? "Applied — SysPerf is restarting; the patch is confirmed once the service is healthy."
+          : "Applied to the repository — restart SysPerf to load it.");
         $("sevReviewMsg").textContent = reviewNote[c.id]; refresh();
       } catch (e) { $("sevReviewMsg").textContent = "Error: " + e.message; }
     };
@@ -5698,6 +5701,7 @@ const api41 = (() => {
         [why, ask].filter(Boolean).join(" — ") + steps + ` <a href="#auto-improve">Action queue</a>`));
     });
     $("homeTodo").innerHTML = todo.length ? todo.join("") : li("✅", "Nothing needs you right now", "SysPerf will notify you when something does.");
+    optional(d.optional);
     const today = d.today || [];
     $("homeToday").innerHTML = today.length ? today.map(e => li(ICON[e.kind] || "•", esc(e.text),
       esc(new Date(e.at * 1000).toLocaleTimeString()))).join("")
@@ -5719,6 +5723,23 @@ const api41 = (() => {
       chart();
     }
   }
+  // Store app only: what each opt-in feature does, its state and one switch.
+  function optional(list) {
+    $("homeOptionalCard").style.display = (list || []).length ? "" : "none";
+    if (!(list || []).length) return;
+    $("homeOptional").innerHTML = list.map(f => li(f.on ? "🟢" : "⚪",
+      `${esc(f.title)} <b>${f.on ? "On" : "Off"}</b>`,
+      `${esc(f.what)} <i>${esc(f.undo)}</i> ` + (f.where
+        ? `<a href="${esc(f.where)}">Set up</a>`
+        : `<button type="button" class="opt-toggle" data-id="${esc(f.id)}" data-on="${f.on ? "0" : "1"}">${f.on ? "Turn off" : "Turn on"}</button>`))).join("");
+  }
+  $("homeOptional").addEventListener("click", async (ev) => {
+    const b = ev.target.closest(".opt-toggle");
+    if (!b) return;
+    b.disabled = true;
+    try { optional((await api41.post("api/store", {feature: b.dataset.id, on: b.dataset.on === "1"})).features); }
+    catch (e) { b.disabled = false; b.textContent = "Failed: " + e.message; }
+  });
   async function chart() {
     const host = $("homeHistChart");
     const key = $("homeHistKey").value, hours = $("homeHistRange").value;

@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import json as _json
 import os as _os
+import shutil as _shutil
+import sys as _sys
 from pathlib import Path
 
 from .platform_paths import (detect_platform, resolve_data_dir,
@@ -31,6 +33,15 @@ BASE = Path(__file__).resolve().parent
 APP_VERSION = "4.1.0"
 
 PLATFORM = detect_platform()
+# Microsoft Store mode (store_mode.py): the frozen SysPerf.exe of the MSIX build,
+# or SYSPERF_STORE_MODE=1. Features that act outside the app start off until the
+# user turns them on, because nobody configured them by hand.
+STORE_MODE = bool(getattr(_sys, "frozen", False)) or _os.environ.get(
+    "SYSPERF_STORE_MODE", "0") not in ("0", "false", "no", "")
+# The interpreter that runs the test suite. A frozen build's sys.executable is
+# SysPerf.exe, which cannot run a script, so the installed Python is used there.
+PYTHON = ((_shutil.which("py") or _shutil.which("python") or _sys.executable)
+          if getattr(_sys, "frozen", False) else _sys.executable)
 # Where state lives. An existing installation keeps its directory so a version
 # bump never orphans a user's history; a fresh one gets the platform location.
 DATA_DIR = resolve_data_dir(PLATFORM, legacy=BASE)
@@ -284,7 +295,7 @@ TRAYQUIT_STATE_FILE = DATA_DIR / "trayquit_state.json"
 TRAYQUIT_LOG_FILE = DATA_DIR / "trayquit_log.jsonl"
 TRAYQUIT_INTERVAL_S = float(_os.environ.get("PERFDASH_TRAYQUIT_INTERVAL", 15))
 PROCWATCH_ENABLED = _os.environ.get(
-    "PERFDASH_PROCWATCH_ENABLED", "1") not in ("0", "false", "no", "")
+    "PERFDASH_PROCWATCH_ENABLED", "0" if STORE_MODE else "1") not in ("0", "false", "no", "")
 # Restart when explorer's CPU% (share of ALL logical processors) is at/above this
 # in each of the last PROCWATCH_SUSTAIN intervals. 25% > normal idle (~0–3%) and
 # below the collected 35% spike, so a genuine runaway trips it while a brief blip

@@ -233,7 +233,8 @@ class TrayQuitter:
     def __init__(self, state_file: Path, log_file: Path, *, fix_enabled: bool = True,
                  api_factory: Callable[[], object] = WinApi,
                  clock: Callable[[], float] = time.time,
-                 on_event: Callable[[str, dict], None] | None = None):
+                 on_event: Callable[[str, dict], None] | None = None,
+                 default_enabled: bool = True):
         self.state_file, self.log_file = Path(state_file), Path(log_file)
         self.fix_enabled = fix_enabled
         self.clock = clock
@@ -242,7 +243,8 @@ class TrayQuitter:
         self.lock = threading.RLock()
         self.hidden_since: dict = {}          # lower name -> first windowless check
         self.last_view: dict = {}
-        self.settings = {"enabled": True, "grace_s": 60, "startup_grace_s": 60,
+        # Off on a fresh Store install until the user opts in (store_mode.py).
+        self.settings = {"enabled": default_enabled, "grace_s": 60, "startup_grace_s": 60,
                          "apps": list(DEFAULT_APPS), "consent": {}, "busy_cpu_pct": 3.0}
         self.recent: list = []
         self.on_event = on_event              # ("quit"|"consent", details) -> None

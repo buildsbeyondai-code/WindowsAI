@@ -228,3 +228,10 @@ def test_unwritable_state_and_log_are_tolerated(tmp_path, caplog):
     t.tick()
     clock[0] += 61
     assert t.tick() and api.killed == [1]                  # log write failed silently
+
+
+def test_store_install_starts_with_auto_quit_off(tmp_path):
+    t = make(tmp_path, FakeApi(), [0.0], default_enabled=False)
+    assert t.settings["enabled"] is False
+    t.configure(enabled=True)
+    assert make(tmp_path, FakeApi(), [0.0], default_enabled=False).settings["enabled"] is True

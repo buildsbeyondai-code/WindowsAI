@@ -123,12 +123,28 @@ def error_page(port: int) -> str:
             "</body></html>")
 
 
+def wait_released(port: int, free=port_free, clock=time.monotonic, sleep=time.sleep,
+                  timeout: float = 20.0) -> bool:
+    """After a restart: wait for the previous instance to let go of the port."""
+    end = clock() + timeout
+    while clock() < end:
+        if free(port):
+            return True
+        sleep(0.25)
+    return False
+
+
 def main(argv=None, env=None, webview=None, probe=is_sysperf, free=port_free,
-         pick=free_port, server=start_server, ready=wait_ready) -> int:
+         pick=free_port, server=start_server, ready=wait_ready,
+         released=wait_released) -> int:
     """Open the SysPerf window. Collaborators are injectable for testing."""
     env = os.environ if env is None else env
     if webview is None:                                 # pragma: no cover - real import
         import webview
+    if "--relaunch" in (argv or []):
+        # Started by the restart button: attaching to the instance that is about
+        # to exit would leave a window onto nothing.
+        released(configured_port(env), free)
     port, attach = choose(env, probe, free, pick)
     if not attach:
         server(port, env)

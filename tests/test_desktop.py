@@ -135,3 +135,27 @@ def test_main_shows_an_error_when_the_dashboard_never_answers(tmp_path):
                  probe=lambda p: False, free=lambda p: True,
                  server=lambda p, e: None, ready=lambda p, probe: False)
     assert wv.windows[0]["url"] is None and "could not start" in wv.windows[0]["html"]
+
+
+def test_wait_released():
+    t = [0.0]
+    sleeps = []
+    frees = iter([False, True])
+    assert desktop.wait_released(1, free=lambda p: next(frees), clock=lambda: t[0],
+                                 sleep=sleeps.append)
+    assert sleeps == [0.25]
+
+    def clock():
+        t[0] += 30
+        return t[0]
+    assert not desktop.wait_released(1, free=lambda p: False, clock=clock, sleep=lambda s: None)
+
+
+def test_relaunch_waits_for_the_old_instance_before_choosing(tmp_path):
+    order = []
+    wv = _WebView()
+    desktop.main(["--relaunch"], env={"SYSPERF_DATA_DIR": str(tmp_path)}, webview=wv,
+                 probe=lambda p: order.append("probe") or False, free=lambda p: True,
+                 server=lambda p, e: None, ready=lambda p, probe: True,
+                 released=lambda p, free: order.append(("released", p)))
+    assert order[0] == ("released", 5056) and "probe" in order

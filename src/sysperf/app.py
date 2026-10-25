@@ -50,6 +50,7 @@ from . import pwsh_session as pwsh_mod
 from . import rca as rca_mod
 from . import session_policy as session_policy_mod
 from . import settings_hub as settings_mod
+from . import store_mode as store_mode_mod
 from . import trayquit as trayquit_mod
 from .actions import ActionQueue
 from .adaptive import AdaptiveScorer
@@ -83,6 +84,7 @@ from .config import (
     ONEDRIVE_LOCK_POLICY,
     PERSISTENT_SHELL,
     PLATFORM,
+    PYTHON,
     PORT,
     PROCWATCH_COOLDOWN_S,
     PROCWATCH_CPU_PCT,
@@ -103,6 +105,7 @@ from .config import (
     STANDBY_BROKER_DIR_WIN,
     STANDBY_BROKER_SCRIPT_DIR,
     STATIC_DIR,
+    STORE_MODE,
     TRAYQUIT_INTERVAL_S,
     TRAYQUIT_LOG_FILE,
     TRAYQUIT_STATE_FILE,
@@ -198,7 +201,8 @@ evolution = EvolutionEngine(learning_view, rca_mod.REMEDIATION,
 learning_view.evolved_map = _EvolvedMapView(evolution)
 # Integrated test suite: the repo's seven gates (discover, compile, lint, unit,
 # coverage, frontend, live), readable and runnable from the dashboard itself.
-self_test = SelfTest(SELFTEST_ROOT, SELFTEST_REPORT_FILE)
+self_test = SelfTest(SELFTEST_ROOT, SELFTEST_REPORT_FILE, python=PYTHON,
+                     fallback_root=lambda: code_evolution.settings.get("repo"))
 # Human action queue: every skip, escalation and pending review turned into a
 # work item with ordered steps and a specific reason automation is barred.
 action_queue = ActionQueue(improver, fix_engine, evolution,
@@ -289,7 +293,13 @@ def _tray_event(kind: str, d: dict) -> None:
 
 
 tray_quitter = trayquit_mod.TrayQuitter(TRAYQUIT_STATE_FILE, TRAYQUIT_LOG_FILE,
-                                        fix_enabled=FIX_ENABLED, on_event=_tray_event)
+                                        fix_enabled=FIX_ENABLED, on_event=_tray_event,
+                                        default_enabled=not STORE_MODE)
+# Store mode: everything that acts outside the app is opt-in and listed on Home.
+store_features = store_mode_mod.StoreFeatures(
+    DATA_DIR / "store_features.json", store_mode=STORE_MODE, action_policy=action_policy,
+    improver=improver, proc_watchdog=proc_watchdog, tray_quitter=tray_quitter,
+    session_policy=session_policy)
 app = Flask(__name__, static_folder=None)
 
 # Per-process CSRF token: required on POST /api/fix so a mutating action cannot
@@ -1047,10 +1057,21 @@ def api_autonomy_set():
 # ------------------------------------------------------------- 4.1 API ----
 def _restart_soon(delay_s: float = 1.5) -> bool:
     """Ask the supervisor for a restart (exit RESTART_CODE) after this response."""
+    if getattr(sys, "frozen", False):
+        # The Store app has no supervisor: start a fresh copy, which waits for
+        # this one to free the port, then exit.
+        threading.Timer(delay_s, _relaunch).start()
+        return True
     if os.environ.get("SYSPERF_SUPERVISED") != "1":
         return False
     threading.Timer(delay_s, os._exit, args=(RESTART_CODE,)).start()
     return True
+
+
+def _relaunch(spawn=None, exit_fn=None) -> None:
+    import subprocess
+    (spawn or subprocess.Popen)([sys.executable, "--relaunch"], close_fds=True)
+    (exit_fn or os._exit)(0)
 
 
 @app.post("/api/codevolve/apply")
@@ -1063,6 +1084,12 @@ def api_codevolve_apply():
         res = code_evolution.apply(str(body.get("id") or ""))
     except (ValueError, RuntimeError) as exc:
         return jsonify({"error": str(exc)}), 400
+    if STORE_MODE:
+        # The installed package is read-only and signed: the patch lands in the
+        # user's source checkout, and reaches this app with the next build.
+        return jsonify({**res, "restarting": False,
+                        "note": "Applied to your source checkout. Rebuild the package "
+                                "(packaging/msix/build-msix.ps1) to ship it."})
     return jsonify({**res, "restarting": _restart_soon()})
 
 
@@ -1222,7 +1249,25 @@ def api_home():
                                              if c.get("review_state") == "pending"
                                              and c.get("decision") == "retained")},
         "history_keys": list(history_store.rollup_keys),
+        "optional": store_features.describe()["features"] if STORE_MODE else None,
     })
+
+
+@app.get("/api/store")
+def api_store():
+    return jsonify(store_features.describe())
+
+
+@app.post("/api/store")
+def api_store_set():
+    """Body: {token, feature, on} — turn one opt-in feature on or off."""
+    body = request.get_json(silent=True) or {}
+    if (bad := _csrf(body)):
+        return bad
+    try:
+        return jsonify(store_features.set(str(body.get("feature") or ""), bool(body.get("on"))))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
 
 # ---- unified settings ------------------------------------------------------

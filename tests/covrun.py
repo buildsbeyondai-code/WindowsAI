@@ -35,7 +35,7 @@ TARGETS = [
     "llm.py", "evodb.py", "optactions.py", "codevolve.py",  # 4.0
     "trayquit.py", "machine_profile.py", "livestats.py", "background_process.py",
     "pwsh_session.py", "historydb.py", "health.py", "notify.py",  # 4.1
-    "settings_hub.py", "supervisor.py", "desktop.py",
+    "settings_hub.py", "supervisor.py", "desktop.py", "store_mode.py",
 ]
 # Two layouts: the development repo keeps the modules at the root, an exported
 # distribution keeps them in src/sysperf/. Resolving here means one runner covers

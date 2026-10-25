@@ -178,3 +178,20 @@ def test_config_imported_by_machine_profile_first_defers_startup(monkeypatch):
         sys.modules.update(saved)
         for n, mod in saved_attrs.items():
             setattr(sysperf, n, mod)
+
+
+def test_store_mode_turns_background_actions_off_by_default(monkeypatch):
+    monkeypatch.delenv("PERFDASH_PROCWATCH_ENABLED", raising=False)
+    try:
+        _reload_with(monkeypatch, SYSPERF_STORE_MODE="0")
+        assert config.STORE_MODE is False and config.PROCWATCH_ENABLED is True
+        assert config.PYTHON == config._sys.executable
+        _reload_with(monkeypatch, SYSPERF_STORE_MODE="1")
+        assert config.STORE_MODE is True and config.PROCWATCH_ENABLED is False
+        monkeypatch.setattr(config._sys, "frozen", True, raising=False)
+        monkeypatch.setattr(config._shutil, "which", lambda n: "C:/py.exe" if n == "py" else None)
+        importlib.reload(config)
+        assert config.STORE_MODE is True and config.PYTHON == "C:/py.exe"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
