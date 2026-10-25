@@ -5,17 +5,18 @@ Coverage runner for the perf-dashboard test suite.
 Uses only the Python standard library because this environment has no network
 access to PyPI (coverage.py / pytest-cov cannot be installed). A direct
 ``sys.settrace`` line tracer records executed lines for the target modules while
-the pytest suite runs; ``trace._find_executable_linenos`` supplies the set of
+the pytest suite runs; ``_find_executable_linenos`` (below) supplies the set of
 executable lines (``# pragma: no cover`` honoured).
 
 Exit code 0 iff every target module reaches 100% line coverage.
 """
+import inspect
 import os
 import sys
 import threading
+import trace
 from collections import defaultdict
 from pathlib import Path
-from trace import _find_executable_linenos
 
 import pytest
 
@@ -71,8 +72,29 @@ def _global_tracer(frame, event, arg):
     return None
 
 
+def _find_executable_linenos(path):
+    """Source lines that can execute, as ``trace._find_executable_linenos`` gives.
+
+    Python 3.14+ compiles annotations into a lazy ``__annotate__`` function that
+    runs only if something inspects them (PEP 649). trace counts its lines, so
+    every multi-line ``def`` signature read as uncovered on Python 3.15. Those
+    code objects are skipped; everything else uses trace's own helpers.
+    """
+    with open(path, encoding="utf-8") as fh:
+        code = compile(fh.read(), path, "exec")
+    strs = trace._find_strings(path, "utf-8")
+    lines, todo = set(), [code]
+    while todo:
+        co = todo.pop()
+        if co.co_name == "__annotate__":
+            continue
+        lines.update(trace._find_lines_from_code(co, strs))
+        todo.extend(c for c in co.co_consts if inspect.iscode(c))
+    return lines
+
+
 def pragma_lines(path):
-    """Lines excluded by ``# pragma: no cover``.
+    """Lines excluded by ``# pragma: no cover`` (and, on Windows, ``posix only``).
 
     A pragma on a compound-statement header (line ending with ``:``) also
     excludes the whole indented block below it, mirroring coverage.py.
@@ -81,7 +103,11 @@ def pragma_lines(path):
         lines = fh.read().splitlines()
     out = set()
     for i, line in enumerate(lines, 1):
-        if "pragma: no cover" not in line:
+        # "posix only" marks code Linux CI covers but Windows cannot reach
+        # (/proc, bubblewrap, POSIX modes); it is excluded only on Windows, the
+        # mirror of "no cover - Windows" for code Linux cannot reach.
+        if "pragma: no cover" not in line and not (
+                os.name == "nt" and "pragma: posix only" in line):
             continue
         out.add(i)
         indent = len(line) - len(line.lstrip())
@@ -131,7 +157,11 @@ def main():
     failed = []
     for rp, name in sorted(target_abs.items(), key=lambda kv: kv[1]):
         ex = set(_find_executable_linenos(rp)) - pragma_lines(rp)
+        # Neither is a source line: 0 marks module set-up, and Python 3.15's
+        # co_lines() reports None for synthetic instructions (it crashed the
+        # sort below on Windows, so the coverage gate could not run there).
         ex.discard(0)
+        ex.discard(None)
         hit = _executed.get(rp, set()) & ex
         miss = sorted(ex - hit)
         total_exec += len(ex)

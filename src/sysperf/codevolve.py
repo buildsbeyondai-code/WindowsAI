@@ -238,7 +238,7 @@ class Sandbox:
             "evolution.docker_image; generated code will not be executed")
 
     def _detect(self) -> str:
-        if OS_NAME != "nt" and shutil.which("bwrap"):
+        if OS_NAME != "nt" and shutil.which("bwrap"):   # pragma: posix only
             try:
                 r = run_hidden(["bwrap", "--ro-bind", "/", "/", "--unshare-all",
                                     "--die-with-parent", "true"], capture_output=True,
@@ -276,7 +276,7 @@ class Sandbox:
         return p
 
     @staticmethod
-    def _site_dirs() -> list:
+    def _site_dirs() -> list:   # pragma: posix only
         import site
         dirs = set(site.getsitepackages() if hasattr(site, "getsitepackages") else [])
         user = site.getusersitepackages() if hasattr(site, "getusersitepackages") else None
@@ -286,7 +286,7 @@ class Sandbox:
 
     def argv(self, workdir: Path, cmd: list) -> list:
         w = str(Path(workdir).resolve())
-        if self.backend == "bwrap":
+        if self.backend == "bwrap":   # pragma: posix only
             a = ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc",
                  "--tmpfs", "/tmp"]
             # Hide everything that could hold a secret or user data, then re-expose

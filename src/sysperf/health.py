@@ -110,11 +110,11 @@ def rss_mb(statm: Path = Path("/proc/self/statm")) -> float | None:
     """Resident memory of this process in MB, or None if it cannot be read."""
     if os.name == "nt":                                      # pragma: no cover - Windows
         return _win_rss_mb()
-    try:
+    try:                                                     # pragma: posix only
         pages = int(statm.read_text().split()[1])
-    except (OSError, ValueError, IndexError):
+    except (OSError, ValueError, IndexError):                # pragma: posix only
         return None
-    return round(pages * os.sysconf("SC_PAGE_SIZE") / 1048576, 1)
+    return round(pages * os.sysconf("SC_PAGE_SIZE") / 1048576, 1)   # pragma: posix only
 
 
 _WIN_MEM: tuple | None = None

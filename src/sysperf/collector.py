@@ -333,7 +333,7 @@ class Collector:
             # Native Windows has no Linux guest to read; WSL, if installed, is
             # measured from the host side as vmmem_mb.
             return {"available": False}
-        try:
+        try:                                                     # pragma: posix only
             mem = Path("/proc/meminfo").read_text()
             vals = {}
             for line in mem.splitlines():
@@ -350,13 +350,13 @@ class Collector:
             # The cap is a share of the host's RAM (machine_profile), not a
             # fixed 10 GB that only ever fitted the original laptop.
             out["cap_active"] = out["total_mb"] <= _cfg.VMMEM_CAP_MB * 1.05
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError) as exc:                     # pragma: posix only
             out["error"] = str(exc)
-        try:
+        try:                                                     # pragma: posix only
             res = run_hidden(["docker", "ps", "-q"], capture_output=True,
                                  text=True, timeout=10)
             out["containers_running"] = len([x for x in res.stdout.split() if x])
-        except (OSError, subprocess.SubprocessError):
+        except (OSError, subprocess.SubprocessError):            # pragma: posix only
             out["containers_running"] = None
         return out
 
