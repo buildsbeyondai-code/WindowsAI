@@ -12,7 +12,9 @@ Read only what the task needs:
 - Acceptance criteria and the tests that prove them: `docs/REQUIREMENTS.md`
 - Current scope, status and next steps: `docs/PROJECT_STATE.md` (keep it current)
 - Release gates: `docs/RELEASE_CHECKLIST.md`; incidents: `docs/OPERATIONS.md`
-- Engineering standard (if present alongside the repo): `UNIVERSAL_AI_SOFTWARE_ENGINEERING_STANDARD.md`
+- Every user-facing value and control, with its evidence: `docs/FEATURE_AUDIT.md`
+- The engineering playbook this project follows: `docs/UNIVERSAL_AI_SOFTWARE_ENGINEERING_STANDARD.md`.
+  Read only the sections the task needs.
 
 ## Commands
 
