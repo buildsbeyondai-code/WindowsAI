@@ -1,32 +1,41 @@
 {
   "//": "SysPerf configuration. Copy to your data directory as sysperf.config.json.",
   "//_location": "Windows: %LOCALAPPDATA%\\SysPerf\\sysperf.config.json \u2014 run 'sysperf --where' to confirm.",
-  "//_note": "Every key is optional. Anything omitted keeps its built-in default. Restart SysPerf after editing.",
-  "//_server": "Loopback only by default. Setting a non-loopback host makes SysPerf generate and require an auth token, written back into this file.",
+  "//_note": "Every key is optional; anything omitted keeps its default. Environment variables (PERFDASH_*, SYSPERF_*) beat this file. Restart SysPerf after editing. Every key below is read by the code (tests/test_config_example.py checks this).",
+  "//_server": "Loopback only. There is no authentication, so a non-loopback host is not supported. allowed_hosts lists extra Host names the dashboard answers to (e.g. one a local reverse proxy forwards); every other Host is refused.",
   "host": "127.0.0.1",
   "port": 5056,
-  "auth_token": "",
+  "allowed_hosts": [],
   "open_browser": false,
-  "//_sampling": "sample_seconds is the fast tier. The slow tier (services, startup, network, hardware, drivers) runs every full_every-th sample because it costs a few seconds.",
+  "//_sampling": "sample_seconds is the fast tier, clamped to 30-600; slow metrics refresh every 5th sample. collector.persistent_shell reuses one PowerShell process. history.raw_days keeps raw samples 1-90 days; hourly summaries are kept for 400 days.",
   "sample_seconds": 60,
-  "full_every": 15,
-  "max_samples": 720,
-  "history_max_bytes": 12000000,
-  "//_scoring": "Counts breathe constantly, so the score uses a rolling median of the last score_smooth_window samples rather than the latest reading. Set to 1 to score the raw value. regress_band_pct is the noise dead-band before a metric counts as regressed.",
-  "score_smooth_window": 15,
-  "smooth_window_overrides": {
-    "net_remote": 180
+  "collector": {
+    "persistent_shell": true
   },
-  "regress_band_pct": 2.0,
-  "//_wifi": "Wi-Fi is scored per NETWORK, not against an absolute Mbps ladder — the radio's job is to not be the bottleneck for the connection behind it. Put your SSID in plan_mbps with the speed you actually pay for (e.g. {\"MyHome\": 100}); the link then scores against that and reaches 100% once it can carry the whole plan, instead of demanding gigabit Wi-Fi for a 100 Mbps line. Any network you do not list calibrates against the best it has sustained (capability_pctl). phy_efficiency is the fraction of the negotiated PHY rate TCP actually realises.",
+  "history": {
+    "raw_days": 14
+  },
+  "//_fixes": "fixes.enabled=false is the kill switch: nothing that changes the PC runs (fixes, Explorer watchdog, tray auto-quit, OneDrive control); everything is still detected and previewed.",
+  "fixes": {
+    "enabled": true
+  },
+  "//_autoimprove": "The scan -> RCA -> fix -> verify loop. mode (off | observe | auto) is the initial mode; the dashboard's choice is persisted. threshold (50-100): score below which RCA runs. allow_caution also lets 'caution' fixes such as restarting Explorer run unattended. max_actions per cycle (0-10); cooldown_seconds before an action repeats; settle_seconds before a fix's effect is measured.",
+  "autoimprove": {
+    "mode": "auto",
+    "threshold": 80,
+    "interval_seconds": 300,
+    "allow_caution": false,
+    "max_actions": 2,
+    "cooldown_seconds": 1800,
+    "settle_seconds": 120
+  },
+  "//_version_check": "Once a day, read public release feeds for the Components view. Nothing about this PC is sent.",
+  "version_check": true,
+  "//_wifi": "Put your SSID in plan_mbps with the speed you pay for (e.g. {\"MyHome\": 100}); the Wi-Fi link then scores against that instead of an absolute ladder.",
   "wifi": {
-    "plan_mbps": {},
-    "phy_efficiency": 0.6,
-    "capability_pctl": 0.9,
-    "min_capability_samples": 30,
-    "smooth_window": 90
+    "plan_mbps": {}
   },
-  "//_targets": "Fractions of THIS machine's capacity, applied once when the baseline is captured. Raising a fraction makes the target easier; lowering it makes it stricter.",
+  "//_targets": "Fractions of THIS machine's capacity, applied when the baseline is captured. Raising a fraction makes the target easier; lowering it makes it stricter. To capture a new baseline, delete baseline.json from the data directory and restart.",
   "targets": {
     "commit_of_ram": 0.75,
     "commit_improve": 0.85,
@@ -42,34 +51,7 @@
     "browser_extra_headroom": 4,
     "wsl_cap_of_ram": 0.35
   },
-  "//_adaptive": "The personal-best layer. Learns each metric's own history and sets a stretch goal just beyond your best day.",
-  "adaptive": {
-    "enabled": true,
-    "stretch": 0.05,
-    "min_day_samples": 3,
-    "learn_samples": 20
-  },
-  "//_trends": "Long-term usage record: how much history to keep, the window the daily-typical drift is measured over, and how many settled days without a pass count as chronic.",
-  "trends": {
-    "retain_days": 180,
-    "window_days": 14,
-    "chronic_days": 5,
-    "min_day_samples": 3,
-    "flat_pct_per_day": 0.3,
-    "peak_factor": 1.15
-  },
-  "//_autoimprove": "Autonomous loop: scans every interval_seconds and, below threshold, diagnoses and remediates. mode is the INITIAL mode (the dashboard's choice is persisted). Execution also requires fixes.enabled; only 'safe' fixes ever run unattended.",
-  "autoimprove": {
-    "enabled": true,
-    "mode": "auto",
-    "interval_seconds": 300,
-    "threshold": 80.0,
-    "allow_caution": false,
-    "max_actions": 2,
-    "cooldown_seconds": 1800,
-    "settle_seconds": 120
-  },
-  "//_browser_hosts": "Which applications' embedded-browser (WebView2) processes you cannot close, and which are merely in use. Add your own \u2014 anything unlisted counts as discretionary and raises the number SysPerf expects you to reduce.",
+  "//_browser_hosts": "Which apps' embedded-browser (WebView2) processes you cannot close (mandatory) and which are merely in use. Anything unlisted counts as discretionary.",
   "browser_hosts": {
     "mandatory": {
       "OneDrive": "File sync",
@@ -83,13 +65,8 @@
       "Code": "Visual Studio Code"
     }
   },
-  "//_advisor": "Recommendations. reboot_after_hours is when long uptime starts being suggested as a fix.",
-  "advisor": {
-    "enabled": true,
-    "stale_driver_years": 4,
-    "reboot_after_hours": 168,
-    "max_recommendations": 20
-  },
-  "//_privacy": "No data ever leaves the machine. anonymize additionally replaces application and device names with stable hashes in the API payload, so the dashboard is safe to screen-share.",
-  "anonymize": false
+  "//_drivers": "Drivers whose old INF date you have checked is still the newest available (name -> date checked). Listed as verified, never hidden.",
+  "drivers": {
+    "verified_latest": {}
+  }
 }
