@@ -34,10 +34,10 @@ reading the code. Audited 2026-10-25 against 5.0.0 on the reference laptop.
 | Optional features (Home) | Turns each system-changing feature on or off | Each owner's state file | `test_store_mode.py`, `test_e2e_v41.py` | Live `/api/store` lists 5 features with undo text | PASS |
 | Settings save/reset/import/export | Validated settings, all or nothing | `sysperf.config.json` | `test_settings_hub.py`, `test_e2e_v41.py::test_settings_form_saves_and_offers_a_restart` | Real browser (Playwright) | PASS |
 | Notifications | Inbox and Windows toasts | Toast via PowerShell | `test_notify.py`, `test_e2e_v41.py::test_bell_shows_unread_lists_items_and_marks_them_read` | Inbox live (4.4 KB); toast display not checked by eye | PASS |
-| Run self-test | Runs the gates in the background | `tests/testrunner.py` | `test_selftest.py`, `test_app.py::test_selftest_run_starts_the_suite` | Run after the 5.0.0 restart (see release record) | PASS |
+| Run self-test | Runs the gates in the background | `tests/testrunner.py` | `test_selftest.py`, `test_app.py::test_selftest_run_starts_the_suite` | Live run on 5.0.0: 8/8 gates, 9,339/9,339 lines, 418 s (it had never produced a result on Windows before 5.0.0) | PASS |
 | AI self-evolution: run / apply / rollback | Proposes, deploys and reverts code patches | git branches, supervisor | `test_codevolve.py` (real sandbox), `test_supervisor.py` | Sandbox tests run with bubblewrap on Linux; no candidate has been applied on this PC | UNVERIFIED (no live apply) |
 | Restart | Restarts under the supervisor | Supervisor relaunch | `test_supervisor.py`, `test_app_api.py::test_apply_rollback_restart_routes` | Supervisor log shows handled `restart_requested`/`started` pairs | PASS |
-| Every POST control | Refused without the CSRF token or from another origin | — | `test_security_doc.py`, `test_hostguard.py` | Live: foreign `Host` → 403 after restart (release record) | PASS |
+| Every POST control | Refused without the CSRF token or from another origin | — | `test_security_doc.py`, `test_hostguard.py` | Live 5.0.0: foreign Host → 403, cross-origin POST → 403, no token → 403 | PASS |
 
 UNVERIFIED rows are implemented and covered by automated tests, but their real
 side effect was not triggered on this PC during the audit. Each needs either a
