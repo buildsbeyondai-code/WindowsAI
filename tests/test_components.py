@@ -143,16 +143,88 @@ def test_hardware_rows_are_named_after_the_fitted_device(tmp_path, monkeypatch):
     assert out["rows"][0]["name"] == "Realtek RTL8852BE WiFi 6 driver"
 
 
-def test_windows_skips_linux_side_probes(monkeypatch):
+def _windows_run(calls):
+    def run(cmd, timeout=6.0):
+        calls.append(cmd)
+        if cmd[-1] == "--version" and "wsl" in cmd[0]:
+            return "WSL version: 2.6.2.0"
+        if cmd[0] == "git":
+            return "git version 2.47.1.windows.1"
+        if cmd[:3] == ["/x/wsl.exe", "-e", "sh"]:
+            return ('bwrap=bubblewrap 0.9.0\nclaude=2.1.3 (Claude Code)\n'
+                    'ubuntu=VERSION="24.04.3 LTS (Noble Numbat)"\n'
+                    'chromium=/home/u/.cache/ms-playwright/chromium-1248\n')
+        return ""
+    return run
+
+
+def test_windows_skips_apt_probes_but_reads_the_toolchain(monkeypatch):
+    import importlib.metadata as md
     monkeypatch.setattr(components, "PLATFORM", "windows")
+    monkeypatch.setattr(components.shutil, "which", lambda n: "/x/wsl.exe" if n == "wsl.exe" else None)
+    monkeypatch.setattr(md, "version", lambda d: {"flask": "3.0.3"}.get(d) or (_ for _ in ()).throw(
+        md.PackageNotFoundError(d)))
     components._cache["linux"] = None
     components._cache["t"] = 0.0
     calls = []
-    monkeypatch.setattr(components, "_run",
-                        lambda cmd, timeout=6.0: calls.append(cmd) or "WSL version: 2.6.2.0")
+    monkeypatch.setattr(components, "_run", _windows_run(calls))
     v = components._linux_versions()
-    assert v == {"wsl": "2.6.2.0"} and len(calls) == 1
+    assert v["wsl"] == "2.6.2.0" and v["git-windows"] == "2.47.1" and v["flask"] == "3.0.3"
+    assert v["bubblewrap"] == "0.9.0" and v["claude-code"] == "2.1.3"
+    assert v["ubuntu"] == "24.04.3" and v["chromium"] == "build 1248"
+    assert "playwright" not in v and "python" in v
+    assert not any(c[0] in ("uname", "nginx", "lsb_release") for c in calls)   # no apt probes
     components._cache["linux"] = None
+
+
+def test_windows_without_wsl_still_reports_local_tools(monkeypatch):
+    monkeypatch.setattr(components, "PLATFORM", "windows")
+    monkeypatch.setattr(components.shutil, "which", lambda n: None)
+    components._cache["linux"] = None
+    components._cache["t"] = 0.0
+    monkeypatch.setattr(components, "_run", _windows_run([]))
+    v = components._linux_versions()
+    assert v["git-windows"] == "2.47.1" and "claude-code" not in v
+    components._cache["linux"] = None
+
+
+def test_linux_toolchain_finds_chromium_and_wsl_tools(monkeypatch, tmp_path):
+    monkeypatch.setattr(components, "PLATFORM", "wsl")
+    monkeypatch.setattr(components, "_HOME", str(tmp_path))
+    (tmp_path / ".cache" / "ms-playwright" / "chromium-1200").mkdir(parents=True)
+    (tmp_path / ".cache" / "ms-playwright" / "chromium-1248").mkdir()
+    monkeypatch.setattr(components, "_run", lambda cmd, timeout=6.0:
+                        "bubblewrap 0.9.0" if cmd[0] == "bwrap" else
+                        "2.1.3 (Claude Code)" if cmd[0].endswith("claude") else "")
+    v = components._toolchain_versions({})
+    assert v["chromium"] == "build 1248" and v["bubblewrap"] == "0.9.0"
+    assert v["claude-code"] == "2.1.3"
+    (tmp_path / ".cache" / "ms-playwright" / "chromium-1200").rmdir()
+    (tmp_path / ".cache" / "ms-playwright" / "chromium-1248").rmdir()
+    assert "chromium" not in components._toolchain_versions({})
+
+
+def test_toolchain_components_show_when_missing(tmp_path, monkeypatch):
+    cat = {"catalog": [
+        {"key": "playwright", "name": "Playwright", "compare": "version",
+         "latest": "latest (pip install playwright)", "show_missing": True, "perf": 2},
+        {"key": "flask", "name": "Flask", "compare": "version", "latest": "3.0.3",
+         "show_missing": True, "perf": 3},
+        {"key": "ghost", "name": "Ghost", "compare": "version", "latest": "1.0"}]}
+    f = tmp_path / "c.json"
+    f.write_text(json.dumps(cat))
+    monkeypatch.setattr(components, "COMPONENTS_FILE", f)
+    monkeypatch.setattr(components, "_linux_versions", lambda: {"flask": "3.0.3"})
+    by = {r["key"]: r for r in build_components({})["rows"]}
+    assert by["playwright"]["current"] == "not installed" and by["playwright"]["missing"]
+    assert by["playwright"]["outdated"] is False and by["flask"]["outdated"] is False
+    assert "ghost" not in by
+
+
+def test_shipped_catalog_lists_the_toolchain():
+    keys = {c["key"] for c in json.loads(components.COMPONENTS_FILE.read_text())["catalog"]}
+    assert {"python", "flask", "waitress", "pytest", "playwright", "chromium",
+            "git-windows", "claude-code", "bubblewrap"} <= keys
 
 
 def test_build_components_no_upgrades(tmp_path, monkeypatch):

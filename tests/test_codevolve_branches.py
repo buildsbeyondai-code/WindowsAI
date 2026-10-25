@@ -325,3 +325,33 @@ def test_prompt_skips_files_over_the_budget(tmp_path):
     e = cv.CodeEvolution.__new__(cv.CodeEvolution)
     p = e._prompt(tmp_path, ["huge.py", "small.py"], [{"file": "huge.py", "kind": "k"}])
     assert '<file path="small.py">' in p and '<file path="huge.py">' not in p
+
+
+def _crlf_repo(repo):
+    """Turn the fixture checkout into what Git for Windows produces (CRLF)."""
+    src = (repo / "dedupe.py").read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+    (repo / "dedupe.py").write_bytes(src)
+    subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@x",
+                    "-c", "core.autocrlf=false", "commit", "-qam", "crlf"], check=True)
+
+
+def test_noop_edit_on_a_crlf_checkout_leaves_no_diff(tmp_path, repo):
+    _crlf_repo(repo)
+    same = {"title": "x", "rationale": "x", "edits": [
+        {"path": "dedupe.py", "find": "    seen = []\n", "replace": "    seen = []\n"}]}
+    e, db = eng(tmp_path, repo, provider=Fixed(same))
+    assert "no diff" in e.run_cycle("manual", "self_evolve")["explanation"]
+
+
+def test_real_edit_on_a_crlf_checkout_changes_only_its_lines(tmp_path, repo):
+    _crlf_repo(repo)
+    e, db = eng(tmp_path, repo, box=Box(bench={"f": [0.02] * 5}))   # no gain: rejected, diff kept
+    e.run_cycle("manual", "self_evolve")
+    diff = db.candidate(db.candidates()[0]["id"])["diff"]
+    changed = [ln for ln in diff.splitlines() if ln[:1] in "+-" and ln[:3] not in ("+++", "---")]
+    assert len(changed) == 4 and any("seen = set()" in ln for ln in changed), changed
+
+
+def test_match_eol():
+    assert cv._match_eol("a\nb\n", True) == "a\r\nb\r\n"
+    assert cv._match_eol("a\r\nb\n", False) == "a\nb\n"

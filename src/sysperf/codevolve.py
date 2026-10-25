@@ -366,6 +366,28 @@ def _git(repo: Path, *args, check=True) -> str:
     return r.stdout
 
 
+def _read_raw(path: Path) -> str:
+    """File text exactly as stored: no newline translation."""
+    with open(path, encoding="utf-8", newline="") as fh:
+        return fh.read()
+
+
+def _write_raw(path: Path, text: str) -> None:
+    with open(path, "w", encoding="utf-8", newline="") as fh:
+        fh.write(text)
+
+
+def _match_eol(text: str, crlf: bool) -> str:
+    """Express an edit in the file's own line endings.
+
+    Git for Windows checks files out with CRLF (core.autocrlf), while the model
+    writes LF. Text-mode read/write would silently convert the whole file to LF,
+    so every line would show as changed and a no-op edit would not be a no-op.
+    """
+    text = text.replace("\r\n", "\n")
+    return text.replace("\n", "\r\n") if crlf else text
+
+
 def _rel_ok(rel: str) -> bool:
     p = PurePosixPath(rel)
     return bool(rel) and not p.is_absolute() and ".." not in p.parts and "\\" not in rel \
@@ -669,13 +691,14 @@ class CodeEvolution:
             originals = {}
             for e in plan["edits"]:
                 p = wt / e["path"]
-                text = originals.get(e["path"]) or p.read_text(encoding="utf-8")
-                originals.setdefault(e["path"], text)
-                cur = p.read_text(encoding="utf-8")
-                if cur.count(e["find"]) != 1:
+                cur = _read_raw(p)
+                originals.setdefault(e["path"], cur)
+                crlf = "\r\n" in cur
+                find, replace = _match_eol(e["find"], crlf), _match_eol(e["replace"], crlf)
+                if cur.count(find) != 1:
                     return self._reject(cid, cand, f"edit for {e['path']}: 'find' occurs "
-                                        f"{cur.count(e['find'])}x (must be exactly 1)")
-                p.write_text(cur.replace(e["find"], e["replace"], 1), encoding="utf-8")
+                                        f"{cur.count(find)}x (must be exactly 1)")
+                _write_raw(p, cur.replace(find, replace, 1))
             diff = _git(wt, "diff", "--no-color")
             cand["files"] = json.dumps(sorted(originals))
             cand["diff"] = diff[:200000]
