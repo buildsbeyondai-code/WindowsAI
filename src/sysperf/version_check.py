@@ -78,7 +78,7 @@ def ubuntu_lts(get) -> str:
 
 
 def edge_stable(get) -> str:
-    """Newest Edge Stable build for Windows x64 (WebView2 Runtime ships the same)."""
+    """Newest Edge Stable build for Windows x64."""
     best = ""
     for product in json.loads(get("https://edgeupdates.microsoft.com/api/products")):
         if product.get("Product") != "Stable":
@@ -89,6 +89,20 @@ def edge_stable(get) -> str:
                     and _key(v) > _key(best):
                 best = v
     return best
+
+
+def winget(package_path: str):
+    """Newest version of a package in the official winget index (microsoft/winget-pkgs).
+
+    WebView2 ships on its own schedule, often days after the Edge build with the
+    same number, so Edge's feed would report a runtime that does not exist yet.
+    """
+    def feed(get) -> str:
+        entries = json.loads(get("https://api.github.com/repos/microsoft/winget-pkgs/contents/"
+                                 f"manifests/{package_path}"))
+        names = [e["name"] for e in entries if e.get("type") == "dir" and _ver(e.get("name"))]
+        return max(names, key=_key, default="")
+    return feed
 
 
 SOURCES = {
@@ -104,7 +118,7 @@ SOURCES = {
     "python": python_release,
     "ubuntu": ubuntu_lts,
     "edge": edge_stable,
-    "webview2": edge_stable,
+    "webview2": winget("m/Microsoft/EdgeWebView2Runtime"),
 }
 
 
