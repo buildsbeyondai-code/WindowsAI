@@ -1142,8 +1142,9 @@ available. It is then shown as verified, never hidden.</p>
 <h2 id="9-privacy-and-security"><a class="anchor" href="#9-privacy-and-security" aria-hidden="true">#</a>9. Privacy and security</h2>
 <h3 id="91-what-leaves-your-machine"><a class="anchor" href="#91-what-leaves-your-machine" aria-hidden="true">#</a>9.1 What leaves your machine</h3>
 <p>Two things, and only what they need. The daily version check reads public
-release feeds (GitHub, PyPI, npm, endoflife.date, winget) and sends nothing
-about your PC. Turn it off with <code>version_check: false</code>. If you enable AI
+release feeds: GitHub (including the winget index), PyPI, npm, Ubuntu,
+Microsoft Edge and endoflife.date. It sends nothing about your PC; turn it off
+with <code>version_check: false</code>. If you enable AI
 self-evolution, source excerpts and metrics go to the model provider you
 configure. There is no telemetry and no account, and the dashboard loads no
 third-party scripts, fonts or images.</p>
@@ -1151,8 +1152,10 @@ third-party scripts, fonts or images.</p>
 <p>The collector (<code>src\sysperf\collect_win.ps1</code>) only queries: <code>Get-CimInstance</code>,
 <code>Get-Process</code>, <code>Get-ItemProperty</code>, <code>pnputil /enum-drivers</code>,
 <code>powercfg /getactivescheme</code>. You are encouraged to read it.</p>
-<p>SysPerf can also change the PC, but only through features that are listed on
-Home with how to undo them:</p>
+<p>SysPerf can also change the PC, but only through features that each have a
+switch and say how to undo them. In the Store build they are listed on Home →
+Optional features. In a scripted install they are on the App Control,
+Auto-Improve and AI Self-Evolution tabs:</p>
 <ul>
 <li>automatic fixes: flush DNS, trim idle apps' working sets, clear standby memory;</li>
 <li>the Explorer watchdog;</li>
@@ -2225,7 +2228,7 @@ therefore tags every action by where it applies — <code>client</code>, <code>r
 <tbody>
 <tr>
 <td>System changes</td>
-<td>Only through listed, reversible features (fixes, Explorer watchdog, tray auto-quit, OneDrive policy, App Control). Each is shown on Home with how to undo it, off in the Store build, and off everywhere with <code>fixes.enabled: false</code>.</td>
+<td>Only through listed, reversible features (fixes, Explorer watchdog, tray auto-quit, OneDrive policy, App Control). Each has a switch and says how to undo it (Home → Optional features in the Store build; App Control, Auto-Improve and AI Self-Evolution tabs in a scripted install), is off in the Store build, and is off everywhere with <code>fixes.enabled: false</code>.</td>
 </tr>
 <tr>
 <td>Bind address</td>

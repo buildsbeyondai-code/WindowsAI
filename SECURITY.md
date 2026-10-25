@@ -36,8 +36,10 @@ dashboard is a local web server with no login.
 
 ## Changes SysPerf can make to your PC
 
-These are real system changes. Each one is listed on **Home → Optional features** with
-what it does and how to undo it (`GET /api/store`). In a scripted install the
+These are real system changes. In the Microsoft Store build each one is listed on
+**Home → Optional features** with what it does and how to undo it (`GET /api/store`).
+In a scripted install the same switches are on the App Control (tray auto-quit,
+Explorer watchdog), Auto-Improve (OneDrive) and AI Self-Evolution (Autonomy) tabs. In a scripted install the
 background features start on, because the owner set them up on purpose. In
 the Microsoft Store build each one starts **off** until you turn it on. In both,
 automatic fixes need you to raise Autonomy above *Observe*.

@@ -32,7 +32,7 @@ python tests/testrunner.py      # the eight in-app gates, incl. 100% line covera
   SECURITY.md's table, or `tests/test_security_doc.py` fails.
 - A new module goes in `tests/covrun.py` `TARGETS` and needs 100% line coverage.
 - Anything that changes the PC is registered in `optactions.py`, is reversible,
-  and is listed on Home with how to undo it.
+  and is shown in the app with how to undo it (Store build: Home → Optional features).
 - Docs and the example config are checked against the code
   (`test_docs_truth.py`, `test_config_example.py`, `test_requirements_doc.py`).
   Update them in the same change.

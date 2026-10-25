@@ -753,8 +753,10 @@ The collector (`src\sysperf\collect_win.ps1`) only queries: `Get-CimInstance`,
 `Get-Process`, `Get-ItemProperty`, `pnputil /enum-drivers`,
 `powercfg /getactivescheme`. You are encouraged to read it.
 
-SysPerf can also change the PC, but only through features that are listed on
-Home with how to undo them:
+SysPerf can also change the PC, but only through features that each have a
+switch and say how to undo them. In the Store build they are listed on Home →
+Optional features. In a scripted install they are on the App Control,
+Auto-Improve and AI Self-Evolution tabs:
 
 - automatic fixes: flush DNS, trim idle apps' working sets, clear standby memory;
 - the Explorer watchdog;
@@ -1535,7 +1537,7 @@ therefore tags every action by where it applies — `client`, `router` or
 
 | Property | Behaviour |
 |---|---|
-| System changes | Only through listed, reversible features (fixes, Explorer watchdog, tray auto-quit, OneDrive policy, App Control). Each is shown on Home with how to undo it, off in the Store build, and off everywhere with `fixes.enabled: false`. |
+| System changes | Only through listed, reversible features (fixes, Explorer watchdog, tray auto-quit, OneDrive policy, App Control). Each has a switch and says how to undo it (Home → Optional features in the Store build; App Control, Auto-Improve and AI Self-Evolution tabs in a scripted install), is off in the Store build, and is off everywhere with `fixes.enabled: false`. |
 | Bind address | `127.0.0.1`. There is no authentication, so other binds are unsupported. |
 | Host / Origin | Requests must name SysPerf in `Host`, and POSTs from other origins are refused (DNS-rebinding protection). |
 | Changes over HTTP | All 28 POST routes require the per-process CSRF token. |

@@ -40,8 +40,10 @@ WHAT IT CAN CHANGE ON YOUR PC
 --------------------------------------------------------------------------------
   SysPerf can make a few reversible changes: flush DNS, trim idle apps'
   memory, restart a stuck Explorer, and quit tray apps you have allowed (it
-  asks first for each app). Each one is listed on the Home tab with what it
-  does and how to undo it.
+  asks first for each app). Each has its own switch: tray auto-quit and the
+  Explorer watchdog on the App Control tab, OneDrive control on the
+  Auto-Improve tab, and automatic fixes under Autonomy on the AI
+  Self-Evolution tab (it starts at Observe, which only recommends).
 
   To make SysPerf only measure and recommend, set  "fixes": {"enabled": false}
   in %LOCALAPPDATA%\SysPerf\sysperf.config.json and restart it.

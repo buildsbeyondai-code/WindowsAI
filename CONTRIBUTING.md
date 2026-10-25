@@ -10,7 +10,7 @@ accept, and how to get a change merged.
    fixtures; the shipped page never does.
 2. **Changes to the PC are listed, reversible and gated.** A remediation must be
    registered in `optactions.py` with its risk, reversibility and rollback, so
-   autonomy levels govern it. It must be shown on Home with how to undo it, be
+   autonomy levels govern it. It must be shown in the app with how to undo it, be
    off in the Store build, and stop when `fixes.enabled` is false. Changes to
    Defender, the firewall, Windows Update, UAC, BitLocker, backups, recursive
    deletes or critical processes are refused at every level and will not be
@@ -122,7 +122,7 @@ Include:
 
 ## Feature requests that will be declined
 
-- System changes that are not reversible, not opt-in, or not listed on Home with
+- System changes that are not reversible, not opt-in, or not shown in the app with
   how to undo them (see the top of this document).
 - "Registry tweaks" and service-disabling lists. They are machine-specific,
   frequently harmful, and reverted by policy on managed devices.

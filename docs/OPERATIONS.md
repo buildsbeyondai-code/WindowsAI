@@ -32,8 +32,9 @@ live.
 1. **Contain.** If SysPerf is changing things you did not expect:
    - Set Autonomy to **Observe** (AI Self-Evolution tab). That stops the loop's
      unattended fixes.
-   - The Explorer watchdog, tray auto-quit and the OneDrive policy have their
-     own switches on Home.
+   - The Explorer watchdog and tray auto-quit have their own switches on the
+     App Control tab, and OneDrive control is on the Auto-Improve tab. In the
+     Store build all of them are also on Home → Optional features.
    - The global kill switch is `PERFDASH_FIX_ENABLED=0`, then restart. Every
      part that can change the PC then only reports.
 2. **Look.** Read Diagnostics, then the runtime log around the first error.
