@@ -137,6 +137,7 @@ jobs:
         run: |
           pip-audit --require-hashes -r requirements.lock
           pip-audit -r requirements-dev.txt
+          pip-audit --disable-pip --require-hashes -r packaging/msix/build.lock
       - name: Software bill of materials (CycloneDX)
         run: |
           python -m venv /tmp/sbom

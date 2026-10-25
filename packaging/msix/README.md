@@ -16,6 +16,8 @@ cd packaging\msix
 Output: `%LOCALAPPDATA%\SysPerf\msix-build\SysPerf_<version>_x64.msix`.
 No Windows SDK or admin rights needed; makeappx is fetched from the
 `Microsoft.Windows.SDK.BuildTools` NuGet package on first run.
+Every Python package in the build comes from `requirements.lock` and
+`build.lock` with `--require-hashes`, so the same commit builds the same app.
 
 ## Submit to the Store
 

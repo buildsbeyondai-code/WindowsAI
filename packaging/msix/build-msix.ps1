@@ -62,8 +62,12 @@ if (-not (Test-Path (Join-Path $Venv "Scripts\python.exe"))) {
 }
 $Py = Join-Path $Venv "Scripts\python.exe"
 & $Py -m pip install -q --upgrade pip
-& $Py -m pip install -q "$Repo" pyinstaller pywebview pillow
-if ($LASTEXITCODE) { throw "pip install failed" }
+# Reproducible: every runtime and build package comes from a hash-locked file,
+# then SysPerf itself is installed without resolving anything else.
+& $Py -m pip install -q --require-hashes -r (Join-Path $Repo "requirements.lock") -r (Join-Path $Here "build.lock")
+if ($LASTEXITCODE) { throw "pip install (locked dependencies) failed" }
+& $Py -m pip install -q --no-deps "$Repo"
+if ($LASTEXITCODE) { throw "pip install (SysPerf) failed" }
 
 # --- 2. assets + freeze --------------------------------------------------------
 $Layout = Join-Path $OutDir "layout"
