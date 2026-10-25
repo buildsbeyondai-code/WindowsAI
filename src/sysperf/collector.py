@@ -344,8 +344,8 @@ class Collector:
             out["available_mb"] = round(vals.get("MemAvailable", 0) / 1024)
             out["swap_total_mb"] = round(vals.get("SwapTotal", 0) / 1024)
             out["cached_mb"] = round(vals.get("Cached", 0) / 1024)
-            out["nproc"] = len([l for l in Path("/proc/cpuinfo").read_text()
-                                .splitlines() if l.startswith("processor")])
+            out["nproc"] = len([ln for ln in Path("/proc/cpuinfo").read_text()
+                                .splitlines() if ln.startswith("processor")])
             out["load1"] = float(Path("/proc/loadavg").read_text().split()[0])
             # The cap is a share of the host's RAM (machine_profile), not a
             # fixed 10 GB that only ever fitted the original laptop.

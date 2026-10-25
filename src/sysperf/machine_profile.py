@@ -247,7 +247,7 @@ def derive(history: list[dict], fractions: dict | None = None) -> dict | None:
 
     Returns None until there are enough samples carrying the capacity fields.
     """
-    from .browser import browser_breakdown        # lazy: browser imports config
+    from .browser import browser_breakdown  # lazy: browser imports config
     f = fractions or _fractions()
     samples = [s for s in history if s.get("total_ram_mb")]
     if len(samples) < CAPTURE_MIN_SAMPLES:
@@ -315,7 +315,7 @@ def live_targets(latest: dict) -> dict:
     """
     if not latest.get("wv2_hosts") and latest.get("edge_procs") is None:
         return {}
-    from .browser import browser_breakdown          # lazy: browser imports config
+    from .browser import browser_breakdown  # lazy: browser imports config
     floor = browser_breakdown(latest).get("realistic_floor")
     if not floor:
         return {}

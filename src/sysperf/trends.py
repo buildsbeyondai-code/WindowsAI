@@ -37,8 +37,10 @@ BASELINES = {c[0]: c[2] for c in CRITERIA}
 
 def refresh_criteria() -> None:
     """Re-read CRITERIA after this machine's baseline is captured (in place)."""
-    TARGETS.clear(); TARGETS.update({c[0]: c[3] for c in CRITERIA})
-    BASELINES.clear(); BASELINES.update({c[0]: c[2] for c in CRITERIA})
+    TARGETS.clear()
+    TARGETS.update({c[0]: c[3] for c in CRITERIA})
+    BASELINES.clear()
+    BASELINES.update({c[0]: c[2] for c in CRITERIA})
 LABELS = {c[0]: c[1] for c in CRITERIA}
 
 RETAIN_DAYS = 180        # keep ~6 months of daily rollups

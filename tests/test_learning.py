@@ -9,8 +9,15 @@ import json
 import pytest
 
 import sysperf.learning as learning
-from sysperf.learning import (CAUSE_GLOSS, SUPPRESS_AFTER, LearningView, _band, _day,
-                     _pct, _read_cycles)
+from sysperf.learning import (
+    CAUSE_GLOSS,
+    SUPPRESS_AFTER,
+    LearningView,
+    _band,
+    _day,
+    _pct,
+    _read_cycles,
+)
 
 
 class FakeFix:

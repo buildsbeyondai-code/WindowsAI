@@ -78,9 +78,9 @@ def _apply_env(args, env: dict) -> None:
 
 def _version() -> str:
     try:
-        import sysperf                       # present only in an installed build
+        import sysperf  # present only in an installed build
         return sysperf.__version__
-    except Exception:                        # noqa: BLE001 - dev tree
+    except Exception:
         return "dev"
 
 
@@ -120,8 +120,8 @@ def _report(snapshot: dict) -> str:
     for row in sorted(rows, key=lambda r: r.get("progress") or 0):
         current = row.get("scored_typical", row.get("current"))
         lines.append(
-            f"  {str(row.get('status', '?')):<9} "
-            f"{str(row.get('label', row.get('key', ''))):<28} "
+            f"  {row.get('status', '?')!s:<9} "
+            f"{row.get('label', row.get('key', ''))!s:<28} "
             f"{'—' if current is None else f'{current:>10.1f}'} "
             f"/ target {row.get('target')}")
     return "\n".join(lines)

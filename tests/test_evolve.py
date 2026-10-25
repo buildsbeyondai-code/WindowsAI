@@ -7,14 +7,23 @@ rather than merely reduce coverage.
 """
 import json
 
-import pytest
-
 import sysperf.evolve as evolve
-from sysperf.evolve import (CLUSTER_THRESHOLD, EVOLVE_EVERY, MAPPING_THRESHOLD,
-                    MAX_EVOLUTIONS_PER_PASS, MAX_PROPOSALS, MAX_RECIPES,
-                    MAX_SHARDS, RECIPE_LIBRARY, RECIPE_THRESHOLD,
-                    SEED_CLUSTERS, SHARD_THRESHOLD, EvolutionEngine, _iso,
-                    _slug)
+from sysperf.evolve import (
+    CLUSTER_THRESHOLD,
+    EVOLVE_EVERY,
+    MAPPING_THRESHOLD,
+    MAX_EVOLUTIONS_PER_PASS,
+    MAX_PROPOSALS,
+    MAX_RECIPES,
+    MAX_SHARDS,
+    RECIPE_LIBRARY,
+    RECIPE_THRESHOLD,
+    SEED_CLUSTERS,
+    SHARD_THRESHOLD,
+    EvolutionEngine,
+    _iso,
+    _slug,
+)
 
 # The catalogue map the engine reads (a trimmed copy of rca.REMEDIATION).
 BASE_MAP = {"c_free_gb": ["clear_temp"], "handles": ["restart_explorer"],

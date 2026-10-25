@@ -32,12 +32,12 @@ touching the real OS.
 from __future__ import annotations
 
 import os
-from .background_process import run_hidden
 import time
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable
 
 from . import appctl
+from .background_process import run_hidden
 
 # The processes these fixes must never touch. appctl.CRITICAL is imported rather
 # than restated — a second copy in PowerShell would drift, and drift here means
@@ -66,8 +66,12 @@ except Exception:                       # pragma: no cover - defensive only
     PS_EXE = "pwsh"
 
 try:                                    # standby elevation-broker exchange paths
-    from .config import (STANDBY_BROKER_DIR_WIN, STANDBY_BROKER_DIR_WSL,
-                        STANDBY_BROKER_HEARTBEAT_MAX_S, STANDBY_BROKER_WAIT_S)
+    from .config import (
+        STANDBY_BROKER_DIR_WIN,
+        STANDBY_BROKER_DIR_WSL,
+        STANDBY_BROKER_HEARTBEAT_MAX_S,
+        STANDBY_BROKER_WAIT_S,
+    )
 except Exception:                       # pragma: no cover - defensive only
     STANDBY_BROKER_DIR_WIN = r"C:\ProgramData\SysPerf\standby"
     STANDBY_BROKER_DIR_WSL = "/mnt/c/ProgramData/SysPerf/standby"
@@ -88,7 +92,7 @@ class Fix:
     reversible: bool
     shell: str                                  # pwsh | bash
     command: str
-    detect: Callable[[dict], Optional[str]]     # snapshot -> reason or None
+    detect: Callable[[dict], str | None]     # snapshot -> reason or None
     manual_hint: str = ""
     session_killing: bool = False
     persistent: bool = False                    # survives reboot once applied
@@ -96,7 +100,7 @@ class Fix:
     # static risk class) to decide whether the engine may run this fix *right
     # now*. Used by clear_standby: it is a runnable "caution" fix only while its
     # elevated helper is online; otherwise it degrades to a manual action.
-    runtime_gate: Optional[Callable[[], bool]] = None
+    runtime_gate: Callable[[], bool] | None = None
 
     @property
     def executable(self) -> bool:
@@ -118,7 +122,7 @@ def _rows(snapshot: dict) -> dict:
     return {r["key"]: r for r in snapshot.get("scorecard", {}).get("rows", [])}
 
 
-def _needs(row: Optional[dict]) -> bool:
+def _needs(row: dict | None) -> bool:
     """A row needs attention when it is regressed or only partially met."""
     return bool(row) and row.get("status") in ("regress", "partial")
 
@@ -130,7 +134,7 @@ def _latest(snapshot: dict) -> dict:
 # --------------------------------------------------------------------------- #
 # per-fix detectors                                                           #
 # --------------------------------------------------------------------------- #
-def _detect_dns(snap: dict) -> Optional[str]:
+def _detect_dns(snap: dict) -> str | None:
     row = _rows(snap).get("net_remote")
     if _needs(row):
         return (f"Remote TCP connections at {row.get('current')} "
@@ -139,7 +143,7 @@ def _detect_dns(snap: dict) -> Optional[str]:
     return "Routine maintenance: clear the DNS resolver cache."
 
 
-def _detect_temp(snap: dict) -> Optional[str]:
+def _detect_temp(snap: dict) -> str | None:
     row = _rows(snap).get("c_free_gb")
     if _needs(row):
         return (f"C: free {row.get('current')} GB below target {row.get('target')} GB "
@@ -147,14 +151,14 @@ def _detect_temp(snap: dict) -> Optional[str]:
     return None
 
 
-def _detect_recycle(snap: dict) -> Optional[str]:
+def _detect_recycle(snap: dict) -> str | None:
     row = _rows(snap).get("c_free_gb")
     if _needs(row):
         return "C: free below target - emptying the Recycle Bin reclaims disk space."
     return None
 
 
-def _detect_explorer(snap: dict) -> Optional[str]:
+def _detect_explorer(snap: dict) -> str | None:
     row = _rows(snap).get("handles")
     if _needs(row):
         return (f"App handle count elevated ({row.get('current')}, target "
@@ -163,7 +167,7 @@ def _detect_explorer(snap: dict) -> Optional[str]:
     return None
 
 
-def _detect_startup(snap: dict) -> Optional[str]:
+def _detect_startup(snap: dict) -> str | None:
     row = _rows(snap).get("startup_apps")
     if _needs(row):
         return (f"{row.get('current')} enabled start-up programs (target "
@@ -172,7 +176,7 @@ def _detect_startup(snap: dict) -> Optional[str]:
     return None
 
 
-def _detect_wsl(snap: dict) -> Optional[str]:
+def _detect_wsl(snap: dict) -> str | None:
     row = _rows(snap).get("vmmem_mb")
     wsl = _latest(snap).get("wsl") or {}
     if wsl.get("cap_active") is False:
@@ -184,7 +188,7 @@ def _detect_wsl(snap: dict) -> Optional[str]:
     return None
 
 
-def _detect_standby(snap: dict) -> Optional[str]:
+def _detect_standby(snap: dict) -> str | None:
     rows = _rows(snap)
     if _needs(rows.get("available_mb")) or _needs(rows.get("compression_mb")):
         return ("Available memory low / compression elevated - clearing the "
@@ -192,7 +196,7 @@ def _detect_standby(snap: dict) -> Optional[str]:
     return None
 
 
-def _detect_wsl_boot(snap: dict) -> Optional[str]:
+def _detect_wsl_boot(snap: dict) -> str | None:
     rows = _rows(snap)
     wsl = _latest(snap).get("wsl") or {}
     row = rows.get("wsl_start_s")
@@ -206,7 +210,7 @@ def _detect_wsl_boot(snap: dict) -> Optional[str]:
     return None
 
 
-def _detect_sysmain(snap: dict) -> Optional[str]:
+def _detect_sysmain(snap: dict) -> str | None:
     rows = _rows(snap)
     slow = [k for k in ("explorer_launch_s", "outlook_launch_s", "word_launch_s",
                         "boot_time_s")
@@ -218,7 +222,7 @@ def _detect_sysmain(snap: dict) -> Optional[str]:
     return None
 
 
-def _detect_office(snap: dict) -> Optional[str]:
+def _detect_office(snap: dict) -> str | None:
     rows = _rows(snap)
     slow = [(k, rows[k]) for k in ("outlook_launch_s", "word_launch_s")
             if _needs(rows.get(k))]
@@ -234,7 +238,7 @@ def _detect_office(snap: dict) -> Optional[str]:
 # registry                                                                    #
 
 
-def _detect_cpu_hog(snap: dict) -> Optional[str]:
+def _detect_cpu_hog(snap: dict) -> str | None:
     """Fires when CPU or the run queue is short and a consumer is sustaining it."""
     rows = _rows(snap)
     short = [rows.get(k) for k in ("cpu_pct", "cpu_queue", "disk_active_pct")]
@@ -245,7 +249,7 @@ def _detect_cpu_hog(snap: dict) -> Optional[str]:
             "moved to background scheduling priority")
 
 
-def _detect_working_set(snap: dict) -> Optional[str]:
+def _detect_working_set(snap: dict) -> str | None:
     """Fires on memory pressure, where trimming working sets frees pages."""
     rows = _rows(snap)
     short = [rows.get(k) for k in ("committed_app_mb", "available_mb",
@@ -477,7 +481,7 @@ def default_runner(shell: str, command: str, timeout: float = 60.0) -> tuple:
         res = run_hidden(argv, capture_output=True, text=True, timeout=timeout)
         out = ((res.stdout or "") + (res.stderr or "")).strip()
         return res.returncode, out[:2000]
-    except Exception as exc:                    # noqa: BLE001 - report any failure
+    except Exception as exc:
         return 1, f"{type(exc).__name__}: {exc}"
 
 
@@ -486,7 +490,7 @@ def default_runner(shell: str, command: str, timeout: float = 60.0) -> tuple:
 # --------------------------------------------------------------------------- #
 class FixEngine:
     def __init__(self, runner: Callable[[str, str], tuple] = default_runner,
-                 registry: Optional[list] = None) -> None:
+                 registry: list | None = None) -> None:
         self.runner = runner
         self.registry = registry if registry is not None else build_registry()
         self._by_id = {f.id: f for f in self.registry}
@@ -527,7 +531,7 @@ class FixEngine:
             })
         return out
 
-    def _select(self, ids: Optional[list], snapshot: dict) -> list:
+    def _select(self, ids: list | None, snapshot: dict) -> list:
         """Resolve requested ids to Fix objects, defaulting to all applicable."""
         if ids:
             return [self._by_id[i] for i in ids if i in self._by_id]
@@ -535,7 +539,7 @@ class FixEngine:
         return [f for f in self.registry if f.id in applicable]
 
     # ------------------------------------------------------------ preview ---
-    def preview(self, ids: Optional[list], snapshot: dict) -> list:
+    def preview(self, ids: list | None, snapshot: dict) -> list:
         """Dry-run: describe exactly what WOULD run. Never executes anything."""
         out = []
         for f in self._select(ids, snapshot):
@@ -549,7 +553,7 @@ class FixEngine:
         return out
 
     # -------------------------------------------------------------- apply ---
-    def apply(self, ids: Optional[list], snapshot: dict) -> list:
+    def apply(self, ids: list | None, snapshot: dict) -> list:
         """Execute eligible fixes. Manual/session-killing fixes are skipped."""
         out = []
         for f in self._select(ids, snapshot):

@@ -18,6 +18,8 @@
   .\build-msix.ps1 -IdentityName 12345Contoso.SysPerf -Publisher "CN=ABCD1234-..." -PublisherDisplayName "Contoso"
   .\build-msix.ps1 -SignForTest     # local test build with a self-signed cert
 #>
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingConvertToSecureStringWithPlainText', '',
+    Justification = 'Throwaway password for the optional local test-signing certificate')]
 param(
     [string]$IdentityName = "SysPerf.Dashboard",
     [string]$Publisher = "CN=SysPerf",

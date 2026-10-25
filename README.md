@@ -5,7 +5,7 @@ machine, learns that machine's own baseline, scores progress against targets
 derived from its actual capacity, and tells you exactly what to change.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows%2011%20%7C%20WSL%202-informational.svg)](#requirements)
 
 > **New in 2.0** — a tabbed **Summary / Details** UI. The **Summary** distils the
@@ -110,7 +110,7 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 
 That is the whole installation. It:
 
-- finds Python 3.9+, offering to install it via `winget` if it is missing;
+- finds Python 3.10+, offering to install it via `winget` if it is missing;
 - creates a private virtual environment under `%LOCALAPPDATA%\SysPerf`;
 - registers a **per-user sign-in task** so the dashboard is always available;
 - adds Start Menu entries for the dashboard and for a one-off report;
@@ -231,7 +231,7 @@ Details, measured trade-offs and limits: [`container/README.md`](container/READM
 |---|---|
 | **OS** | Windows 11 (build 22000+). Windows 10 works but is not the test target. |
 | **PowerShell** | 5.1, which ships with Windows. PowerShell 7 also works. |
-| **Python** | 3.9 or later. The installer can fetch it via `winget`. |
+| **Python** | 3.10 or later. The installer can fetch it via `winget`. |
 | **Rights** | Standard user. Nothing needs elevation. |
 | **Network** | None. Dependencies are fetched once at install; after that SysPerf is fully offline. |
 

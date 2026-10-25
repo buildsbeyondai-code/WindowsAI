@@ -118,7 +118,7 @@ function Get-AppStart($evts, [string]$m) {
     }
     return $null
 }
-function Publish-LaunchTimes([string]$dir) {
+function Publish-LaunchTime([string]$dir) {
     $o = [ordered]@{ at = (Get-Date -Format o) }
     try {
         $b = Get-WinEvent -FilterHashtable @{
@@ -127,7 +127,7 @@ function Publish-LaunchTimes([string]$dir) {
         $bx = [xml]$b.ToXml()
         $bt = ($bx.Event.EventData.Data | Where-Object { $_.Name -eq 'BootTime' }).'#text'
         if ($bt) { $o.boot_time_s = [math]::Round([double]$bt / 1000, 1) }
-    } catch {}
+    } catch { $null = $_ }
     try {
         $evts = Get-WinEvent -FilterHashtable @{
             LogName = 'Microsoft-Windows-Diagnostics-Performance/Operational'; Id = 101, 103
@@ -136,15 +136,15 @@ function Publish-LaunchTimes([string]$dir) {
         $v = Get-AppStart $evts 'outlook\.exe';         if ($null -ne $v) { $o.outlook_launch_s = $v }
         $v = Get-AppStart $evts 'winword\.exe';         if ($null -ne $v) { $o.word_launch_s = $v }
         $v = Get-AppStart $evts 'wsl|lxss|LxssManager'; if ($null -ne $v) { $o.wsl_start_s = $v }
-    } catch {}
+    } catch { $null = $_ }
     # Interactive launches (Word/Excel/PowerPoint) never appear in the boot-phase
-    # Diagnostics-Performance log; they are timed live in Watch-Launches and
+    # Diagnostics-Performance log; they are timed live in Watch-Launch and
     # merged here so they persist across the periodic event re-reads.
     foreach ($k in $script:activeLaunch.Keys) { $o[$k] = $script:activeLaunch[$k] }
     try {
         $o | ConvertTo-Json -Compress |
             Set-Content -LiteralPath (Join-Path $dir 'launch_times.json') -Encoding ASCII
-    } catch {}
+    } catch { $null = $_ }
 }
 
 $lastBeat = Get-Date
@@ -159,7 +159,7 @@ $script:pending = @{}                      # pid -> @{ start=<DateTime>; key=<me
 $LaunchMap = @{ "WINWORD" = "word_launch_s"; "EXCEL" = "excel_launch_s";
                 "POWERPNT" = "powerpoint_launch_s" }
 
-function Watch-Launches {
+function Watch-Launch {
     $new = $false
     foreach ($p in Get-Process -ErrorAction SilentlyContinue) {
         $key = $LaunchMap[$p.ProcessName]
@@ -190,10 +190,10 @@ function Watch-Launches {
 
 while ($true) {
     # time any interactive app launch (Word/Excel/PowerPoint) and publish at once
-    if (Watch-Launches) { Publish-LaunchTimes $ExchangeDir; $lastLaunch = Get-Date }
+    if (Watch-Launch) { Publish-LaunchTime $ExchangeDir; $lastLaunch = Get-Date }
     # publish launch times (boot / app cold-start) every ~2 minutes
     if (((Get-Date) - $lastLaunch).TotalSeconds -ge 120) {
-        Publish-LaunchTimes $ExchangeDir
+        Publish-LaunchTime $ExchangeDir
         $lastLaunch = Get-Date
     }
     # refresh the heartbeat so the dashboard knows the watcher is alive

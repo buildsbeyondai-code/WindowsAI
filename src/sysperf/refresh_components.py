@@ -46,12 +46,13 @@ import json
 import logging
 import os
 import re
-from .background_process import run_hidden
 import sys
 import tempfile
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+
+from .background_process import run_hidden
 
 # SYSPERF_COMPONENTS_DIR: write the catalog where the dashboard reads it
 # (the container and the systemd timer point it at the data directory).
@@ -101,7 +102,7 @@ def _apt_candidate(pkg: str) -> str:
             ["apt-cache", "policy", pkg],
             capture_output=True, text=True, timeout=15,
         ).stdout
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning("apt-cache policy %s failed: %s", pkg, exc)
         return ""
     for ln in out.splitlines():
@@ -131,7 +132,7 @@ def _ubuntu_latest_lts() -> str:
             ["do-release-upgrade", "-c"],
             capture_output=True, text=True, timeout=60,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning("do-release-upgrade -c failed: %s", exc)
         return ""
     out = (r.stdout or "") + " " + (r.stderr or "")
@@ -146,7 +147,7 @@ def _pypi_latest(project: str) -> str:
         with urllib.request.urlopen(url, timeout=15) as r:
             data = json.load(r)
         return _ver(data.get("info", {}).get("version", ""))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning("PyPI lookup %s failed: %s", project, exc)
         return ""
 
@@ -165,7 +166,7 @@ def _node_dist_newest() -> dict | None:
     try:
         with urllib.request.urlopen("https://nodejs.org/dist/index.json", timeout=15) as r:
             data = json.load(r)  # newest-first list
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning("nodejs dist fetch failed: %s", exc)
         _dist_cache["e"] = None
         return None
@@ -195,7 +196,7 @@ def _powershell_latest() -> str:
         req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
         with urllib.request.urlopen(req, timeout=15) as r:
             return _ver(json.load(r).get("tag_name", ""))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning("PowerShell GitHub lookup failed: %s", exc)
         return ""
 
@@ -267,7 +268,7 @@ def refresh() -> int:
             json.dump(catalog, fh, indent=2, ensure_ascii=False)
             fh.write("\n")
         os.replace(tmp, COMPONENTS_FILE)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.error("atomic write failed: %s", exc)
         try:
             os.unlink(tmp)

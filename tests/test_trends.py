@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 
 import sysperf.trends as trends
-from sysperf.trends import TrendStore, _hour_of, _num, _ols, _ordinal, _day_of
+from sysperf.trends import TrendStore, _day_of, _hour_of, _num, _ols, _ordinal
 
 
 def _store(tmp_path, name="t.json", **kw):
@@ -77,7 +77,7 @@ def test_ingest_skips_unusable_rows_and_missing_score(tmp_path):
 def test_ingest_no_rows_key(tmp_path):
     st = _store(tmp_path)
     st.ingest({}, {}, persist=False)
-    assert list(st.days.values())[0]["metrics"] == {}
+    assert next(iter(st.days.values()))["metrics"] == {}
 
 
 def test_trim_drops_oldest_days(tmp_path):

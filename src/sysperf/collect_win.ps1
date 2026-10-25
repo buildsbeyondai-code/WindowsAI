@@ -92,7 +92,7 @@ try {
         }
     }
     $cpuNow | ConvertTo-Json -Compress | Set-Content -LiteralPath $cpuState
-} catch {}
+} catch { $null = $_ }
 
 # --- WebView2 host attribution via ancestor walk ---
 $idx = @{}
@@ -310,10 +310,10 @@ try {
             $tx = WLo 'Transmit rate \(Mbps\)'; if ($tx) { $wifi.tx_mbps = [double]($tx -replace '[^\d.]', '') }
         }
     }
-} catch {}
+} catch { $null = $_ }
 $out.wifi = $wifi
 # Flat key for the signal-strength trend series (nested objects are not charted).
-if ($wifi.present -and $wifi.signal -ne $null) { $out.wifi_signal = $wifi.signal }
+if ($wifi.present -and $null -ne $wifi.signal) { $out.wifi_signal = $wifi.signal }
 
 if ($Full) {
     # PowerShell 7: the network block must WAIT 8 s (two TCP snapshots, to detect
@@ -425,12 +425,12 @@ if ($Full) {
                Where-Object { Test-Path $_ } | Select-Object -First 1
     if (-not $pwshExe) { $pc = Get-Command pwsh -ErrorAction SilentlyContinue; if ($pc) { $pwshExe = $pc.Source } }
     if ($pwshExe) {
-        try { $out.pwsh_version = [string](& $pwshExe -NoProfile -Command '$PSVersionTable.PSVersion.ToString()') } catch {}
+        try { $out.pwsh_version = [string](& $pwshExe -NoProfile -Command '$PSVersionTable.PSVersion.ToString()') } catch { $null = $_ }
     }
     try {
         $edgeExe = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
         if (Test-Path $edgeExe) { $out.edge_version = [string](Get-Item $edgeExe).VersionInfo.ProductVersion }
-    } catch {}
+    } catch { $null = $_ }
     $wv = Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' -ErrorAction SilentlyContinue
     if ($wv -and $wv.pv) { $out.webview2_version = [string]$wv.pv }
     $bios = Get-CimInstance Win32_BIOS -ErrorAction SilentlyContinue
@@ -523,14 +523,14 @@ if ($Full) {
             if ($blk -match 'Driver Version:\s*(\S+)\s+(\S+)') {
                 $dtStr = $Matches[1]; $ver = $Matches[2]
                 foreach ($f in 'MM/dd/yyyy', 'M/d/yyyy', 'dd/MM/yyyy', 'd/M/yyyy', 'yyyy-MM-dd') {
-                    try { $dt = [datetime]::ParseExact($dtStr, $f, [Globalization.CultureInfo]::InvariantCulture); break } catch {}
+                    try { $dt = [datetime]::ParseExact($dtStr, $f, [Globalization.CultureInfo]::InvariantCulture); break } catch { $null = $_ }
                 }
-                if (-not $dt) { try { $dt = [datetime]$dtStr } catch {} }
+                if (-not $dt) { try { $dt = [datetime]$dtStr } catch { $null = $_ } }
             }
             $drvList += [pscustomobject]@{ pub = $pub; orig = $orig; provider = $prov;
                                            class = $cls; signer = $sign; version = $ver; date = $dt }
         }
-    } catch {}
+    } catch { $null = $_ }
     $out.drv_total    = $drvList.Count
     $out.drv_unsigned = @($drvList | Where-Object { -not $_.signer }).Count
 
@@ -581,7 +581,7 @@ if ($Full) {
         $bx = [xml]$bootEvt.ToXml()
         $bt = ($bx.Event.EventData.Data | Where-Object { $_.Name -eq 'BootTime' }).'#text'
         if ($bt) { $out.boot_time_s = [math]::Round([double]$bt / 1000, 1) }
-    } catch {}
+    } catch { $null = $_ }
     # Fallback when the Diagnostics-Performance log is not readable (it needs
     # admin or "Performance Log Users"; an unprivileged service sees no events):
     # kernel start (Kernel-General 12) to the first user sign-in after it
@@ -614,7 +614,7 @@ if ($Full) {
                 $out.boot_time_s = [math]::Round($sec, 1)
                 $out.boot_time_source = $src
             }
-        } catch {}
+        } catch { $null = $_ }
     }
 
     function AppStartSec([string]$match) {
@@ -630,7 +630,7 @@ if ($Full) {
                     if ($tt) { return [math]::Round([double]$tt / 1000, 1) }
                 }
             }
-        } catch {}
+        } catch { $null = $_ }
         return $null
     }
     $expS = AppStartSec 'explorer\.exe'
@@ -648,7 +648,7 @@ if ($Full) {
         if ($tz -and $tz.CurrentTemperature) {
             $out.cpu_temp_c = [math]::Round(($tz.CurrentTemperature / 10) - 273.15, 1)
         }
-    } catch {}
+    } catch { $null = $_ }
 
     try {
         $bStat = Get-CimInstance -Namespace root/wmi -ClassName BatteryStaticData `
@@ -659,7 +659,7 @@ if ($Full) {
             $wear = (1 - ($bFull.FullChargedCapacity / $bStat.DesignedCapacity)) * 100
             $out.battery_wear_pct = [math]::Round([math]::Max(0, $wear), 1)
         }
-    } catch {}
+    } catch { $null = $_ }
 
     # Merge the overlapped network fragment (its 8 s wait ran alongside the work
     # above). If the job failed/timed out its keys are absent and the Python
@@ -685,7 +685,7 @@ try {
             break
         }
     }
-} catch {}
+} catch { $null = $_ }
 
 # Word COM add-ins loading at startup. More (and slower) add-ins are the usual
 # cause of a slow Word cold-start; this names them so the slow ones can be
@@ -711,6 +711,6 @@ try {
     }
     $out.word_addins = $addins.Count
     $out.word_addin_list = @($addins.Values | Sort-Object -Unique | Select-Object -First 20)
-} catch {}
+} catch { $null = $_ }
 
 $out | ConvertTo-Json -Depth 4 -Compress

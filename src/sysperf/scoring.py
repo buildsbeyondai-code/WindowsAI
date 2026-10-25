@@ -8,10 +8,19 @@ module has no global state.
 from __future__ import annotations
 
 from . import config as _cfg
-from .config import (CRITERIA, STATIC_CRITERIA, MIN_TREND_SAMPLES,
-                    MIN_TREND_SPAN_S, TREND_WINDOW_S, TREND_GAP_S,
-                    SCORE_SMOOTH_WINDOW, CARRY_FORWARD_KEYS,
-                    SMOOTH_WINDOW_OVERRIDES, SCORE_GAP_S, SCORE_WARMUP_SAMPLES)
+from .config import (
+    CARRY_FORWARD_KEYS,
+    CRITERIA,  # noqa: F401 - re-exported; tests patch scoring.CRITERIA
+    MIN_TREND_SAMPLES,
+    MIN_TREND_SPAN_S,
+    SCORE_GAP_S,
+    SCORE_SMOOTH_WINDOW,
+    SCORE_WARMUP_SAMPLES,
+    SMOOTH_WINDOW_OVERRIDES,
+    STATIC_CRITERIA,
+    TREND_GAP_S,
+    TREND_WINDOW_S,
+)
 
 
 def _session_slice(history: list[dict], gap_s: float = SCORE_GAP_S) -> list[dict]:
@@ -187,13 +196,15 @@ def _row_note(key: str, cur, latest: dict) -> str | None:
                 f"({latest.get('net_loopback', 0)} loopback IPC excluded){extra}; "
                 "target sized from this machine's own starting point")
     if key == "committed_app_mb":
-        floor = latest.get("committed_system_mb"); ctr = latest.get("committed_mb")
+        floor = latest.get("committed_system_mb")
+        ctr = latest.get("committed_mb")
         if floor is not None and ctr is not None:
             return (f"{cur:,} MB actionable app commit ({floor:,} MB OS/security/WSL floor "
                     f"excluded; {ctr:,} MB raw commit charge counter)")
         return None
     if key == "handles":
-        tot = latest.get("handles_total"); sysh = latest.get("handles_system")
+        tot = latest.get("handles_total")
+        sysh = latest.get("handles_system")
         if tot is not None and sysh is not None:
             return (f"{cur:,} actionable app handles ({sysh:,} OS/kernel/security-agent "
                     f"floor excluded as non-actionable; {tot:,} total system-wide)")

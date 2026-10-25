@@ -45,7 +45,7 @@ def is_sysperf(port: int, opener=urllib.request.urlopen, timeout: float = 2.0) -
     try:
         with opener(f"http://127.0.0.1:{port}/api/health", timeout=timeout) as r:
             body = json.loads(r.read().decode("utf-8", "replace"))
-    except Exception:                                   # noqa: BLE001 - not reachable
+    except Exception:
         return False
     return isinstance(body, dict) and "version" in body and "data_dir" in body
 

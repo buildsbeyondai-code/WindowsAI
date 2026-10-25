@@ -24,11 +24,12 @@ Design constraints this file respects:
 from __future__ import annotations
 
 import json
-from .background_process import run_hidden
 import sys
 import threading
 import time
 from pathlib import Path
+
+from .background_process import run_hidden
 
 # The gates the runner executes, in order, with a one-line explanation each so
 # the UI can describe a gate it has never seen pass.
@@ -223,7 +224,7 @@ class SelfTest:
         error = None
         try:
             self._runner(argv)
-        except Exception as exc:                        # noqa: BLE001 - reported
+        except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
         with self._lock:
             self._running = False

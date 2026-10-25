@@ -15,6 +15,7 @@
 param([switch]$SkipPytest, [int]$Port = 5199)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
+$base = "http://127.0.0.1:$Port"
 $results = New-Object System.Collections.Generic.List[object]
 function Check($name, [scriptblock]$body) {
     try {
@@ -69,35 +70,35 @@ Check 'Background service starts and serves the dashboard' {
     $ok = $false
     for ($i = 0; $i -lt 60 -and -not $ok; $i++) {
         Start-Sleep -Seconds 1
-        try { $h = Invoke-RestMethod "http://127.0.0.1:$Port/api/health" -TimeoutSec 3; $ok = $true } catch { }
+        try { $h = Invoke-RestMethod "$base/api/health" -TimeoutSec 3; $ok = $true } catch { $null = $_ }
     }
     if (-not $ok) { throw 'no /api/health within 60 s' }
-    $page = Invoke-WebRequest "http://127.0.0.1:$Port/" -UseBasicParsing -TimeoutSec 10
+    $page = Invoke-WebRequest "$base/" -UseBasicParsing -TimeoutSec 10
     if ($page.Content -notmatch 'AI Self-Evolution') { throw 'dashboard missing the 4.0 tab' }
     "can_collect=$($h.platform.can_collect)"
 }
 Check 'First sample collected (monitoring loop)' {
     for ($i = 0; $i -lt 90; $i++) {
-        $h = Invoke-RestMethod "http://127.0.0.1:$Port/api/health" -TimeoutSec 5
+        $h = Invoke-RestMethod "$base/api/health" -TimeoutSec 5
         if ($h.samples -gt 0) { return "samples=$($h.samples)" }
         Start-Sleep -Seconds 2
     }
     throw 'no sample in 180 s'
 }
 Check 'Dashboard responsiveness (/api/metrics < 3 s)' {
-    $t = Measure-Command { Invoke-RestMethod "http://127.0.0.1:$Port/api/metrics" -TimeoutSec 10 | Out-Null }
+    $t = Measure-Command { Invoke-RestMethod "$base/api/metrics" -TimeoutSec 10 | Out-Null }
     if ($t.TotalSeconds -gt 3) { throw "$([math]::Round($t.TotalSeconds,2)) s" }; "$([math]::Round($t.TotalMilliseconds)) ms"
 }
 Check 'Default autonomy is observe; evolution reports why it is idle' {
-    $a = Invoke-RestMethod "http://127.0.0.1:$Port/api/autonomy"
-    $c = Invoke-RestMethod "http://127.0.0.1:$Port/api/codevolve"
+    $a = Invoke-RestMethod "$base/api/autonomy"
+    $c = Invoke-RestMethod "$base/api/codevolve"
     if ($a.level -ne 'observe') { throw "level=$($a.level)" }
     "isolation=$($c.isolation.backend); gate=$($c.gate)"
 }
 Check 'Offline: works with no AI provider' {
-    $c = Invoke-RestMethod "http://127.0.0.1:$Port/api/codevolve"
+    $c = Invoke-RestMethod "$base/api/codevolve"
     if ($c.llm.available) { throw 'an AI provider is configured; offline path not exercised' }
-    $r = Invoke-RestMethod "http://127.0.0.1:$Port/api/rca"; 'rule-based RCA served without AI'
+    Invoke-RestMethod "$base/api/rca" | Out-Null; 'rule-based RCA served without AI'
 }
 Check 'Clean shutdown' {
     if ($script:proc) { Stop-Process -Id $script:proc.Id -Force; Start-Sleep 1 }

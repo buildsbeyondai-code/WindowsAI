@@ -31,14 +31,15 @@ import random
 import re
 import stat
 import subprocess
-from .background_process import run_hidden
 import threading
 import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable
+
+from .background_process import run_hidden
 
 log = logging.getLogger("sysperf.llm")
 
@@ -81,7 +82,7 @@ class RedactingFilter(logging.Filter):
 
 
 # --------------------------------------------------------------- credentials --
-def load_api_key(key_file: Optional[Path], env=None) -> tuple:
+def load_api_key(key_file: Path | None, env=None) -> tuple:
     """(key or None, source). Refuses a key file other users can read."""
     env = os.environ if env is None else env
     for var in ("SYSPERF_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY"):
@@ -121,9 +122,9 @@ class Completion:
     text: str
     model: str
     provider: str
-    input_tokens: Optional[int] = None
-    output_tokens: Optional[int] = None
-    cost_usd: Optional[float] = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    cost_usd: float | None = None
     latency_s: float = 0.0
     attempts: int = 1
 
@@ -144,7 +145,7 @@ class UsageMeter:
         if day != self._day:
             self._day, self.tokens, self.cost_usd, self.calls = day, 0, 0.0, 0
 
-    def check(self) -> Optional[str]:
+    def check(self) -> str | None:
         with self._lock:
             self._roll()
             if self.daily_token_budget and self.tokens >= self.daily_token_budget:
@@ -170,8 +171,8 @@ class UsageMeter:
                     "daily_cost_budget_usd": self.daily_cost_budget_usd}
 
 
-def estimate_cost(prices: dict, model: str, tin: Optional[int],
-                  tout: Optional[int]) -> Optional[float]:
+def estimate_cost(prices: dict, model: str, tin: int | None,
+                  tout: int | None) -> float | None:
     """USD from a user-supplied price table {model: [in_per_Mtok, out_per_Mtok]}.
 
     Prices are configuration, not code: they change, and a wrong hard-coded
@@ -201,7 +202,7 @@ AUTO_MODEL_PREFERENCE = ("opus", "sonnet")
 AUTO_MODEL_TTL_S = 24 * 3600
 
 
-def pick_auto_model(ids: list) -> Optional[str]:
+def pick_auto_model(ids: list) -> str | None:
     for family in AUTO_MODEL_PREFERENCE:
         for mid in ids:                       # API order: newest first
             if family in mid.lower():
@@ -213,10 +214,10 @@ class AnthropicProvider(Provider):
     """Anthropic Messages API with timeout, retries, backoff and 429 handling."""
     name = "anthropic"
 
-    def __init__(self, api_key: Optional[str], model: Optional[str],
+    def __init__(self, api_key: str | None, model: str | None,
                  base_url: str = DEFAULT_BASE_URL, timeout_s: float = 60.0,
                  max_retries: int = 4, backoff_base_s: float = 1.0,
-                 prices: Optional[dict] = None, opener=None, sleep=time.sleep):
+                 prices: dict | None = None, opener=None, sleep=time.sleep):
         self.api_key = api_key
         # Only an explicit "auto" selects automatically (build_provider defaults
         # the setting to it); None keeps the explicit "no model configured" error.
@@ -231,7 +232,7 @@ class AnthropicProvider(Provider):
         self._open = opener or urllib.request.urlopen
         self._sleep = sleep
 
-    def _request(self, method: str, path: str, body: Optional[dict] = None) -> tuple:
+    def _request(self, method: str, path: str, body: dict | None = None) -> tuple:
         if not self.api_key:
             raise LLMError("no_credentials", "no Anthropic API key configured")
         data = json.dumps(body).encode() if body is not None else None
@@ -253,24 +254,24 @@ class AnthropicProvider(Provider):
                 except Exception:    # pragma: no cover
                     detail = ""
                 if code in (401, 403):
-                    raise LLMError("auth", f"credentials rejected (HTTP {code})")
+                    raise LLMError("auth", f"credentials rejected (HTTP {code})") from exc
                 if code == 404:
-                    raise LLMError("not_found", f"HTTP 404 — unknown model or endpoint: {detail}")
+                    raise LLMError("not_found", f"HTTP 404 — unknown model or endpoint: {detail}") from exc
                 if code in (400, 413, 422):
-                    raise LLMError("bad_request", f"HTTP {code}: {detail}")
+                    raise LLMError("bad_request", f"HTTP {code}: {detail}") from exc
                 retryable = code == 429 or code >= 500
                 kind = "rate_limited" if code == 429 else "server_error"
                 if not retryable or attempt > self.max_retries:
                     raise LLMError(kind, f"HTTP {code} after {attempt} attempt(s): {detail}",
-                                   retryable=retryable)
+                                   retryable=retryable) from exc
                 wait = self._retry_after(exc) or self._backoff(attempt)
             except (urllib.error.URLError, TimeoutError, OSError) as exc:
                 if attempt > self.max_retries:
                     raise LLMError("network", f"unreachable after {attempt} attempt(s): "
-                                   f"{getattr(exc, 'reason', exc)}", retryable=True)
+                                   f"{getattr(exc, 'reason', exc)}", retryable=True) from exc
                 wait = self._backoff(attempt)
             except ValueError as exc:
-                raise LLMError("bad_response", f"non-JSON response: {exc}")
+                raise LLMError("bad_response", f"non-JSON response: {exc}") from exc
             log.info("anthropic: retrying in %.1fs (attempt %d)", wait, attempt)
             self._sleep(wait)
 
@@ -279,7 +280,7 @@ class AnthropicProvider(Provider):
         return min(30.0, self.backoff_base_s * (2 ** (attempt - 1))) * (0.5 + random.random() / 2)
 
     @staticmethod
-    def _retry_after(exc) -> Optional[float]:
+    def _retry_after(exc) -> float | None:
         try:
             v = exc.headers.get("retry-after")
             return min(60.0, float(v)) if v else None
@@ -324,7 +325,7 @@ class AnthropicProvider(Provider):
             usage = body.get("usage") or {}
             tin, tout = usage.get("input_tokens"), usage.get("output_tokens")
         except (AttributeError, TypeError) as exc:
-            raise LLMError("bad_response", f"unexpected response shape: {exc}")
+            raise LLMError("bad_response", f"unexpected response shape: {exc}") from exc
         return Completion(text=text, model=body.get("model", self.model),
                           provider=self.name, input_tokens=tin, output_tokens=tout,
                           cost_usd=estimate_cost(self.prices, self.model, tin, tout),
@@ -339,7 +340,7 @@ class KiroCliProvider(Provider):
     """Headless ``kiro-cli`` with no tools trusted; output is plain text."""
     name = "kiro_cli"
 
-    def __init__(self, model: Optional[str] = None, executable: str = "kiro-cli",
+    def __init__(self, model: str | None = None, executable: str = "kiro-cli",
                  timeout_s: float = 300.0, run=run_hidden):
         self.model = model
         self.executable = executable
@@ -356,10 +357,10 @@ class KiroCliProvider(Provider):
             res = self._run(argv, capture_output=True, text=True, timeout=self.timeout_s,
                             stdin=subprocess.DEVNULL)
         except FileNotFoundError:
-            raise LLMError("not_configured", f"{self.executable} not found")
+            raise LLMError("not_configured", f"{self.executable} not found") from None
         except subprocess.TimeoutExpired:
             raise LLMError("timeout", f"kiro-cli timed out after {self.timeout_s}s",
-                           retryable=True)
+                           retryable=True) from None
         out = _ANSI.sub("", res.stdout or "")
         if res.returncode != 0 or not out.strip():
             raise LLMError("provider_error", f"kiro-cli rc={res.returncode}: "
@@ -388,7 +389,7 @@ class ClaudeCodeProvider(Provider):
     WSL_PREFIX = ["wsl.exe", "-e", "bash", "-lc",
                   'exec "$HOME/.local/bin/claude" -p --tools "" "$@"', "claude"]
 
-    def __init__(self, model: Optional[str] = None, executable: Optional[str] = None,
+    def __init__(self, model: str | None = None, executable: str | None = None,
                  timeout_s: float = 600.0, run=run_hidden, via: str = "auto"):
         m = (model or "auto").strip()
         self.model = None if m.lower() == "auto" else m
@@ -426,8 +427,7 @@ class ClaudeCodeProvider(Provider):
     def complete(self, system: str, prompt: str, max_tokens: int) -> Completion:
         base = (list(self.WSL_PREFIX) if self.via_wsl
                 else [self.executable, "-p", "--tools", ""])
-        argv = base + ["--output-format", "json", "--no-session-persistence",
-                       "--system-prompt", system]
+        argv = [*base, "--output-format", "json", "--no-session-persistence", "--system-prompt", system]
         if self.model:
             argv += ["--model", self.model]
         started = time.time()
@@ -435,15 +435,15 @@ class ClaudeCodeProvider(Provider):
             res = self._run(argv, input=prompt, capture_output=True, text=True,
                             encoding="utf-8", errors="replace", timeout=self.timeout_s)
         except FileNotFoundError:
-            raise LLMError("not_configured", f"Claude Code not found ({self.executable})")
+            raise LLMError("not_configured", f"Claude Code not found ({self.executable})") from None
         except subprocess.TimeoutExpired:
             raise LLMError("timeout", f"claude -p timed out after {self.timeout_s}s",
-                           retryable=True)
+                           retryable=True) from None
         try:
             body = json.loads((res.stdout or "").strip().splitlines()[-1])
         except (ValueError, IndexError):
             raise LLMError("provider_error", f"claude -p rc={res.returncode}: "
-                           f"{(res.stderr or res.stdout or '')[-300:]}", retryable=True)
+                           f"{(res.stderr or res.stdout or '')[-300:]}", retryable=True) from None
         if body.get("is_error") or res.returncode != 0:
             msg = str(body.get("result") or res.stderr or "")[-300:]
             kind = "auth" if re.search(r"log ?in|auth|credential", msg, re.I) else "provider_error"
@@ -480,8 +480,8 @@ def decode_kiro_stream(raw: str) -> str:
 class LLMClient:
     """What the rest of SysPerf uses: budget, local rate limit, JSON validation."""
 
-    def __init__(self, provider: Provider, meter: Optional[UsageMeter] = None,
-                 min_interval_s: float = 2.0, on_call: Optional[Callable] = None,
+    def __init__(self, provider: Provider, meter: UsageMeter | None = None,
+                 min_interval_s: float = 2.0, on_call: Callable | None = None,
                  clock=time.monotonic, sleep=time.sleep):
         self.provider = provider
         self.meter = meter or UsageMeter()
@@ -490,7 +490,7 @@ class LLMClient:
         self._last = 0.0
         self._lock = threading.Lock()
         self._clock, self._sleep = clock, sleep
-        self.last_error: Optional[dict] = None
+        self.last_error: dict | None = None
 
     @property
     def available(self) -> bool:
@@ -532,7 +532,7 @@ class LLMClient:
                            + "; ".join(problems[:5]))
         return obj, c
 
-    def _record(self, c: Optional[Completion], err: Optional[LLMError]) -> None:
+    def _record(self, c: Completion | None, err: LLMError | None) -> None:
         if self.on_call:
             try:
                 self.on_call(c, err, self.provider)
@@ -540,7 +540,7 @@ class LLMClient:
                 log.exception("llm on_call hook failed")
 
 
-def extract_json(text: str) -> Optional[dict]:
+def extract_json(text: str) -> dict | None:
     """First balanced top-level JSON object in ``text`` (fences tolerated)."""
     if not text:
         return None
@@ -614,7 +614,7 @@ def validate(obj: Any, schema: dict, path: str = "$") -> list:
     return probs
 
 
-def build_provider(settings: dict, key_file: Optional[Path]) -> Provider:
+def build_provider(settings: dict, key_file: Path | None) -> Provider:
     """Provider from the ``llm`` settings block. Unknown/empty -> offline."""
     s = settings or {}
     kind = (s.get("provider") or "none").lower()

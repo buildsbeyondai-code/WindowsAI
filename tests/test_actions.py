@@ -8,7 +8,6 @@ Two properties matter most and are asserted explicitly:
   says it no longer applies — and a closed item reopens by itself if the trigger
   recurs, rather than silently staying hidden.
 """
-import json
 
 import pytest
 

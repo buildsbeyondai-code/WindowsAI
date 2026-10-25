@@ -36,7 +36,7 @@ function Write-Ok   { param([string]$T) Write-Host "    $T" -ForegroundColor Gre
 Write-Step 'Stopping SysPerf'
 Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue |
     Stop-ScheduledTask -ErrorAction SilentlyContinue
-# Only processes started from this install are stopped — a python.exe running
+# Only processes started from this install are stopped - a python.exe running
 # something else is left alone.
 Get-CimInstance Win32_Process -Filter "Name='pythonw.exe' OR Name='python.exe'" |
     Where-Object { $_.CommandLine -and $_.CommandLine -like "*$InstallDir*" } |
@@ -94,6 +94,6 @@ if ($Purge) {
 
 Write-Host ''
 Write-Host '  SysPerf uninstalled.' -ForegroundColor Green
-Write-Host '  Nothing else on the system was changed — SysPerf never modified any' -ForegroundColor DarkGray
+Write-Host '  Nothing else on the system was changed - SysPerf never modified any' -ForegroundColor DarkGray
 Write-Host '  Windows setting, so there is nothing to revert.' -ForegroundColor DarkGray
 Write-Host ''

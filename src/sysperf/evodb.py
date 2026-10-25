@@ -18,7 +18,6 @@ import sqlite3
 import threading
 import time
 from pathlib import Path
-from typing import Optional
 
 MIGRATIONS = [
     # 1 — evolution cycles, candidates, audit chain
@@ -186,7 +185,7 @@ class EvoDB:
             self.conn.execute(f"UPDATE candidates SET {cols} WHERE id=?",
                               (*fields.values(), cand_id))
 
-    def candidate(self, cand_id: str) -> Optional[dict]:
+    def candidate(self, cand_id: str) -> dict | None:
         with self._lock:
             r = self.conn.execute("SELECT * FROM candidates WHERE id=?", (cand_id,)).fetchone()
             return dict(r) if r else None
@@ -237,7 +236,7 @@ class EvoDB:
             self.conn.execute(f"UPDATE action_runs SET {cols} WHERE id=?",
                               (*fields.values(), run_id))
 
-    def action_runs(self, limit: int = 100, action_id: Optional[str] = None) -> list:
+    def action_runs(self, limit: int = 100, action_id: str | None = None) -> list:
         q, args = "SELECT * FROM action_runs", []
         if action_id:
             q, args = q + " WHERE action_id=?", [action_id]

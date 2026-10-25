@@ -1,5 +1,5 @@
 <#
-    daily-app-reset.ps1 — flattens the long-term handle/memory drift.
+    daily-app-reset.ps1 - flattens the long-term handle/memory drift.
 
     The Auto-Improve dashboard identified that the slow degradation of the
     handles / commit / compression / connection metrics is driven by WebView2
@@ -26,13 +26,13 @@ $before = (Get-Process | Measure-Object HandleCount -Sum).Sum
 $killed = 0
 foreach ($a in $apps) {
     foreach ($p in (Get-Process $a -ErrorAction SilentlyContinue)) {
-        try { $p.CloseMainWindow() | Out-Null } catch {}
+        try { $p.CloseMainWindow() | Out-Null } catch { $null = $_ }
     }
 }
 Start-Sleep -Seconds 3
 foreach ($a in $apps) {
     foreach ($p in (Get-Process $a -ErrorAction SilentlyContinue)) {
-        try { Stop-Process -Id $p.Id -Force; $killed++ } catch {}
+        try { Stop-Process -Id $p.Id -Force; $killed++ } catch { $null = $_ }
     }
 }
 Start-Sleep -Seconds 3

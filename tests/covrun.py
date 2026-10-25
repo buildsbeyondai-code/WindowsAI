@@ -13,8 +13,8 @@ Exit code 0 iff every target module reaches 100% line coverage.
 import os
 import sys
 import threading
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 from trace import _find_executable_linenos
 
 import pytest
@@ -64,9 +64,8 @@ def _line_tracer(frame, event, arg):
 
 
 def _global_tracer(frame, event, arg):
-    if event == "call":
-        if _realpath(frame.f_code.co_filename) in target_abs:
-            return _line_tracer
+    if event == "call" and _realpath(frame.f_code.co_filename) in target_abs:
+        return _line_tracer
     return None
 
 
@@ -147,10 +146,10 @@ def main():
     print("=" * 58)
 
     if rc != 0:
-        print("TESTS FAILED (pytest rc=%s)" % rc)
+        print(f"TESTS FAILED (pytest rc={rc})")
         return 1
     if failed:
-        print("COVERAGE INCOMPLETE for: %s" % ", ".join(failed))
+        print("COVERAGE INCOMPLETE for: {}".format(", ".join(failed)))
         return 1
     print("ALL TARGET MODULES AT 100% LINE COVERAGE")
     return 0

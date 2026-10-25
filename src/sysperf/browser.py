@@ -1,7 +1,7 @@
 """Browser-process ownership breakdown (mandatory / in-use / discretionary)."""
 from __future__ import annotations
 
-from .config import MANDATORY_HOSTS, INUSE_HOSTS, BROWSER_TARGET_NOTE
+from .config import BROWSER_TARGET_NOTE, INUSE_HOSTS, MANDATORY_HOSTS
 
 
 def browser_breakdown(latest: dict) -> dict:

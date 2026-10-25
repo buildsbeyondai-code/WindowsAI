@@ -1,7 +1,6 @@
 """Full-coverage tests for collector.py."""
 import json
 import os
-import subprocess
 
 import pytest
 
@@ -162,11 +161,14 @@ def test_sample_full_sweep_appends_flag(col, monkeypatch):
     def run(argv, **kw):
         if argv and argv[0] == "docker":
             class D:
-                stdout = "abc\n"; stderr = ""
+                stdout = "abc\n"
+                stderr = ""
             return D()
         seen["argv"] = list(argv)
         class R:
-            returncode = 0; stdout = json.dumps({"vmmem_mb": 1}); stderr = ""
+            returncode = 0
+            stdout = json.dumps({"vmmem_mb": 1})
+            stderr = ""
         return R()
 
     monkeypatch.setattr(collector.subprocess, "run", run)
@@ -344,7 +346,7 @@ def test_wifi_typical_absent_without_history():
 
 
 def test_wifi_typical_ignores_non_numeric_and_missing():
-    hist = _wifi_hist([144, None, 130]) + [{"wifi": None}, {}, {"wifi": {}}]
+    hist = [*_wifi_hist([144, None, 130]), {"wifi": None}, {}, {"wifi": {}}]
     out = collector._with_wifi_typical(_latest(144), hist)
     assert out["wifi"]["link_mbps_typical"] == 137.0   # median of [130, 144]
     assert out["wifi"]["link_mbps_samples"] == 2

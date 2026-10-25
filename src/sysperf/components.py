@@ -18,12 +18,11 @@ import logging
 import os
 import re
 import shutil
-import subprocess
-from .background_process import run_hidden
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .background_process import run_hidden
 from .config import BASE, PLATFORM
 
 log = logging.getLogger("perfdash")
@@ -46,7 +45,7 @@ def _run(cmd: list[str], timeout: float = 6.0) -> str:
     try:
         r = run_hidden(cmd, capture_output=True, text=True, timeout=timeout, env=_ENV)
         return ((r.stdout or "") + " " + (r.stderr or "")).strip()
-    except Exception:                                   # noqa: BLE001
+    except Exception:
         return ""
 
 

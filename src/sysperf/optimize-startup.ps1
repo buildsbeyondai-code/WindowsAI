@@ -5,7 +5,7 @@
 .DESCRIPTION
   Applies the reboot-persistent optimisations that make WSL, Windows Explorer and
   Outlook start quickly, so they work well WITHOUT needing the dashboard's
-  "Common Fix" button each time. Idempotent — safe to run at every logon.
+  "Common Fix" button each time. Idempotent - safe to run at every logon.
 
   Recommended: schedule at logon (once, from an elevated PowerShell):
 
@@ -24,7 +24,7 @@ param([switch]$WhatIfOnly)
 $ErrorActionPreference = 'SilentlyContinue'
 function Log($m) { Write-Host "[optimise] $m" }
 
-# 1) Tuned .wslconfig — fast WSL start + memory reclaim (no elevation needed).
+# 1) Tuned .wslconfig - fast WSL start + memory reclaim (no elevation needed).
 $wslcfg = Join-Path $env:USERPROFILE '.wslconfig'
 $desired = @"
 [wsl2]
@@ -42,7 +42,7 @@ if ((Get-Content $wslcfg -Raw -ErrorAction SilentlyContinue) -ne $desired) {
     Log ".wslconfig tuned (applies on next 'wsl --shutdown')"
 } else { Log ".wslconfig already tuned" }
 
-# 2) SysMain (SuperFetch) — pre-caches Explorer/Outlook so they launch faster.
+# 2) SysMain (SuperFetch) - pre-caches Explorer/Outlook so they launch faster.
 #    Needs elevation; enabled + set to Automatic (persists across reboots).
 $svc = Get-Service -Name SysMain -ErrorAction SilentlyContinue
 if ($svc) {
@@ -51,7 +51,7 @@ if ($svc) {
         if ($svc.Status -ne 'Running') { Start-Service -Name SysMain -ErrorAction SilentlyContinue }
     }
     Log "SysMain ensured Automatic + running (app pre-caching)"
-} else { Log "SysMain service not present — skipped" }
+} else { Log "SysMain service not present - skipped" }
 
 # 3) High-performance power plan on AC for faster cold boot (reversible).
 if (-not $WhatIfOnly) { powercfg /setactive SCHEME_MIN 2>$null }
