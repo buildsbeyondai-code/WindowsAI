@@ -83,9 +83,9 @@ class WinApi:  # pragma: no cover - Windows ctypes; tests/test_trayquit_win.py r
         sid = wintypes.DWORD()
         self.k32.ProcessIdToSessionId(self.k32.GetCurrentProcessId(), ctypes.byref(sid))
         self.session = sid.value
-
-    def processes(self) -> list:
-        c, w = self.c, self.w
+        # Structure types are built once: defining them inside the per-tick
+        # methods made a new class every 15 s (see health._win_mem_api).
+        c, w = ctypes, wintypes
 
         class PE(c.Structure):
             _fields_ = [("dwSize", w.DWORD), ("cntUsage", w.DWORD),
@@ -93,6 +93,18 @@ class WinApi:  # pragma: no cover - Windows ctypes; tests/test_trayquit_win.py r
                         ("th32ModuleID", w.DWORD), ("cntThreads", w.DWORD),
                         ("th32ParentProcessID", w.DWORD), ("pcPriClassBase", c.c_long),
                         ("dwFlags", w.DWORD), ("szExeFile", c.c_wchar * 260)]
+
+        class PMC(c.Structure):
+            _fields_ = [("cb", w.DWORD), ("PageFaultCount", w.DWORD)] + [
+                (n, c.c_size_t) for n in (
+                    "PeakWorkingSetSize", "WorkingSetSize", "QuotaPeakPagedPoolUsage",
+                    "QuotaPagedPoolUsage", "QuotaPeakNonPagedPoolUsage",
+                    "QuotaNonPagedPoolUsage", "PagefileUsage", "PeakPagefileUsage",
+                    "PrivateUsage")]
+        self._PE, self._PMC = PE, PMC
+
+    def processes(self) -> list:
+        c, w, PE = self.c, self.w, self._PE
         self.k32.CreateToolhelp32Snapshot.restype = w.HANDLE
         snap = self.k32.CreateToolhelp32Snapshot(2, 0)          # TH32CS_SNAPPROCESS
         out = []
@@ -144,15 +156,7 @@ class WinApi:  # pragma: no cover - Windows ctypes; tests/test_trayquit_win.py r
         return self.k32.OpenProcess(access, False, pid)
 
     def mem_mb(self, pid: int) -> float:
-        c, w = self.c, self.w
-
-        class PMC(c.Structure):
-            _fields_ = [("cb", w.DWORD), ("PageFaultCount", w.DWORD)] + [
-                (n, c.c_size_t) for n in (
-                    "PeakWorkingSetSize", "WorkingSetSize", "QuotaPeakPagedPoolUsage",
-                    "QuotaPagedPoolUsage", "QuotaPeakNonPagedPoolUsage",
-                    "QuotaNonPagedPoolUsage", "PagefileUsage", "PeakPagefileUsage",
-                    "PrivateUsage")]
+        c, PMC = self.c, self._PMC
         h = self._open(pid, 0x1000)                 # PROCESS_QUERY_LIMITED_INFORMATION
         if not h:
             return 0.0

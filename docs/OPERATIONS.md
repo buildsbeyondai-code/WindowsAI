@@ -80,6 +80,21 @@ Security problems go through SECURITY.md, not this log.
 - **Guard.** `tests/test_trayquit_win.py::test_health_memory_read_does_not_break_trayquit`,
   `tests/test_health.py::test_repeat_filter_lets_a_burst_through_then_reports_the_rest`.
 
+### 2026-10-25 · Memory grew with every Diagnostics poll (Windows)
+
+- **Impact.** About 1 KB of heap per `/api/diagnostics` call on Windows, which
+  the page polls, so memory crept up over days. Tray-quit rebuilt its structure
+  types every 15 s in the same way.
+- **Root cause.** `health._win_rss_mb()` defined a ctypes `Structure` and a
+  `POINTER` prototype on every call. ctypes caches each new class's pointer type
+  forever.
+- **Fix.** Build the types once (`health._win_mem_api`, `trayquit.WinApi.__init__`,
+  a single DPAPI wrapper) in 5.0.0.
+- **Found by.** `tests/test_soak.py`, which passed on Linux (20 KB) and failed on
+  Windows (1,039 KB over 1,000 requests). Before 5.0.0 the suite had never been
+  measured for leaks on Windows.
+- **Guard.** `tests/test_soak.py`, `tests/test_trayquit_win.py::test_repeated_reads_do_not_grow_the_heap`.
+
 ### 2026-10-25 · DNS rebinding could reach the mutating API
 
 - **Impact.** None observed. A UAISES audit found it: the server accepted any
