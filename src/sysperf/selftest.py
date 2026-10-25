@@ -60,8 +60,13 @@ class SelfTest:
     """
 
     def __init__(self, root, report_file, runner=None,
-                 timeout_s: float = RUN_TIMEOUT_S) -> None:
-        self.root = Path(root)
+                 timeout_s: float = RUN_TIMEOUT_S, python=None,
+                 fallback_root=None) -> None:
+        self._root = Path(root)
+        # The Store app's sys.executable is SysPerf.exe, which cannot run a script.
+        self.python = python or sys.executable
+        # () -> path or None: where to run when ``root`` ships no suite.
+        self.fallback_root = fallback_root
         self.report_file = Path(report_file)
         self.timeout_s = float(timeout_s)
         self._runner = runner or self._default_runner
@@ -174,6 +179,27 @@ class SelfTest:
                               text=True, timeout=self.timeout_s)
         return proc.returncode
 
+    @property
+    def root(self) -> Path:
+        """The installed package's root, or the fallback when it ships no suite.
+
+        The Store package carries no tests, so there the suite runs from the
+        user's SysPerf source checkout (the one self-evolution works on).
+        """
+        if self.fallback_root and self._find_runner(self._root) is None:
+            alt = self.fallback_root()
+            if alt:
+                return Path(alt)
+        return self._root
+
+    @staticmethod
+    def _find_runner(root: Path):
+        for base in (root, root.parent.parent):
+            candidate = base / "tests" / "testrunner.py"
+            if candidate.is_file():
+                return candidate
+        return None
+
     def runner_script(self):
         """The gate runner, or None when this installation does not ship it.
 
@@ -182,14 +208,10 @@ class SelfTest:
         the suite at ``<dist>/tests``. Returning None rather than guessing lets
         run() refuse honestly instead of failing with a confusing traceback.
         """
-        for base in (self.root, self.root.parent.parent):
-            candidate = base / "tests" / "testrunner.py"
-            if candidate.is_file():
-                return candidate
-        return None
+        return self._find_runner(self.root)
 
     def _argv(self, live: bool, quick: bool) -> list:
-        argv = [sys.executable, str(self.runner_script()),
+        argv = [self.python, str(self.runner_script()),
                 "--json", str(self.report_file)]
         if quick:
             argv.append("--quick")

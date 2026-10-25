@@ -459,3 +459,46 @@ def test_log_stream_handler_is_added_once_despite_the_error_buffer():
         assert sum(type(x) is logging.StreamHandler for x in root.handlers) == 1
     finally:
         root.handlers[:] = saved
+
+
+# ------------------------------------------------------------ Store mode --
+def test_store_routes_and_home_lists_optional_features(client, monkeypatch, tmp_path):
+    from sysperf import store_mode
+    sf = store_mode.StoreFeatures(
+        tmp_path / "sf.json", store_mode=True, action_policy=app.action_policy,
+        improver=app.improver, proc_watchdog=app.proc_watchdog,
+        tray_quitter=app.tray_quitter, session_policy=app.session_policy)
+    monkeypatch.setattr(app, "store_features", sf)
+    monkeypatch.setattr(app.proc_watchdog, "set_enabled",
+                        lambda on: setattr(app.proc_watchdog, "enabled", on))
+    assert client.get("/api/home").get_json()["optional"] is None
+    monkeypatch.setattr(app, "STORE_MODE", True)
+    ids = [f["id"] for f in client.get("/api/home").get_json()["optional"]]
+    assert "tray_quit" in ids and client.get("/api/store").get_json()["store_mode"] is True
+    _csrf_refused(client, "/api/store")
+    j = client.post("/api/store", json={**T, "feature": "explorer_watchdog", "on": True}).get_json()
+    assert {f["id"]: f["on"] for f in j["features"]}["explorer_watchdog"] is True
+    assert client.post("/api/store", json={**T, "feature": "nope"}).status_code == 400
+
+
+def test_store_apply_lands_in_the_checkout_and_restart_relaunches(client, monkeypatch):
+    monkeypatch.setattr(app.code_evolution, "apply", lambda cid: {"applied": True, "id": cid})
+    monkeypatch.setattr(app, "STORE_MODE", True)
+    j = client.post("/api/codevolve/apply", json={**T, "id": "c-1"}).get_json()
+    assert j["restarting"] is False and "source checkout" in j["note"]
+    timers = []
+
+    class FakeTimer:
+        def __init__(self, delay, fn, args=()):
+            timers.append(fn)
+
+        def start(self):
+            pass
+    monkeypatch.setattr(app.threading, "Timer", FakeTimer)
+    monkeypatch.setattr(app.sys, "frozen", True, raising=False)
+    assert client.post("/api/restart", json=T).get_json() == {"restarting": True}
+    assert timers == [app._relaunch]
+    calls = []
+    app._relaunch(spawn=lambda argv, close_fds: calls.append(argv),
+                  exit_fn=lambda code: calls.append(code))
+    assert calls == [[app.sys.executable, "--relaunch"], 0]

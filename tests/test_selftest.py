@@ -253,3 +253,21 @@ def test_every_documented_gate_has_a_description():
     assert set(GATES) == {"discover", "compile", "lint", "unit", "coverage",
                           "frontend", "browser", "live"}
     assert all(desc for desc in GATES.values())
+
+
+def test_store_app_runs_the_suite_from_the_source_checkout(tmp_path):
+    """The Store package ships no tests and its sys.executable is SysPerf.exe."""
+    pkg = tmp_path / "pkg"
+    pkg.mkdir()
+    repo = tmp_path / "repo"
+    (repo / "tests").mkdir(parents=True)
+    (repo / "tests" / "testrunner.py").write_text("")
+    seen = []
+    suite = SelfTest(pkg, tmp_path / "r.json", runner=seen.append, python="py.exe",
+                     fallback_root=lambda: str(repo))
+    assert suite.root == repo and suite.runner_script() == repo / "tests" / "testrunner.py"
+    suite.run(background=False)
+    assert seen[0][0] == "py.exe"
+    assert SelfTest(pkg, tmp_path / "r.json", fallback_root=lambda: None).root == pkg
+    # A root that ships its own suite never falls back.
+    assert SelfTest(repo, tmp_path / "r.json", fallback_root=lambda: str(pkg)).root == repo

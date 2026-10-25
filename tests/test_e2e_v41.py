@@ -345,3 +345,39 @@ def test_home_and_summary_always_show_the_same_system_score(browser, site):
     assert home.rstrip("%") == summary.rstrip("%"), (home, summary)
     assert "Improvement score" in page.inner_text("#sumAgent")
     page.close()
+
+
+# ------------------------------------------------------------ Store mode --
+def _feature(fid, on, where=None):
+    return {"id": fid, "title": fid.replace("_", " ").title(), "what": f"does {fid}",
+            "undo": f"undo {fid}", "on": on, "where": where}
+
+
+def test_store_app_lists_optional_features_and_toggles_them(browser, site):
+    opt = [_feature("tray_quit", False), _feature("explorer_watchdog", True),
+           _feature("self_evolution", False, "#self-evolution")]
+    after = {"store_mode": True, "features": [_feature("tray_quit", True)] + opt[1:]}
+    page = _open(browser, site, overrides={"api/home": dict(STUBS["api/home"], optional=opt)},
+                 posts={"api/store": after})
+    page.wait_for_selector("#homeOptionalCard", state="visible")
+    text = page.inner_text("#homeOptional")
+    assert "does tray_quit" in text and "undo tray_quit" in text and "Set up" in text
+    page.click("#homeOptional .opt-toggle[data-id='tray_quit']")
+    page.wait_for_function("() => document.querySelector(\"#homeOptional .opt-toggle[data-id='tray_quit']\").textContent === 'Turn off'")
+    assert _posted(page, "api/store")
+    page.close()
+
+
+def test_optional_features_are_hidden_outside_the_store_app_and_errors_show(browser, site):
+    page = _open(browser, site)
+    page.wait_for_function("() => document.getElementById('homeTodo').innerText.includes('quit')")
+    assert not page.is_visible("#homeOptionalCard")
+    page.close()
+    page = _open(browser, site, overrides={"api/home": dict(
+        STUBS["api/home"], optional=[_feature("tray_quit", False)])})
+    page.route("**/api/store", lambda r, q: r.fulfill(status=400, content_type="application/json",
+                                                      body=json.dumps({"error": "nope"})))
+    page.wait_for_selector("#homeOptional .opt-toggle")
+    page.click("#homeOptional .opt-toggle")
+    page.wait_for_function("() => document.querySelector('#homeOptional .opt-toggle').textContent.includes('Failed: nope')")
+    page.close()

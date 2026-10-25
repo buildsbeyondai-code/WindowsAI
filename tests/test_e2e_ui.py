@@ -704,6 +704,7 @@ CONDITIONAL = {
     "brokerCard": "shown only while the standby-clear helper has reported state",
     "brokerCopy": "a button rendered inside brokerCard, so only when it shows",
     "autoDecisionsCard": "shown only once the loop has made an auto-goal decision",
+    "homeOptional": "filled only in the Microsoft Store app (Store mode)",
 }
 
 
