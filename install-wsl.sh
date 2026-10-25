@@ -77,7 +77,7 @@ mkdir -p "${UNIT_DIR}"
 cat > "${UNIT_DIR}/sysperf.service" <<UNIT
 [Unit]
 Description=SysPerf — read-only Windows performance dashboard
-Documentation=https://github.com/sysperf/sysperf
+Documentation=https://github.com/buildsbeyondai-code/WindowsAI
 After=network-online.target
 
 [Service]

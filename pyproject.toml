@@ -42,10 +42,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/sysperf/sysperf"
-Documentation = "https://github.com/sysperf/sysperf#readme"
-Issues = "https://github.com/sysperf/sysperf/issues"
-Source = "https://github.com/sysperf/sysperf"
+Homepage = "https://github.com/buildsbeyondai-code/WindowsAI"
+Documentation = "https://github.com/buildsbeyondai-code/WindowsAI#readme"
+Issues = "https://github.com/buildsbeyondai-code/WindowsAI/issues"
+Source = "https://github.com/buildsbeyondai-code/WindowsAI"
 
 [project.scripts]
 sysperf = "sysperf.__main__:main"
