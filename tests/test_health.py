@@ -5,6 +5,7 @@ import os
 import threading
 from types import SimpleNamespace
 
+from sysperf import health
 from sysperf.health import ErrorBuffer, HealthMonitor, footprint, rotate_log, rss_mb
 
 
@@ -111,3 +112,43 @@ def test_rotate_log_without_newline_in_tail(tmp_path):
     log = tmp_path / "a.log"
     log.write_text("z" * 500)
     assert rotate_log(log, max_bytes=100, keep_bytes=20, stream=io.StringIO()) is True
+
+
+# ------------------------------------------------------------ RepeatFilter --
+def _rec(msg="check failed", level=logging.ERROR, exc=None, name="sysperf.x"):
+    r = logging.LogRecord(name, level, __file__, 1, msg, (), None)
+    if exc is not None:
+        r.exc_info = (type(exc), exc, None)
+    return r
+
+
+def test_repeat_filter_lets_a_burst_through_then_reports_the_rest():
+    t = [0.0]
+    f = health.RepeatFilter(burst=3, window_s=600, clock=lambda: t[0])
+    kept = [f.filter(_rec(exc=TypeError("x"))) for _ in range(36)]
+    assert kept.count(True) == 3
+    t[0] = 601.0
+    nxt = _rec(exc=TypeError("x"))
+    assert f.filter(nxt)
+    assert "33 identical message(s) suppressed in the previous 600 s" in nxt.getMessage()
+    # A quiet window afterwards has nothing to report.
+    t[0] = 1300.0
+    quiet = _rec(exc=TypeError("x"))
+    assert f.filter(quiet) and "suppressed" not in quiet.getMessage()
+
+
+def test_repeat_filter_keys_on_logger_message_and_exception_type():
+    f = health.RepeatFilter(burst=1, clock=lambda: 0.0)
+    assert f.filter(_rec())
+    assert not f.filter(_rec())
+    assert f.filter(_rec(name="sysperf.other"))
+    assert f.filter(_rec(msg="another failure"))
+    assert f.filter(_rec(exc=ValueError("v")))
+    assert all(f.filter(_rec(level=logging.INFO)) for _ in range(5))   # INFO never dropped
+
+
+def test_repeat_filter_bounds_its_memory():
+    f = health.RepeatFilter(burst=1, clock=lambda: 0.0)
+    for i in range(f.MAX_KEYS + 2):
+        f.filter(_rec(msg=f"m{i}"))
+    assert len(f._seen) <= f.MAX_KEYS + 1
