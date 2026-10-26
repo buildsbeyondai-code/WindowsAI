@@ -157,8 +157,8 @@ def _windows_run(calls):
             return ('bwrap=bubblewrap 0.9.0\nclaude=2.1.3 (Claude Code)\n'
                     'ubuntu=VERSION="24.04.3 LTS (Noble Numbat)"\n'
                     'chromium=/home/u/.cache/ms-playwright/chromium-1248\n'
-                    'kernel=6.18.54.1-microsoft-standard-WSL2\nnode=v22.23.3\n'
-                    'git=git version 2.43.0\nnginx=\n')
+                    'kernel=6.18.54.1-microsoft-standard-WSL2\npython3=Python 3.12.3\n'
+                    'git=git version 2.43.0\ndocker=\n')
         return ""
     return run
 
@@ -179,11 +179,11 @@ def test_windows_skips_apt_probes_but_reads_the_toolchain(monkeypatch):
     assert v["ubuntu"] == "24.04.3" and v["chromium"] == "build 1248"
     assert "playwright" not in v and "python" in v
     # The Linux-side rows are read inside the distro, never from the Windows PATH.
-    assert v["kernel"] == "6.18.54.1" and v["node"] == "22.23.3" and v["git"] == "2.43.0"
-    assert "nginx" not in v                                    # not installed in WSL
-    assert not any(c[0] in ("uname", "nginx", "lsb_release") for c in calls)   # no host probes
+    assert v["kernel"] == "6.18.54.1" and v["python3"] == "3.12.3" and v["git"] == "2.43.0"
+    assert "docker" not in v                                   # not installed in WSL
+    assert not any(c[0] in ("uname", "docker", "lsb_release") for c in calls)  # no host probes
     probe = next(c[-1] for c in calls if c[:3] == ["/x/wsl.exe", "-e", "sh"])
-    assert "command -v node" in probe and "nvm.sh" in probe
+    assert "command -v docker" in probe
     components._cache["linux"] = None
 
 
@@ -228,7 +228,14 @@ def test_components_this_machine_lacks_are_listed_as_not_installed(tmp_path, mon
     by = {r["key"]: r for r in build_components({})["rows"]}
     assert by["playwright"]["current"] == "not installed" and by["playwright"]["missing"]
     assert by["playwright"]["outdated"] is False and by["flask"]["outdated"] is False
-    assert by["ghost"]["current"] == "not installed"
+    assert by["ghost"]["current"] == "not installed" and by["ghost"]["optional"] is False
+
+
+def test_shipped_catalog_keeps_only_what_sysperf_uses():
+    cat = {c["key"]: c for c in json.loads(components.COMPONENTS_FILE.read_text())["catalog"]}
+    assert not {"node", "npm", "nginx", "gunicorn", "kiro-cli"} & set(cat)
+    assert cat["docker"]["optional"] is True
+    assert [k for k, c in cat.items() if c.get("optional")] == ["docker"]
 
 
 def test_shipped_catalog_lists_the_toolchain():

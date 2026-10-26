@@ -10,12 +10,10 @@ The dashboard's #details/components view shows:
 This script re-assesses the "latest" targets once per day from each component's
 SUPPORTED channel so the advisory stops going stale:
 
-  * apt packages (nginx, git, python3, docker)  -> `apt-cache policy` candidate
-  * pip packages (gunicorn)                     -> PyPI JSON latest release
+  * apt packages (git, python3, docker)         -> `apt-cache policy` candidate
   * ubuntu (LTS release)                        -> `do-release-upgrade -c`
                                                    (sees new LTS series that
                                                    apt-cache policy cannot)
-  * node / npm (pinned NodeSource 22.x)         -> nodejs.org/dist index
   * powershell                                  -> GitHub latest stable release
 
 Components intentionally left to manual review (no reliable probe from inside
@@ -25,14 +23,13 @@ WSL, so their reviewed targets are preserved untouched):
   * edge, webview2   -> evergreen, auto-updating; no stable public version API,
                         and they are never "behind" so they are not flagged.
   * windows          -> Windows Update / IT managed.
-  * kiro-cli         -> internal upgrade channel.
   * net-driver, gpu-driver, bios -> date-based vendor references (judged by age).
 
 It is strictly non-destructive:
   * it only ever RAISES a `latest` value when a newer version is discovered
     (never downgrades, so hand-reviewed targets are preserved),
   * channels that cannot be probed from this machine (Windows / drivers / BIOS /
-    Node major / WSL / kernel) keep their reviewed values untouched,
+    WSL / kernel) keep their reviewed values untouched,
   * `assessment_date` is stamped to today (UTC) to reflect the re-check,
   * the file is written atomically (temp + os.replace).
 
@@ -66,14 +63,9 @@ log = logging.getLogger("refresh_components")
 
 # catalog key -> apt package name (supported channel = apt / vendor apt repo)
 APT_PKGS = {
-    "nginx": "nginx",
     "git": "git",
     "python3": "python3",
     "docker": "docker-ce",
-}
-# catalog key -> PyPI project name
-PIP_PKGS = {
-    "gunicorn": "gunicorn",
 }
 
 
@@ -140,55 +132,6 @@ def _ubuntu_latest_lts() -> str:
     return _ver(m.group(1)) if m else ""  # '' when no new release is offered
 
 
-def _pypi_latest(project: str) -> str:
-    """Return the latest release version from PyPI, or ''."""
-    url = f"https://pypi.org/pypi/{project}/json"
-    try:
-        with urllib.request.urlopen(url, timeout=15) as r:
-            data = json.load(r)
-        return _ver(data.get("info", {}).get("version", ""))
-    except Exception as exc:
-        log.warning("PyPI lookup %s failed: %s", project, exc)
-        return ""
-
-
-# The NodeSource channel for this host is pinned to the 22.x line
-# (catalog note: "major upgrade - confirm first"), so Node/npm targets track
-# the newest 22.x release, NOT the current Node LTS major.
-_NODE_MAJOR = "22"
-_dist_cache: dict = {}
-
-
-def _node_dist_newest() -> dict | None:
-    """Newest nodejs.org/dist entry for the pinned major, or None."""
-    if "e" in _dist_cache:
-        return _dist_cache["e"]
-    try:
-        with urllib.request.urlopen("https://nodejs.org/dist/index.json", timeout=15) as r:
-            data = json.load(r)  # newest-first list
-    except Exception as exc:
-        log.warning("nodejs dist fetch failed: %s", exc)
-        _dist_cache["e"] = None
-        return None
-    for e in data:
-        if str(e.get("version", "")).startswith(f"v{_NODE_MAJOR}."):
-            _dist_cache["e"] = e
-            return e
-    _dist_cache["e"] = None
-    return None
-
-
-def _node_latest() -> str:
-    e = _node_dist_newest()
-    return _ver(e.get("version")) if e else ""
-
-
-def _npm_latest() -> str:
-    """npm version bundled with the newest pinned-major Node release."""
-    e = _node_dist_newest()
-    return _ver(e.get("npm")) if e else ""
-
-
 def _powershell_latest() -> str:
     """Latest stable PowerShell 7 release tag from GitHub, or ''."""
     url = "https://api.github.com/repos/PowerShell/PowerShell/releases/latest"
@@ -229,16 +172,10 @@ def refresh() -> int:
         discovered = ""
         if key == "ubuntu":
             discovered = _ubuntu_latest_lts()
-        elif key == "node":
-            discovered = _node_latest()
-        elif key == "npm":
-            discovered = _npm_latest()
         elif key == "powershell":
             discovered = _powershell_latest()
         elif key in APT_PKGS:
             discovered = _apt_candidate(APT_PKGS[key])
-        elif key in PIP_PKGS:
-            discovered = _pypi_latest(PIP_PKGS[key])
         else:
             continue  # channel not probeable from this host -> keep reviewed value
 

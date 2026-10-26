@@ -51,17 +51,6 @@
       "why": "Newer graphics drivers fix rendering stalls and improve compositor and WebView2 performance."
     },
     {
-      "key": "node",
-      "name": "Node.js runtime",
-      "category": "Runtime",
-      "compare": "version",
-      "latest": "22.23.3",
-      "channel": "NodeSource node_22.x (major upgrade - confirm first)",
-      "perf": 18,
-      "owner": "user",
-      "why": "Node 22 LTS ships a newer V8 with faster startup, JIT and GC. This is a MAJOR bump requiring a NodeSource channel switch and a re-test of global tooling (ExcelJS etc.) - apply deliberately, not blindly. Node 20 is patched to 20.20.2 in-channel."
-    },
-    {
       "key": "powershell",
       "name": "PowerShell",
       "category": "Tooling",
@@ -119,29 +108,6 @@
       "why": "UEFI/BIOS updates improve power/thermal management, Thunderbolt/Wi-Fi stability and ship Intel microcode and security fixes."
     },
     {
-      "key": "kiro-cli",
-      "name": "Kiro CLI",
-      "category": "Tooling",
-      "compare": "version",
-      "latest": "2.19.1",
-      "channel": "kiro-cli upgrade",
-      "perf": 10,
-      "owner": "user",
-      "why": "Keep current via the built-in updater; newer builds add faster tool routing and lower memory use."
-    },
-    {
-      "key": "nginx",
-      "name": "nginx web server",
-      "category": "Server",
-      "compare": "version",
-      "latest": "1.24.0",
-      "upstream": "1.28.0",
-      "channel": "apt (Ubuntu 24.04 LTS)",
-      "perf": 10,
-      "owner": "user",
-      "why": "At the LTS-maintained version (security-backported). The upstream 1.28 stable branch (HTTP/3/QUIC) needs the nginx.org repo and an nginx restart that briefly drops the dashboard + 3PP API - a deliberate change, not auto-applied."
-    },
-    {
       "key": "docker",
       "name": "Docker engine",
       "category": "Container",
@@ -150,7 +116,8 @@
       "channel": "apt (docker repo)",
       "perf": 6,
       "owner": "user",
-      "why": "Current; keep patched for containerd/runc performance and CVE fixes."
+      "why": "Optional: a third sandbox for AI self-evolution, used only when bubblewrap is unavailable and evolution.docker_image is set. bubblewrap through WSL already covers this PC. If installed, keep it patched for containerd/runc fixes.",
+      "optional": true
     },
     {
       "key": "python3",
@@ -163,17 +130,6 @@
       "perf": 8,
       "owner": "user",
       "why": "At the LTS-maintained version (security-backported; the interpreter that runs this dashboard and the API). Upstream 3.12.7 would need deadsnakes/source and risks the system Python - do NOT auto-replace."
-    },
-    {
-      "key": "gunicorn",
-      "name": "gunicorn (API server)",
-      "category": "Server",
-      "compare": "version",
-      "latest": "26.2.0",
-      "channel": "pip",
-      "perf": 5,
-      "owner": "user",
-      "why": "Serves the 3PP dashboard API; current."
     },
     {
       "key": "windows",
@@ -373,18 +329,6 @@
       "perf": 4,
       "owner": "user",
       "why": "Runs AI-written code with no network and a read-only filesystem. Without it every evolution cycle stops as 'blocked'."
-    },
-    {
-      "key": "npm",
-      "name": "npm",
-      "category": "Tooling",
-      "compare": "version",
-      "latest": "10.9.9",
-      "upstream": "10.9.0",
-      "channel": "bundled with Node",
-      "perf": 3,
-      "owner": "user",
-      "why": "Managed by the nodejs package; moves with Node upgrades rather than being self-updated on a distro install."
     }
   ]
 }
