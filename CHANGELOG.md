@@ -4,6 +4,26 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.0.5 — 2026-10-26
+
+### Changed
+- **Faster scoring (self-evolution, approved).** `scoring._session_slice`
+  scans newest-first and stops at the first collector gap, and smoothing
+  looks only at the last `window` samples. Measured in the sandbox:
+  `_smoothed_current` 93.9% faster, `build_scorecard` 25.9% faster, nothing
+  slower. Scores are unchanged: a new test checks it against the original
+  over 3,000 random histories. This is the first self-evolution candidate to
+  ship. It was built on 5.0.0 and carried forward unchanged (`scoring.py`
+  had not moved), with your approval.
+
+### Fixed
+- **Self-evolution cycle failed on a slow checkout.** Every git call had a
+  60 s limit, and `git worktree add` once took longer (08:22 today), so the
+  cycle ended as an "internal error". The checkout now gets 300 s, and a git
+  timeout is reported as such.
+- Removed a stale git worktree left in `%TEMP%\sp-wt` from 4.1.0 testing
+  (its one change had already shipped).
+
 ## 5.0.4 — 2026-10-26
 
 ### Added

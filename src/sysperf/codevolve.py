@@ -356,9 +356,12 @@ class Sandbox:
 
 
 # --------------------------------------------------------------------- git --
-def _git(repo: Path, *args, check=True) -> str:
-    r = run_hidden(["git", "-C", str(repo), *args], capture_output=True, text=True,
-                       timeout=60, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
+def _git(repo: Path, *args, check=True, timeout: float = 60) -> str:
+    try:
+        r = run_hidden(["git", "-C", str(repo), *args], capture_output=True, text=True,
+                       timeout=timeout, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"git {' '.join(args[:2])}: timed out after {timeout:g} s") from None
     if check and r.returncode != 0:
         raise RuntimeError(f"git {' '.join(args[:2])}: {r.stderr.strip()[:300]}")
     return r.stdout
@@ -1004,7 +1007,9 @@ class CodeEvolution:
         wt = self.workroot / name
         if wt.exists():
             self._drop_worktree(repo, wt)
-        _git(repo, "worktree", "add", "-q", "--detach", str(wt), sha)
+        # A checkout writes every file; a busy disk or an antivirus scan once
+        # took this past the 60 s every other git call gets (2026-10-26 08:22).
+        _git(repo, "worktree", "add", "-q", "--detach", str(wt), sha, timeout=300)
         return wt
 
     def _drop_worktree(self, repo: Path, wt: Path) -> None:

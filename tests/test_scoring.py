@@ -291,3 +291,32 @@ def test_smoothing_windows_are_defined_in_time_not_sample_counts():
 def test_row_note_net_remote_mentions_excluded_infrastructure():
     n = _row_note("net_remote", 25, {"net_established": 60, "net_remote_infra": 7})
     assert "7 OS/sync infrastructure" in n
+
+
+def _session_slice_reference(history, gap_s):
+    """The pre-5.0.5 implementation: oldest-first, the last gap wins."""
+    anchor = 0
+    for i in range(1, len(history)):
+        t0, t1 = history[i - 1].get("_t"), history[i].get("_t")
+        if t0 is not None and t1 is not None and t1 - t0 > gap_s:
+            anchor = i
+    return history[anchor:]
+
+
+def test_session_slice_matches_the_original_scan():
+    """5.0.5 (self-evolution, approved): newest-first with an optional tail must
+    return exactly what the original full scan returned."""
+    import random
+
+    from sysperf.scoring import _session_slice
+    rng = random.Random(505)
+    for _ in range(3000):
+        t, hist = 0.0, []
+        for _ in range(rng.randint(0, 40)):
+            t += rng.choice((60, 60, 60, 120, 5000))
+            hist.append({"_t": None if rng.random() < 0.08 else t, "v": 1})
+        gap = rng.choice((300, 1800))
+        ref = _session_slice_reference(hist, gap)
+        assert _session_slice(hist, gap) == ref
+        for window in (1, 2, 3, 5, 12, 60):
+            assert _session_slice(hist, gap, tail=window)[-window:] == ref[-window:]
