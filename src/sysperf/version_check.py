@@ -112,6 +112,9 @@ SOURCES = {
     "git-windows": github("git-for-windows/git"),
     "flask": pypi("flask"),
     "waitress": pypi("waitress"),
+    # The rest of the CI SBOM: Flask's locked dependencies and pip.
+    **{p: pypi(p) for p in ("werkzeug", "jinja2", "markupsafe", "itsdangerous",
+                            "click", "blinker", "pip")},
     "pytest": pypi("pytest"),
     "playwright": pypi("playwright"),
     "claude-code": npm("@anthropic-ai/claude-code"),

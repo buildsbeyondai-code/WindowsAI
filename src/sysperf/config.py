@@ -29,7 +29,7 @@ from .platform_paths import detect_platform, resolve_data_dir, resolve_powershel
 # Where the code lives. Read-only: nothing is ever written here.
 BASE = Path(__file__).resolve().parent
 # Shown in the dashboard header and /api/health; stamped by scripts/build_release.py.
-APP_VERSION = "5.0.1"
+APP_VERSION = "5.0.2"
 
 PLATFORM = detect_platform()
 # Microsoft Store mode (store_mode.py): the frozen SysPerf.exe of the MSIX build,

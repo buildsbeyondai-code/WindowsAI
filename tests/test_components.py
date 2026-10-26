@@ -1,5 +1,6 @@
 """Full-coverage tests for components.py."""
 import json
+import re
 import subprocess
 
 import sysperf.components as components
@@ -127,8 +128,10 @@ def test_build_components_full(tmp_path, monkeypatch):
     assert by["gpu-driver"]["outdated"] is True         # date, very old
     assert by["node"]["outdated"] is True               # 20 < 22
     assert by["git"]["outdated"] is False               # 2.40 > 2.0
-    assert "ghost" not in by                            # not installed here: hidden
+    assert by["ghost"]["missing"] and by["ghost"]["outdated"] is False   # listed, not counted
+    assert out["rows"][-1]["key"] == "ghost"            # not-installed rows sort last
     assert out["upgrades"] == 2 and out["avg_uplift"] > 0
+    assert out["total"] == 3 and out["not_installed"] == 1
 
 
 def test_hardware_rows_are_named_after_the_fitted_device(tmp_path, monkeypatch):
@@ -153,7 +156,9 @@ def _windows_run(calls):
         if cmd[:3] == ["/x/wsl.exe", "-e", "sh"]:
             return ('bwrap=bubblewrap 0.9.0\nclaude=2.1.3 (Claude Code)\n'
                     'ubuntu=VERSION="24.04.3 LTS (Noble Numbat)"\n'
-                    'chromium=/home/u/.cache/ms-playwright/chromium-1248\n')
+                    'chromium=/home/u/.cache/ms-playwright/chromium-1248\n'
+                    'kernel=6.18.54.1-microsoft-standard-WSL2\nnode=v22.23.3\n'
+                    'git=git version 2.43.0\nnginx=\n')
         return ""
     return run
 
@@ -173,7 +178,12 @@ def test_windows_skips_apt_probes_but_reads_the_toolchain(monkeypatch):
     assert v["bubblewrap"] == "0.9.0" and v["claude-code"] == "2.1.3"
     assert v["ubuntu"] == "24.04.3" and v["chromium"] == "build 1248"
     assert "playwright" not in v and "python" in v
-    assert not any(c[0] in ("uname", "nginx", "lsb_release") for c in calls)   # no apt probes
+    # The Linux-side rows are read inside the distro, never from the Windows PATH.
+    assert v["kernel"] == "6.18.54.1" and v["node"] == "22.23.3" and v["git"] == "2.43.0"
+    assert "nginx" not in v                                    # not installed in WSL
+    assert not any(c[0] in ("uname", "nginx", "lsb_release") for c in calls)   # no host probes
+    probe = next(c[-1] for c in calls if c[:3] == ["/x/wsl.exe", "-e", "sh"])
+    assert "command -v node" in probe and "nvm.sh" in probe
     components._cache["linux"] = None
 
 
@@ -204,12 +214,12 @@ def test_linux_toolchain_finds_chromium_and_wsl_tools(monkeypatch, tmp_path):
     assert "chromium" not in components._toolchain_versions({})
 
 
-def test_toolchain_components_show_when_missing(tmp_path, monkeypatch):
+def test_components_this_machine_lacks_are_listed_as_not_installed(tmp_path, monkeypatch):
     cat = {"catalog": [
         {"key": "playwright", "name": "Playwright", "compare": "version",
-         "latest": "latest (pip install playwright)", "show_missing": True, "perf": 2},
+         "latest": "latest (pip install playwright)", "perf": 2},
         {"key": "flask", "name": "Flask", "compare": "version", "latest": "3.0.3",
-         "show_missing": True, "perf": 3},
+         "perf": 3},
         {"key": "ghost", "name": "Ghost", "compare": "version", "latest": "1.0"}]}
     f = tmp_path / "c.json"
     f.write_text(json.dumps(cat))
@@ -218,13 +228,28 @@ def test_toolchain_components_show_when_missing(tmp_path, monkeypatch):
     by = {r["key"]: r for r in build_components({})["rows"]}
     assert by["playwright"]["current"] == "not installed" and by["playwright"]["missing"]
     assert by["playwright"]["outdated"] is False and by["flask"]["outdated"] is False
-    assert "ghost" not in by
+    assert by["ghost"]["current"] == "not installed"
 
 
 def test_shipped_catalog_lists_the_toolchain():
     keys = {c["key"] for c in json.loads(components.COMPONENTS_FILE.read_text())["catalog"]}
     assert {"python", "flask", "waitress", "pytest", "playwright", "chromium",
             "git-windows", "claude-code", "bubblewrap"} <= keys
+
+
+def test_every_sbom_package_is_a_component_with_a_live_feed(monkeypatch):
+    """The CI SBOM is a venv of requirements.lock (plus pip); each of those
+    packages must be a Components row, read live and checked against PyPI."""
+    from sysperf import version_check
+    lock = (components.BASE.parents[1] / "requirements.lock").read_text(encoding="utf-8")
+    sbom = set(re.findall(r"^([a-z0-9][a-z0-9._-]*)==", lock, re.M)) | {"pip"}
+    assert {"flask", "waitress", "werkzeug"} <= sbom
+    keys = {c["key"] for c in json.loads(components.COMPONENTS_FILE.read_text())["catalog"]}
+    assert sbom <= keys, sbom - keys
+    assert sbom <= set(version_check.SOURCES), sbom - set(version_check.SOURCES)
+    monkeypatch.setattr(components, "_run", lambda cmd, timeout=6.0: "")   # metadata only
+    found = components._toolchain_versions({})
+    assert sbom <= set(found), sbom - set(found)          # installed with SysPerf
 
 
 def test_build_components_no_upgrades(tmp_path, monkeypatch):
@@ -276,7 +301,7 @@ def test_build_components_uses_live_versions(tmp_path, monkeypatch):
         {"key": "powershell", "name": "PowerShell", "compare": "version", "latest": "7.6.7",
          "perf": 15},
         {"key": "flask", "name": "Flask", "compare": "version", "latest": "3.0.3",
-         "show_missing": True, "perf": 3}]}
+         "perf": 3}]}
     f = tmp_path / "c.json"
     f.write_text(json.dumps(cat))
     live = tmp_path / "live.json"

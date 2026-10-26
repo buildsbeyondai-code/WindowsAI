@@ -1,6 +1,6 @@
 # SysPerf User Manual
 
-**System Performance Agent — version 5.0.1**
+**System Performance Agent — version 5.0.2**
 
 A self-improving performance dashboard for Windows 11. It measures the PC, explains
 what holds it back, and changes it only in ways it lists and you can undo.
@@ -270,12 +270,14 @@ computation, so they never disagree.
 - **Network optimisation** — the TCP connection footprint, active adapters and a
   prioritised fix plan. Each action is tagged **client**, **router** or
   **windows** so it is clear where it applies.
-- **Component upgrades** — a version-currency table for the components actually
-  present on the machine (Windows build, PowerShell 5.1/7, Edge, WebView2,
-  graphics and network drivers, BIOS/UEFI, and Python/Node/Git/WSL when
-  installed), each with an estimated performance benefit. Components that are
-  not installed are simply not listed. `latest` is a reviewed reference target
-  dated in the table, not a live query — treat it as guidance, and confirm driver
+- **Component upgrades** — a version-currency table for every catalogued
+  component (Windows build, PowerShell 5.1/7, Edge, WebView2, graphics and
+  network drivers, BIOS/UEFI, WSL and the tools inside the WSL distro, and
+  SysPerf's own toolchain — every package in the CI SBOM), each with an
+  estimated performance benefit. A component the machine does not have is
+  listed last as *not installed*; it is never counted as an upgrade or in the
+  total. `latest` is the vendor's newest public release, checked daily, with the
+  reviewed catalog as the fallback — treat it as guidance, and confirm driver
   and firmware versions with your OEM's support tool.
 
 ### 5.1 Header
@@ -1579,8 +1581,9 @@ forward and `meta.error` reports the reason.
 * **Adjust browser ownership** — add host process names under
   `browser_hosts.mandatory` / `in_use` so the closability floor matches your
   environment.
-* **Change the component targets** — edit `CATALOG` in `components.py`. Only
-  components detected on the machine are listed, so adding an entry is safe.
+* **Change the component targets** — edit `components.json`. A component the
+  machine lacks shows as *not installed* and is not counted, so adding an entry
+  is safe.
 * **Add a criterion** — add a row to `config.CRITERIA`, derive its target in
   `machine_profile.targets_for`, and collect the field in `collect_win.ps1`.
   The scorecard, KPI cards and category score pick it up automatically.

@@ -42,6 +42,14 @@ _ENV = {**os.environ,
         "PATH": os.pathsep.join([f"{_HOME}/.local/bin", f"{_HOME}/bin",
                                  os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin")])}
 
+# The Linux-side catalog rows: the tools of a WSL deployment, probed where they
+# live (directly on Linux/WSL, through wsl.exe when SysPerf runs on Windows).
+_LINUX_TOOLS = {
+    "kernel": "uname -r", "python3": "python3 --version", "node": "node --version",
+    "nginx": "nginx -v", "docker": "docker --version", "gunicorn": "gunicorn --version",
+    "git": "git --version", "npm": "npm --version", "kiro-cli": "kiro-cli --version",
+}
+
 
 def _run(cmd: list[str], timeout: float = 6.0) -> str:
     try:
@@ -86,8 +94,9 @@ def _linux_versions() -> dict:
     v: dict = {}
     if PLATFORM == "windows":
         # The Linux-side catalog rows (distro, kernel, apt packages) describe a
-        # WSL deployment. Probing the Windows PATH for them reports unrelated
-        # binaries against apt channels, so only the WSL platform is checked.
+        # WSL deployment. Probing the Windows PATH for them would report
+        # unrelated binaries against apt channels, so they are read inside the
+        # distro by _toolchain_versions' wsl.exe probe instead.
         _cache["linux"] = _toolchain_versions(_wsl_version(v))
         _cache["t"] = now
         return _cache["linux"]
@@ -104,15 +113,8 @@ def _linux_versions() -> dict:
     osr = _ver(_run(["lsb_release", "-ds"]))          # description carries the point release
     if osr:
         v["ubuntu"] = osr
-    v["kernel"] = _ver(_run(["uname", "-r"]))
-    v["python3"] = _ver(_run(["python3", "--version"]))
-    v["node"] = _ver(_run(["node", "--version"]))
-    v["nginx"] = _ver(_run(["nginx", "-v"]))
-    v["docker"] = _ver(_run(["docker", "--version"]))
-    v["gunicorn"] = _ver(_run(["gunicorn", "--version"]))
-    v["git"] = _ver(_run(["git", "--version"]))
-    v["npm"] = _ver(_run(["npm", "--version"]))
-    v["kiro-cli"] = _ver(_run(["kiro-cli", "--version"]))
+    for key, cmd in _LINUX_TOOLS.items():
+        v[key] = _ver(_run(cmd.split()))
     # WSL app version: wsl.exe --version only prints, it does not start a distro.
     # wsl.exe lives on the Windows host: on PATH when running natively or with
     # WSL interop, at the mount path otherwise. Hardcoding /mnt/c meant this
@@ -130,7 +132,9 @@ def _toolchain_versions(v: dict) -> dict:
     import platform
     from importlib import metadata
     v["python"] = platform.python_version()
-    for dist in ("flask", "waitress", "pytest", "playwright"):
+    # Every runtime package in the CI SBOM (requirements.lock, plus pip).
+    for dist in ("flask", "waitress", "werkzeug", "jinja2", "markupsafe", "itsdangerous",
+                 "click", "blinker", "pip", "pytest", "playwright"):
         try:
             v[dist] = metadata.version(dist)
         except metadata.PackageNotFoundError:
@@ -139,16 +143,22 @@ def _toolchain_versions(v: dict) -> dict:
         v["git-windows"] = _ver(_run(["git", "--version"]))
         wsl_exe = shutil.which("wsl.exe") or shutil.which("wsl")
         if wsl_exe:
-            probe = ('echo "bwrap=$(bwrap --version 2>/dev/null)"; '
+            # A non-interactive shell skips ~/.bashrc, so add the user bins and
+            # nvm's node by hand, as _ENV does for a direct probe.
+            probe = ('PATH="$HOME/.local/bin:$HOME/bin:$PATH"; '
+                     '[ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh" >/dev/null 2>&1; '
+                     'echo "bwrap=$(bwrap --version 2>/dev/null)"; '
                      'echo "claude=$("$HOME/.local/bin/claude" --version 2>/dev/null)"; '
                      'grep "^VERSION=" /etc/os-release | sed "s/^/ubuntu=/"; '
-                     'echo "chromium=$(ls -d "$HOME"/.cache/ms-playwright/chromium-* 2>/dev/null | tail -1)"')
+                     'echo "chromium=$(ls -d "$HOME"/.cache/ms-playwright/chromium-* 2>/dev/null | tail -1)"; '
+                     + "".join(f'echo "{k}=$(command -v {c.split()[0]} >/dev/null && {c} 2>&1 | head -1)"; '
+                               for k, c in _LINUX_TOOLS.items()))
             out = _run([wsl_exe, "-e", "sh", "-c", probe], timeout=25).replace("\x00", "")
             for line in out.splitlines():
                 key, _, val = line.strip().partition("=")
                 if key == "chromium" and val:
                     v["chromium"] = "build " + val.rsplit("-", 1)[-1]
-                elif key in ("bwrap", "claude", "ubuntu") and _ver(val):
+                elif key in ("bwrap", "claude", "ubuntu", *_LINUX_TOOLS) and _ver(val):
                     v[{"bwrap": "bubblewrap", "claude": "claude-code"}.get(key, key)] = _ver(val)
     else:
         chrome = sorted(glob.glob(os.path.join(_HOME, ".cache", "ms-playwright", "chromium-*")))
@@ -218,12 +228,10 @@ def build_components(latest: dict) -> dict:
     for c in cat.get("catalog", []):
         key = c.get("key", "")
         mode = c.get("compare", "version")
-        # A component this machine does not have is not an upgrade candidate —
-        # unless the catalog marks it as something SysPerf itself relies on, in
-        # which case "not installed" is the useful thing to show.
+        # A component this machine does not have is listed as "not installed"
+        # (hiding it read as if the dashboard did not know about it), but it is
+        # never an upgrade candidate and does not count towards the total.
         missing = not cur_map.get(key)
-        if missing and not c.get("show_missing"):
-            continue
         name = c.get("name", key)
         if live_names.get(key):
             name = f"{live_names[key]} driver"
@@ -256,8 +264,8 @@ def build_components(latest: dict) -> dict:
             uplift_sum += row["perf"]
         rows.append(row)
 
-    # Outdated first, then by performance benefit.
-    rows.sort(key=lambda r: (not r["outdated"], -r["perf"]))
+    # Outdated first, then by performance benefit; not-installed rows last.
+    rows.sort(key=lambda r: (r.get("missing", False), not r["outdated"], -r["perf"]))
     avg_uplift = round(uplift_sum / upg) if upg else 0
     return {
         "rows": rows,
@@ -265,6 +273,7 @@ def build_components(latest: dict) -> dict:
         "latest_checked_at": live.get("checked_at"),
         "note": cat.get("note", ""),
         "upgrades": upg,
-        "total": len(rows),
+        "total": sum(not r.get("missing") for r in rows),
+        "not_installed": sum(bool(r.get("missing")) for r in rows),
         "avg_uplift": avg_uplift,
     }

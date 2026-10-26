@@ -1176,7 +1176,7 @@
 
 <header>
   <div>
-    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v5.0.1</span></h1>
+    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v5.0.2</span></h1>
     <div class="sub" id="baseSub">Live remediation tracking against this machine's own baseline</div>
     <div class="chips" id="chips"></div>
   </div>
@@ -2660,12 +2660,14 @@ function render(d) {
     const pcls = c.perf >= 20 ? "b-g" : c.perf >= 10 ? "b-a" : "b-r";
     const pbar = `<div class="bar ${pcls}"><i style="width:${Math.max(4, Math.min(100, c.perf))}%"></i>
       <span>${c.perf}</span></div>`;
-    const status = c.outdated
+    const status = c.missing
+      ? `<span class="tag">not installed</span>`
+      : c.outdated
       ? `<span class="tag tr">upgrade</span>`
       : `<span class="tag tg">current</span>`;
     const curTxt = esc(c.current || "—") + (c.current_date
       ? ` <span class="hint">(${esc(c.current_date)}${c.months_old != null ? ", " + c.months_old + " mo" : ""})</span>` : "");
-    return `<tr class="${c.outdated ? "r-regress" : "r-met"}">
+    return `<tr class="${c.missing ? "" : c.outdated ? "r-regress" : "r-met"}">
       <td><b>${esc(c.name)}</b>
         <div class="note" style="margin:2px 0 0">${esc(c.why || "")}</div></td>
       <td>${esc(c.category || "")}</td>
@@ -2680,7 +2682,7 @@ function render(d) {
       <div class="card"><h3>Upgrades recommended</h3>
         <div class="kpi"><div class="row"><div>
           <div class="v ${(CP.upgrades || 0) > 0 ? "v-warn" : "v-ok"}">${CP.upgrades ?? 0}<span class="u"> / ${CP.total ?? 0}</span></div>
-          <div class="t">major components behind target</div></div></div></div></div>
+          <div class="t">installed components behind target${CP.not_installed ? ` · ${CP.not_installed} not installed` : ""}</div></div></div></div></div>
       <div class="card"><h3>Est. avg performance gain</h3>
         <div class="kpi"><div class="row"><div>
           <div class="v v-ok">${CP.avg_uplift ?? 0}<span class="u"> / 100</span></div>
