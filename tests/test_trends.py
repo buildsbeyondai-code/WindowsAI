@@ -299,3 +299,44 @@ def test_summary(tmp_path):
     assert s["retain_days"] == trends.RETAIN_DAYS
     assert s["score_trend"]["direction"] == "improving"
     assert isinstance(s["is_peak_now"], bool) and s["regime"]["regime"]
+
+
+def _ingest_rows_reference(store, day, hour, rows):
+    """The pre-5.0.7 per-row fold, kept to pin the inlined version to it."""
+    d = store.days.setdefault(day, {"metrics": {}, "score": None})
+    for row in rows:
+        key = row.get("key")
+        val = _num(row.get("scored_typical"))
+        if val is None:
+            val = _num(row.get("current"))
+        if key is None or val is None:
+            continue
+        m = d["metrics"].setdefault(key, dict(trends._blank_agg(val), met=0))
+        trends._agg(m, val)
+        if row.get("status") == "met":
+            m["met"] += 1
+        h = store.hours.setdefault(key, {}).setdefault(hour, {"sum": 0.0, "n": 0})
+        h["sum"] += val
+        h["n"] += 1
+
+
+def test_ingest_matches_the_original_fold(tmp_path):
+    """5.0.7 (self-evolution, applied): the inlined ingest must build the same
+    daily and hourly rollups, key order included, as the helper-based fold."""
+    import random
+    rng = random.Random(507)
+    values = [0, 1, -0.0, 2.5, 7, True, "3.25", "n/a", None, float("nan"), 1e9, -4]
+    for trial in range(300):
+        new = _store(tmp_path, f"n{trial}.json")
+        ref = _store(tmp_path, f"r{trial}.json")
+        for _ in range(rng.randint(1, 6)):
+            iso = f"2026-10-{rng.randint(20, 26)}T{rng.randint(0, 23):02d}:15:00"
+            rows = [{"key": rng.choice(["a", "b", "c", None]),
+                     "scored_typical": rng.choice(values), "current": rng.choice(values),
+                     "status": rng.choice(["met", "partial", None])}
+                    for _ in range(rng.randint(0, 8))]
+            new.ingest({"_iso": iso}, {"rows": rows}, persist=False)
+            _ingest_rows_reference(ref, _day_of(iso), _hour_of(iso), rows)
+        assert json.dumps(new.days, sort_keys=False) == json.dumps(
+            {k: {**v, "score": None} for k, v in ref.days.items()}, sort_keys=False)
+        assert json.dumps(new.hours) == json.dumps(ref.hours)
