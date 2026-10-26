@@ -135,6 +135,28 @@ def test_git_error_is_raised(tmp_path):
         cv._git(tmp_path, "rev-parse", "HEAD")
 
 
+def test_git_timeout_is_a_clear_error(monkeypatch, tmp_path):
+    seen = {}
+
+    def slow(*a, **k):
+        seen["timeout"] = k["timeout"]
+        raise subprocess.TimeoutExpired("git", k["timeout"])
+    monkeypatch.setattr(cv, "run_hidden", slow)
+    with pytest.raises(RuntimeError, match=r"git worktree add: timed out after 300 s"):
+        cv._git(tmp_path, "worktree", "add", timeout=300)
+    assert seen["timeout"] == 300
+
+
+def test_worktree_add_gets_a_longer_timeout(monkeypatch, tmp_path):
+    calls = []
+    monkeypatch.setattr(cv, "_git", lambda repo, *a, check=True, timeout=60:
+                        calls.append((a[:2], timeout)) or "")
+    e = cv.CodeEvolution.__new__(cv.CodeEvolution)
+    e.workroot = tmp_path / "wt"
+    e._worktree(tmp_path, "abc", "n")
+    assert (("worktree", "add"), 300) in calls
+
+
 # ---------------------------------------------------- analysis & settings --
 def test_static_findings_cover_syntax_and_bare_except(tmp_path, repo):
     (repo / "broken.py").write_text("def x(:\n")
