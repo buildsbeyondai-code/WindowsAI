@@ -154,21 +154,39 @@ class TrendStore:
         rows = scorecard.get("rows") or []
         with self.lock:
             d = self.days.setdefault(day, {"metrics": {}, "score": None})
+            metrics = d["metrics"]
+            hours = self.hours
             for row in rows:
                 key = row.get("key")
-                val = _num(row.get("scored_typical"))
+                raw = row.get("scored_typical")
+                val = float(raw) if type(raw) in (float, int) else _num(raw)
                 if val is None:
-                    val = _num(row.get("current"))
+                    raw = row.get("current")
+                    val = float(raw) if type(raw) in (float, int) else _num(raw)
                 if key is None or val is None:
                     continue
-                m = d["metrics"].setdefault(key, dict(_blank_agg(val), met=0))
-                _agg(m, val)
+                m = metrics.get(key)
+                if m is None:
+                    m = {"sum": 0.0 + val, "n": 1, "min": val, "max": val, "met": 0}
+                    metrics[key] = m
+                else:
+                    m["sum"] += val
+                    m["n"] += 1
+                    if val < m["min"]:
+                        m["min"] = val
+                    if val > m["max"]:
+                        m["max"] = val
                 if row.get("status") == "met":
                     m["met"] += 1
-                hb = self.hours.setdefault(key, {})
-                h = hb.setdefault(hour, {"sum": 0.0, "n": 0})
-                h["sum"] += val
-                h["n"] += 1
+                hb = hours.get(key)
+                if hb is None:
+                    hb = hours[key] = {}
+                h = hb.get(hour)
+                if h is None:
+                    hb[hour] = {"sum": 0.0 + val, "n": 1}
+                else:
+                    h["sum"] += val
+                    h["n"] += 1
             score = _num(scorecard.get("overall_improvement"))
             if score is not None:
                 if d["score"] is None:
