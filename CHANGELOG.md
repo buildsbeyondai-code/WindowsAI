@@ -4,6 +4,16 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.0.6 — 2026-10-26
+
+### Fixed
+- **Self-evolution shows what shipped.** A candidate whose change is on main
+  is now marked *applied*: merged by Apply, or cherry-picked when main had
+  moved on and Apply refused it (as 5.0.5 did). It used to stay "retained ·
+  approved" with an Apply button that could only fail. The check runs when
+  HEAD moves, a rollback returns the candidate to *approved*, and the
+  summary has an **Applied** count.
+
 ## 5.0.5 — 2026-10-26
 
 ### Changed
