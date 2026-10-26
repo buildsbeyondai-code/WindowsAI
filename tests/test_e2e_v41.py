@@ -381,3 +381,37 @@ def test_optional_features_are_hidden_outside_the_store_app_and_errors_show(brow
     page.click("#homeOptional .opt-toggle")
     page.wait_for_function("() => document.querySelector('#homeOptional .opt-toggle').textContent.includes('Failed: nope')")
     page.close()
+
+
+def test_third_party_upgrades_card_shows_each_package_state(browser, site):
+    page = _open(browser, site, hash_="#self-evolution")
+    page.wait_for_function("() => document.getElementById('sevDeps').innerText.includes('flask')")
+    text = page.inner_text("#sevDeps")
+    assert text.startswith("On.") and "upgraded" in text
+    assert "not upgraded — jinja2 3.2.0 requires Python >=3.11" in text
+    assert "upgrade queued for the next evolution cycle" in text      # waitress
+    assert "latest not checked yet" in text and "up to date" in text
+    assert page.query_selector("#sevDeps a[href='#details/components']")
+    off = dict(STUBS["api/codevolve"], dependencies={"enabled": False, "packages": [
+        {"name": "waitress", "current": "3.0.2", "latest": "3.0.3", "outdated": True}]})
+    page = _open(browser, site, hash_="#self-evolution", overrides={"api/codevolve": off})
+    page.wait_for_function("() => document.getElementById('sevDeps').innerText.includes('Off.')")
+    assert "auto-upgrade is off" in page.inner_text("#sevDeps")
+    page = _open(browser, site, hash_="#self-evolution", overrides={
+        "api/codevolve": dict(STUBS["api/codevolve"], dependencies={})})
+    page.wait_for_function("() => document.getElementById('sevDeps').innerText.includes('No hash-locked')")
+    page.close()
+
+
+def test_times_are_shown_in_the_viewers_zone(browser, site):
+    page = browser.new_page(timezone_id="Asia/Kolkata", locale="en-IN")
+    page.goto(site)
+    # epoch seconds and a UTC ISO string are the same instant, shown in IST
+    show = "(v, o) => localTime(v, o).replace(/[\\u202f\\u00a0]/g, ' ')"
+    epoch = page.evaluate(show, 1793042963)
+    assert epoch == page.evaluate(show, "2026-10-26T19:29:23+00:00")
+    assert epoch == "27/10/2026, 12:59:23 am IST"
+    assert page.evaluate(f"({show})(1793042963, {{timeOnly: true}})") == "12:59 am IST"
+    assert page.evaluate("[localTime(null), localTime(''), localTime('not a date')]") == [
+        "—", "—", "not a date"]
+    page.close()

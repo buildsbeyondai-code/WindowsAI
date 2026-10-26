@@ -2,6 +2,15 @@
 
 _Last updated: 2026-10-25, release 5.0.0._
 
+## 5.1.0 (2026-10-27)
+
+- Self-evolution upgrades outdated hash-locked runtime packages
+  (`depupgrade.py`, the first lane of a cycle), tested in the sandbox and
+  applied automatically when green. Host tools are not upgraded by SysPerf.
+- Every timestamp in the UI is local to the viewer, with the zone named.
+- Shipped self-evolution candidate c-20261026-202335-a5f0d0 (cpuwatch).
+- GitHub only, not submitted to the Store.
+
 ## Current scope
 
 5.0.0 brings SysPerf in line with the UAISES v1.0 engineering standard. It

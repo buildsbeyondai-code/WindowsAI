@@ -103,7 +103,8 @@ masked in that response.
 
 | Version | Supported |
 |---|---|
-| 5.0.x | Yes |
+| 5.1.x | Yes |
+| 5.0.x | No. Upgrade to 5.1 (a drop-in upgrade). |
 | 4.1.x and older | No. Upgrade to 5.0 (4.1 is exposed to DNS rebinding). |
 
 ## Mutating surface

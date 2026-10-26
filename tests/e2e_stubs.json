@@ -112,6 +112,49 @@
   "title": "set membership"
  },
  "api/codevolve": {
+  "dependencies": {
+   "enabled": true,
+   "packages": [
+    {
+     "current": "1.9.0",
+     "latest": "1.9.0",
+     "name": "blinker",
+     "outdated": false
+    },
+    {
+     "candidate": "c-20261027-010000-abc123",
+     "current": "3.1.3",
+     "decision": "retained",
+     "latest": "3.2.0",
+     "name": "flask",
+     "outdated": true,
+     "reason": "flask 3.1.3 → 3.2.0, tests green",
+     "review_state": "applied"
+    },
+    {
+     "current": "2.2.0",
+     "latest": null,
+     "name": "itsdangerous",
+     "outdated": false
+    },
+    {
+     "candidate": "c-20261027-020000-def456",
+     "current": "3.1.6",
+     "decision": "rejected",
+     "latest": "3.2.0",
+     "name": "jinja2",
+     "outdated": true,
+     "reason": "jinja2 3.2.0 requires Python >=3.11, and SysPerf still supports 3.10",
+     "review_state": "none"
+    },
+    {
+     "current": "3.0.2",
+     "latest": "3.0.3",
+     "name": "waitress",
+     "outdated": true
+    }
+   ]
+  },
   "audit": {
    "checked": 7,
    "head": "4ca37eef7b574c65b891457e9fe6fae2f4841e09894c95e37d1221f4e777836a",

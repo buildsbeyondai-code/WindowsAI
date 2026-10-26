@@ -4,6 +4,39 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.1.0 — 2026-10-27
+
+GitHub only; this release is not submitted to the Microsoft Store.
+
+### Added
+- **Third-party packages upgrade themselves through self-evolution.** When a
+  package in `requirements.lock` has a newer release on PyPI (the Components
+  view's live feed), the next evolution cycle tries that upgrade before any
+  code patch. It moves the pin in `requirements.txt`, `requirements.lock`
+  (with PyPI's sha256 hashes) and `pyproject.toml`, unpacks the verified pure
+  wheel into the worktree, and runs the full suite against it in the sandbox.
+  A green upgrade is retained and applied straight away with the same
+  verify-and-roll-back deploy as a patch: the lock is installed with
+  `--require-hashes`, and a rollback reinstalls the previous versions. A
+  release that drops Python 3.10, needs a package the lock does not hold, or
+  has no pure wheel is rejected with the reason, and each upgrade is tried
+  only once. The setting is **Auto-upgrade outdated third-party packages**
+  (on by default; off in the Store build, whose packages are frozen). The
+  Self-evolution page has a **Third-party upgrades** card. The Python
+  interpreter, Ubuntu, Git, WSL and drivers stay with their own updaters.
+
+### Changed
+- **Every time is shown in your own time zone.** The dashboard printed some
+  times as raw UTC ISO strings (the improvement log, learning, incidents,
+  evolution passes, the footer's server time). All of them now go through one
+  formatter that uses the viewer's Windows region and names the zone
+  (for example `27/10/2026, 1:05:12 am IST`).
+- **Faster CPU attribution (self-evolution, applied).** `cpuwatch` skips
+  intervals whose previous sample has no processes before computing them,
+  and stops building throwaway dicts per process. `cpuwatch.consistent_cpu`
+  is 33.8% faster and `appctl.top_apps` 34.4% faster; the results are
+  identical. Candidate c-20261026-202335-a5f0d0, shipped through Apply.
+
 ## 5.0.7 — 2026-10-26
 
 GitHub only; this release is not submitted to the Microsoft Store.

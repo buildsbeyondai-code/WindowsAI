@@ -1176,7 +1176,7 @@
 
 <header>
   <div>
-    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v5.0.7</span></h1>
+    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v5.1.0</span></h1>
     <div class="sub" id="baseSub">Live remediation tracking against this machine's own baseline</div>
     <div class="chips" id="chips"></div>
   </div>
@@ -1859,6 +1859,7 @@
   <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M14 3h7v7M21 3l-9 9"/></svg>Improvement details</h3><div id="sevDetail"><div class="evo-empty">Select a candidate in the history to inspect its diff, tests and benchmark.</div></div></div>
   <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18M6 16v-5M11 16V8M16 16v-3M21 16V5"/></svg>Optimisation effectiveness <span class="hint">measured before / after</span></h3><div id="sevEffect"></div></div>
   <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>Deployment <span class="hint">apply · verify · roll back</span></h3><div id="sevDeploy"></div></div>
+  <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>Third-party upgrades <span class="hint">tested in the sandbox · applied automatically</span></h3><div id="sevDeps"></div></div>
   <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Audit trail <span class="hint">tamper-evident hash chain</span></h3><div id="sevAudit"></div></div>
 </div>
 <div id="view-settings" role="tabpanel" aria-labelledby="tab-settings" style="display:none">
@@ -1898,6 +1899,17 @@ const fmt = (n, d = 0) => (n === null || n === undefined || Number.isNaN(n))
   ? "—" : Number(n).toLocaleString(undefined, {minimumFractionDigits: d, maximumFractionDigits: d});
 const esc = (s) => String(s).replace(/[&<>"']/g, c =>
   ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+/* Every timestamp is shown in the viewer's own region and time zone (Windows'
+   setting, e.g. IST), with the zone named. The API sends epoch seconds or UTC
+   ISO strings; neither is ever printed raw. */
+const localTime = (v, {timeOnly = false} = {}) => {
+  if (v === null || v === undefined || v === "") return "—";
+  const d = new Date(typeof v === "number" ? v * 1000 : v);
+  if (Number.isNaN(d.getTime())) return String(v);
+  return timeOnly
+    ? d.toLocaleTimeString(undefined, {hour: "2-digit", minute: "2-digit", timeZoneName: "short"})
+    : d.toLocaleString(undefined, {timeZoneName: "short"});
+};
 
 /* ---- compact view: hide verbose descriptions (ON by default) ---- */
 (function initCompact() {
@@ -2022,7 +2034,7 @@ function lineChart(cfg) {
       paths += `<circle cx="${px(lastI).toFixed(1)}" cy="${py(lv).toFixed(1)}" r="3.2"
         fill="${s.color}"/>`;
   });
-  const tf = (ts) => ts ? new Date(ts * 1000).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : "";
+  const tf = (ts) => ts ? localTime(ts, {timeOnly: true}) : "";
   const xl = `<text x="${L}" y="${H - 6}" fill="#7d89a0" style="font-size:10px">${tf(t[0])}</text>
     <text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle" fill="#7d89a0"
       style="font-size:10px">${tf((t0 + t1) / 2)}</text>
@@ -2690,7 +2702,7 @@ function render(d) {
       <div class="card"><h3>Assessment</h3>
         <div class="note keep">Dated <b>${esc(CP.assessment_date || "—")}</b>.<br>
           Current versions are measured live. "Latest" is each vendor's newest public release,
-          checked daily${CP.latest_checked_at ? ` (last ${esc(new Date(CP.latest_checked_at * 1000).toLocaleString())})` : ""}; rows without a public feed use the reviewed catalog.
+          checked daily${CP.latest_checked_at ? ` (last ${esc(localTime(CP.latest_checked_at))})` : ""}; rows without a public feed use the reviewed catalog.
           Driver freshness is judged by age (recommend at ≥9 months).</div></div>
     </div>
     <div class="card">
@@ -2705,7 +2717,7 @@ function render(d) {
         user- or IT-initiated; this dashboard only reports, it changes nothing.</div></div>`;
 
   $("footMeta").innerHTML = `Sampling every ${M.sample_seconds}s · collector run time
-    ${M.last_duration_s}s · ${M.samples} samples retained · server ${esc(M.server_time || "")}`;
+    ${M.last_duration_s}s · ${M.samples} samples retained · server ${esc(localTime(M.server_time))}`;
 
   renderSummary(d);
   renderArchitecture(d);
@@ -3607,7 +3619,7 @@ tick();
   function actionsBlock(st) {
     const last = st.last;
     if (!last) { $("autoActions").innerHTML = `<div class="note keep">No cycle has run yet.</div>`; return; }
-    let html = `<div class="note keep" style="margin:0 0 10px">Cycle at <b>${esc(last.at)}</b> ·
+    let html = `<div class="note keep" style="margin:0 0 10px">Cycle at <b>${esc(localTime(last.at))}</b> ·
       mode <b>${esc(last.mode || st.mode)}</b> · ${esc(last.note || "")}</div>`;
     if ((last.executed || []).length) {
       html += `<table><thead><tr><th>Applied fix</th><th>Risk</th><th>Result</th>
@@ -3843,7 +3855,7 @@ tick();
     $("autoLog").innerHTML = `<table><thead><tr><th>When</th><th class="num">Score</th>
       <th>Breach</th><th>Load</th><th class="num">Applied</th><th>Outcome</th>
       </tr></thead><tbody>` + recent.map(c => `<tr>
-        <td class="num">${esc(String(c.at || "").replace("T", " ").slice(0, 19))}</td>
+        <td class="num">${esc(localTime(c.at))}</td>
         <td class="num">${c.score === null || c.score === undefined ? "—" : fmt(c.score, 1) + "%"}</td>
         <td>${c.breach ? tag("tr", "yes") : tag("tg", "no")}</td>
         <td>${esc(c.regime || "—")}</td>
@@ -4137,7 +4149,7 @@ tick();
       }
       return `<div class="learn ${esc(l.kind)}">
         <div class="lh">${esc(l.headline)}
-          <span class="lw">${esc(String(l.at || "").replace("T", " ").slice(0, 19))}</span>
+          <span class="lw">${esc(localTime(l.at))}</span>
           ${l.score === null || l.score === undefined ? ""
             : tag(l.breach ? "tr" : "tg", `score ${fmt(l.score, 1)}%`)}
           ${l.regime ? tag("tb", l.regime) : ""}</div>
@@ -4275,7 +4287,7 @@ tick();
             : tag("ta", "open")}
             ${i.recurred ? "<br>" + tag("tr", "recurred") : ""}
             ${closed && i.closed_at ? `<div class="note keep" style="margin:3px 0 0">
-              ${esc(i.closed_at.replace("T", " ").slice(0, 16))}</div>` : ""}
+              ${esc(localTime(i.closed_at))}</div>` : ""}
             ${closed && i.closed_by === "human" && i.note
               ? `<div class="note keep" style="margin:2px 0 0">${esc(i.note)}</div>` : ""}</td>
           <td><b>${esc(i.title)}</b> ${tag(KIND_TAG[i.kind] || "tb", KIND_LABEL[i.kind] || i.kind)}
@@ -4387,8 +4399,7 @@ tick();
       `<span>Generation <b>${fmt(E.generation)}</b></span>`,
       `<span>Passes <b>${fmt(E.passes)}</b></span>`,
       `<span>Cadence <b>every ${fmt(E.evolve_every)} cycles</b></span>`,
-      `<span>Last pass <b>${esc(String(E.last_pass_at || "—")
-        .replace("T", " ").slice(0, 19))}</b></span>`,
+      `<span>Last pass <b>${esc(localTime(E.last_pass_at))}</b></span>`,
       `<span>Caps <b>${fmt(E.caps.recipes)}</b> recipes ·
         <b>${fmt(E.caps.shards)}</b> shards ·
         <b>${fmt(E.caps.per_pass)}</b> per pass</span>`,
@@ -4425,8 +4436,7 @@ tick();
                  ${(c.missing_params || []).length ? "disabled" : ""}>Promote</button>
                <button class="fixbtn ghost evo-act" data-id="${esc(c.id)}"
                  data-act="reject" style="padding:4px 9px;font-size:11.5px">Reject</button>`
-            : `<span class="note keep">${esc(String(c.promoted_at || "—")
-                .replace("T", " ").slice(0, 19))}</span>`;
+            : `<span class="note keep">${esc(localTime(c.promoted_at))}</span>`;
           return `<tr><td>${esc(c.title)}
               <div class="note keep" style="margin:2px 0 0">${esc(c.rationale)}</div>
               <div class="note keep" style="margin:3px 0 0"><code>${esc(c.manual_hint)}</code></div></td>
@@ -4497,7 +4507,7 @@ tick();
     $("evoLog").innerHTML = log.length
       ? log.map(e => `<div class="learn">
           <div class="lh">${tag(EVO_TAG[e.kind] || "tb", e.kind)}
-            <span class="lw">${esc(String(e.at || "").replace("T", " ").slice(0, 19))}
+            <span class="lw">${esc(localTime(e.at))}
               · gen ${fmt(e.generation)}</span></div>
           <div class="lb">${esc(e.summary)}${(e.files || []).length
             ? ` <code>${e.files.map(f => esc(f)).join(", ")}</code>` : ""}</div>
@@ -4978,7 +4988,7 @@ tick();
       ].join("");
       $("odACSync").innerHTML = `Last completed sync <b>${agoText(od.last_sync)}</b>`
         + (od.last_sync
-            ? ` <span class="note keep" style="margin:0">— ${new Date(od.last_sync * 1000).toLocaleString()}</span>`
+            ? ` <span class="note keep" style="margin:0">— ${esc(localTime(od.last_sync))}</span>`
             : "");
       const ctlOff = od.control_disabled === true;
       const banner = $("odACControlBanner");
@@ -5133,7 +5143,7 @@ tick();
       if (last) {
         const lr = s.last_result;
         last.innerHTML = lr
-          ? `Last restart: <b>${new Date((lr.at || 0) * 1000).toLocaleString()}</b> — ${esc(lr.status || "")}`
+          ? `Last restart: <b>${esc(localTime(lr.at))}</b> — ${esc(lr.status || "")}`
           : "No auto-restart has been needed yet.";
       }
     } catch (e) { /* keep last-known text */ }
@@ -5214,7 +5224,7 @@ tick();
       const rec = s.recent || [];
       $("tqRecentPill").textContent = rec.length;
       $("tqRecent").innerHTML = rec.length ? rec.map(e => `<div class="note keep" style="margin:3px 0">
-          <b>${esc(e.name)}</b> quit ${new Date(e.at * 1000).toLocaleString()} · freed ~<b>${fmt(e.freed_mb)} MB</b>
+          <b>${esc(e.name)}</b> quit ${esc(localTime(e.at))} · freed ~<b>${fmt(e.freed_mb)} MB</b>
           (${fmt(e.procs)} processes, ${fmt(e.hidden_s)}s in tray)
           ${e.reopened_at ? `· <span class="tag tg">reopened</span>`
             : e.exe ? `<button class="fixbtn ghost" style="padding:2px 9px" data-tq-reopen="${esc(e.name)}">Reopen</button>` : ""}</div>`).join("")
@@ -5281,7 +5291,7 @@ tick();
   const view = $("view-evo");
   if (!view) return;
   let token = null, selected = null, lastStatus = null, reviewNote = {}, deployNote = "";
-  const fmtT = (t) => t ? new Date(t * 1000).toLocaleString() : "—";
+  const fmtT = (t) => localTime(t);
   const yes = (v) => v === 1 ? "pass" : v === 0 ? "fail" : "—";
   const STATE_TEXT = { idle: "Monitoring", analyzing: "Analyzing", planning: "Planning",
     generating: "Generating a patch", testing: "Running tests", benchmarking: "Benchmarking",
@@ -5529,6 +5539,23 @@ tick();
     };
   }
 
+  function renderDeps(s) {
+    const d = s.dependencies || {}, pk = d.packages || [];
+    const state = (p) => !p.latest ? "latest not checked yet"
+      : !p.outdated ? "up to date"
+      : p.review_state === "applied" ? "upgraded"
+      : p.decision === "retained" ? (p.review_state === "pending" ? "tested green · waiting to be applied" : p.review_state)
+      : p.decision === "rejected" ? "not upgraded — " + (p.reason || "")
+      : d.enabled ? "upgrade queued for the next evolution cycle" : "auto-upgrade is off";
+    const rows = pk.map(p => `<tr><td>${esc(p.name)}</td><td>${esc(p.current)}</td>
+      <td>${esc(p.latest || "—")}</td><td>${esc(state(p))}</td></tr>`).join("");
+    $("sevDeps").innerHTML = `<p class="evo-note">${d.enabled
+        ? "On. When a package SysPerf pins has a newer release, an evolution cycle moves the pin, runs the whole test suite against the new version in the sandbox and, if it stays green, applies it with the same verify-and-roll-back deploy as a patch."
+        : "Off. Turn on “Auto-upgrade outdated third-party packages” in Settings → AI self-evolution."}</p>`
+      + (rows ? tbl(["Package", "Pinned", "Latest", "Upgrade"], rows) : empty("No hash-locked packages were found in the approved repository."))
+      + `<p class="evo-note">The Python interpreter, Ubuntu, Git, WSL and drivers are updated by Windows and their own installers, not by SysPerf. Their upgrade path is listed under <a href="#details/components">Components</a>.</p>`;
+  }
+
   function renderEffect(a) {
     const rows = (a.effectiveness || []).map(e => `<tr><td>${esc(e.id)}</td><td>${e.runs}</td><td>${e.judged}</td>
       <td>${e.improved}</td><td>${e.no_change}</td><td>${e.worse}</td><td>${e.median_change_pct == null ? "not yet measured" : e.median_change_pct + "%"}</td></tr>`).join("");
@@ -5543,7 +5570,7 @@ tick();
       lastStatus = s;
       renderStatus(s);
       if (!$("sevControls").contains(document.activeElement)) renderControls(s, a);
-      renderHistory(h); renderEffect(a); renderDeploy(s);
+      renderHistory(h); renderEffect(a); renderDeploy(s); renderDeps(s);
       if (selected) renderDetail();
     } catch (e) { $("sevStatus").innerHTML = empty("Self-evolution status unavailable: " + esc(e.message)); }
   }
@@ -5606,7 +5633,7 @@ const api41 = (() => {
   const get = (path) => fetch(path, {cache: "no-store"}).then(r => r.json());
   const ago = (s) => s == null ? "—" : s < 90 ? Math.round(s) + " s ago"
     : s < 5400 ? Math.round(s / 60) + " min ago" : Math.round(s / 3600) + " h ago";
-  const when = (t) => t ? new Date(t * 1000).toLocaleString() : "—";
+  const when = (t) => localTime(t);
   return {post, get, ago, when};
 })();
 
@@ -5711,7 +5738,7 @@ const api41 = (() => {
     optional(d.optional);
     const today = d.today || [];
     $("homeToday").innerHTML = today.length ? today.map(e => li(ICON[e.kind] || "•", esc(e.text),
-      esc(new Date(e.at * 1000).toLocaleTimeString()))).join("")
+      esc(localTime(e.at, {timeOnly: true})))).join("")
       : li("🕊️", "Nothing yet today", "Fixes, tray quits and evolution cycles will appear here.");
     const h = d.health || {};
     $("homeHealth").innerHTML = `<p>Service: <span class="st-${esc(h.status || "ok")}">${esc((h.status || "unknown").toUpperCase())}</span>
@@ -5767,7 +5794,7 @@ const api41 = (() => {
         <line class="ax" x1="${P}" y1="${H - P}" x2="${W - P}" y2="${H - P}"/>
         <polygon class="band" points="${band}"/><polyline class="line" points="${line}"/>
         <text x="${P}" y="${P - 10}">${fmt(hi, 1)}</text><text x="${P}" y="${H - 8}">${fmt(lo, 1)}</text>
-        <text x="${W - P}" y="${H - 8}" text-anchor="end">${esc(new Date(t1 * 1000).toLocaleString())}</text></svg>`;
+        <text x="${W - P}" y="${H - 8}" text-anchor="end">${esc(localTime(t1))}</text></svg>`;
     } catch (e) { host.innerHTML = `<div class="note keep">History unavailable: ${esc(e.message)}</div>`; }
   }
   async function refresh() {

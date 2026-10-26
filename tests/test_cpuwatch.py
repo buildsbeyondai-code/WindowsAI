@@ -117,3 +117,14 @@ def test_top_limit_and_ranking_order():
     assert got == ["p5", "p4", "p3"]
     assert all(c["consistent"] for c in out["consumers"])
     assert out["window_min"] == round((4 * 8) / 60.0, 1)
+
+
+def test_instances_sharing_a_name_sum_cpu_and_keep_the_largest_working_set():
+    """5.1.0: the self-evolved _interval_cpu folds a second instance into the first."""
+    prev = {1: {"pid": 1, "cpu_s": 0.0}, 2: {"pid": 2, "cpu_s": 0.0},
+            3: {"pid": 3, "cpu_s": 0.0}}
+    cur = [{"n": "chrome", "pid": 1, "cpu_s": 4.0, "ws_mb": 100},
+           {"n": "chrome", "pid": 2, "cpu_s": 4.0, "ws_mb": 300},
+           {"n": "chrome", "pid": 3, "cpu_s": 8.0, "ws_mb": 50}]
+    out = cpuwatch._interval_cpu(prev, cur, 8.0, 8)
+    assert out == {"chrome": {"pct": 25.0, "ws_mb": 300}}

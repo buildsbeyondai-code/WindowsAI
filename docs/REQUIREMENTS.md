@@ -55,6 +55,8 @@ acceptance criteria.
 | R13 | a tray app the user has not decided on | its window has been closed past the grace period | SysPerf asks once and quits it only after consent | `tests/test_trayquit.py::test_undecided_app_waits_for_consent_and_asks_once` |
 | R14 | the API key is saved on Windows | the key file is read by another user or on another OS | it cannot be decrypted, so it is ignored | `tests/test_llm.py::test_unreadable_dpapi_key_file_is_ignored`, `tests/test_llm_win.py::test_real_dpapi_round_trip_and_file_holds_no_key` |
 | R15 | the dashboard is opened | each tab is clicked in a real browser | every view renders, with loading, empty and error states | `tests/test_e2e_ui.py::test_every_tab_opens_its_view`, `tests/test_e2e_v41.py::test_home_with_nothing_to_do` |
+| R17 | a package in requirements.lock has a newer pure-wheel release | a self-evolution cycle runs | the pin moves in all three pin files, the suite runs against it in the sandbox and a green upgrade is applied and verified; a red one is rejected and main is unchanged | `tests/test_depupgrade.py::test_green_upgrade_is_retained_applied_and_restarted`, `tests/test_depupgrade.py::test_red_tests_reject_the_upgrade` |
+| R18 | an applied upgrade's packages fail to install | Apply runs pip | main returns to the previous commit and the previous packages are reinstalled | `tests/test_depupgrade.py::test_apply_rolls_back_when_the_packages_do_not_install` |
 | R16 | a worker fails repeatedly | it logs the same error | the log keeps the first three per 10 minutes and reports the rest | `tests/test_health.py::test_repeat_filter_lets_a_burst_through_then_reports_the_rest` |
 
 ## Non-functional targets
