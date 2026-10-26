@@ -149,22 +149,32 @@ def vmmem_trend(history: list[dict]) -> tuple:
 
     Returns (slope_mb_per_h, span_seconds, n_points).
     """
-    pts = [(s["_t"], s["vmmem_mb"]) for s in history
-           if s.get("vmmem_mb") and s.get("_t")]
-    if not pts:
+    newest = None
+    for s in reversed(history):
+        if s.get("vmmem_mb"):
+            nt = s.get("_t")
+            if nt:
+                newest = nt
+                break
+    if newest is None:
         return 0.0, 0.0, 0
-    newest = pts[-1][0]
-    pts = [(t, v) for t, v in pts if newest - t <= TREND_WINDOW_S]
+    win = TREND_WINDOW_S
+    pts = [(t, v) for s in history
+           if (v := s.get("vmmem_mb")) and (t := s.get("_t")) and newest - t <= win]
 
     # Read at call time: the cap is sized to this machine's RAM once captured.
     collapse_from = _cfg.VMMEM_CAP_MB * 0.45
     anchor = 0
-    for i in range(1, len(pts)):
-        gap = pts[i][0] - pts[i - 1][0]
-        reset = (pts[i - 1][1] >= collapse_from and pts[i][1] < pts[i - 1][1] * 0.5)
-        if gap > TREND_GAP_S or reset:
-            anchor = i
-    pts = pts[anchor:]
+    if pts:
+        gap_s = TREND_GAP_S
+        pt, pv = pts[0]
+        for i in range(1, len(pts)):
+            ct, cv = pts[i]
+            if ct - pt > gap_s or (pv >= collapse_from and cv < pv * 0.5):
+                anchor = i
+            pt, pv = ct, cv
+    if anchor:
+        pts = pts[anchor:]
 
     n = len(pts)
     if n < 2:
@@ -176,10 +186,10 @@ def vmmem_trend(history: list[dict]) -> tuple:
     xs = [(t - t0) / 3600.0 for t, _ in pts]
     ys = [v for _, v in pts]
     mx, my = sum(xs) / n, sum(ys) / n
-    den = sum((x - mx) ** 2 for x in xs)
+    den = sum([(x - mx) ** 2 for x in xs])
     if den == 0:                       # pragma: no cover - unreachable: span>=600s implies distinct x
         return 0.0, span, n
-    slope = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / den
+    slope = sum([(x - mx) * (y - my) for x, y in zip(xs, ys)]) / den
     return slope, span, n
 
 
