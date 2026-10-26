@@ -4,6 +4,21 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.0.3 — 2026-10-26
+
+### Removed
+- **Components SysPerf does not use.** Node.js, npm, nginx, gunicorn and
+  Kiro CLI left the Components catalog. They came from an older WSL
+  deployment (an nginx proxy and a gunicorn API) or are general tooling;
+  nothing in SysPerf needs them. Their probes and the catalog refresher's
+  NodeSource and PyPI lookups went with them. Kiro CLI is still supported as
+  an AI provider; it is just no longer tracked as a component.
+
+### Changed
+- **Docker is marked optional.** It is only a fallback sandbox for
+  self-evolution, so when it is absent the row reads *optional · not
+  installed*.
+
 ## 5.0.2 — 2026-10-26
 
 ### Changed

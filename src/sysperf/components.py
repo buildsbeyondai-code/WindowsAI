@@ -45,9 +45,8 @@ _ENV = {**os.environ,
 # The Linux-side catalog rows: the tools of a WSL deployment, probed where they
 # live (directly on Linux/WSL, through wsl.exe when SysPerf runs on Windows).
 _LINUX_TOOLS = {
-    "kernel": "uname -r", "python3": "python3 --version", "node": "node --version",
-    "nginx": "nginx -v", "docker": "docker --version", "gunicorn": "gunicorn --version",
-    "git": "git --version", "npm": "npm --version", "kiro-cli": "kiro-cli --version",
+    "kernel": "uname -r", "python3": "python3 --version",
+    "docker": "docker --version", "git": "git --version",
 }
 
 
@@ -143,10 +142,9 @@ def _toolchain_versions(v: dict) -> dict:
         v["git-windows"] = _ver(_run(["git", "--version"]))
         wsl_exe = shutil.which("wsl.exe") or shutil.which("wsl")
         if wsl_exe:
-            # A non-interactive shell skips ~/.bashrc, so add the user bins and
-            # nvm's node by hand, as _ENV does for a direct probe.
+            # A non-interactive shell skips ~/.bashrc, so add the user bins by
+            # hand, as _ENV does for a direct probe.
             probe = ('PATH="$HOME/.local/bin:$HOME/bin:$PATH"; '
-                     '[ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh" >/dev/null 2>&1; '
                      'echo "bwrap=$(bwrap --version 2>/dev/null)"; '
                      'echo "claude=$("$HOME/.local/bin/claude" --version 2>/dev/null)"; '
                      'grep "^VERSION=" /etc/os-release | sed "s/^/ubuntu=/"; '
@@ -239,6 +237,7 @@ def build_components(latest: dict) -> dict:
             "key": key, "name": name, "category": c.get("category", ""),
             "latest": c.get("latest", ""), "perf": c.get("perf", 0),
             "owner": c.get("owner", ""), "why": c.get("why", ""),
+            "optional": bool(c.get("optional")),
             "channel": c.get("channel", ""), "upstream": c.get("upstream", ""),
         }
         if missing:

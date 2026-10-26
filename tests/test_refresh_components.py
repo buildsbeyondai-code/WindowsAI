@@ -16,15 +16,12 @@ def catalog(tmp_path, monkeypatch):
     monkeypatch.setattr(rc, "BASE", tmp_path)
     monkeypatch.setattr(rc, "COMPONENTS_FILE", tmp_path / "components.json")
     monkeypatch.setattr(rc, "LOG_FILE", tmp_path / "refresh.log")
-    rc._dist_cache.clear()
     data = {"assessment_date": "2026-01-01", "catalog": [
         {"key": "ubuntu", "latest": "24.04", "channel": "apt"},
-        {"key": "node", "latest": "22.20.0 (major upgrade - confirm first)"},
-        {"key": "npm", "latest": "10.0.0"},
-        {"key": "powershell", "latest": "7.5.0"},
+        {"key": "powershell", "latest": "7.5.0 (Windows)"},
         {"key": "git", "latest": "2.43.0"},
-        {"key": "nginx", "latest": "1.99.0"},
-        {"key": "gunicorn", "latest": "23.0.0"},
+        {"key": "docker", "latest": "29.9.1"},
+        {"key": "flask", "latest": "3.1.3"},
         {"key": "windows", "latest": "26100"},
         {"key": "bios", "compare": "date", "latest": "2026-04-22"},
         {"key": "python3", "latest": "3.12.0"}]}
@@ -63,18 +60,15 @@ def _urls(table):
 def test_refresh_raises_only_newer_targets_and_keeps_notes(catalog, monkeypatch):
     monkeypatch.setattr(rc, "run_hidden", _apt({
         "git": "  Installed: 1:2.43.0-1\n  Candidate: 1:2.45.1-1ubuntu1\n",
-        "nginx": "  Candidate: 1.24.0-2\n",                     # older: no downgrade
+        "docker-ce": "  Candidate: 5:28.0.0-1~ubuntu\n",          # older: no downgrade
         "python3": "  Candidate: (none)\n"}))
     monkeypatch.setattr(rc.urllib.request, "urlopen", _urls({
-        "nodejs.org": [{"version": "v23.1.0", "npm": "10.9.0"},
-                       {"version": "v22.21.0", "npm": "10.9.4"}],
-        "PowerShell": {"tag_name": "v7.6.8"},
-        "pypi.org": {"info": {"version": "23.0.0"}}}))
+        "PowerShell": {"tag_name": "v7.6.8"}}))
     assert rc.refresh() == 0
     out = {e["key"]: e for e in json.loads((catalog / "components.json").read_text())["catalog"]}
-    assert out["git"]["latest"] == "2.45.1" and out["nginx"]["latest"] == "1.99.0"
-    assert out["node"]["latest"] == "22.21.0 (major upgrade - confirm first)"
-    assert out["npm"]["latest"] == "10.9.4" and out["powershell"]["latest"] == "7.6.8"
+    assert out["git"]["latest"] == "2.45.1" and out["docker"]["latest"] == "29.9.1"
+    assert out["powershell"]["latest"] == "7.6.8 (Windows)"           # note kept
+    assert out["flask"]["latest"] == "3.1.3"                          # not probed here
     assert out["ubuntu"]["latest"] == "26.04" and "LTS" in out["ubuntu"]["channel"]
     assert out["windows"]["latest"] == "26100" and out["python3"]["latest"] == "3.12.0"
     doc = json.loads((catalog / "components.json").read_text())
@@ -93,10 +87,6 @@ def test_every_probe_failure_leaves_values_alone(catalog, monkeypatch):
 
 
 def test_probe_edge_cases(monkeypatch):
-    rc._dist_cache.clear()
-    monkeypatch.setattr(rc.urllib.request, "urlopen", _urls({
-        "nodejs.org": [{"version": "v20.1.0"}]}))
-    assert rc._node_latest() == "" and rc._npm_latest() == ""      # no pinned-major release
     monkeypatch.setattr(rc, "run_hidden", lambda *a, **k: SimpleNamespace(
         stdout="no candidate line\n", stderr=""))
     assert rc._apt_candidate("x") == ""
