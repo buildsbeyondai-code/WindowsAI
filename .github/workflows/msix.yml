@@ -2,7 +2,8 @@ name: MSIX
 
 # Store packages for both Windows architectures. PyInstaller freezes with the
 # interpreter it runs under, so the Arm64 package is built on an Arm64 runner.
-# Upload both artifacts to the same Partner Center submission.
+# Upload both artifacts to the same Partner Center submission. A version tag
+# also publishes them as a GitHub Release, downloadable without signing in.
 on:
   workflow_dispatch:
   push:
@@ -67,3 +68,36 @@ jobs:
           name: msix-${{ matrix.arch }}
           path: ${{ runner.temp }}/msix/*.msix
           if-no-files-found: error
+
+  release:
+    name: GitHub release
+    needs: msix
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: msix-*
+          merge-multiple: true
+          path: dist
+
+      - name: Release notes from the CHANGELOG
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v h="## $v " 'index($0, h) == 1 {p = 1; next} /^## / {if (p) exit} p' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "CHANGELOG.md has no entry for $v"; exit 1; }
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum *.msix | tee SHA256SUMS.txt
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "SysPerf ${GITHUB_REF_NAME#v}" --notes-file notes.md
