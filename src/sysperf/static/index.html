@@ -1176,7 +1176,7 @@
 
 <header>
   <div>
-    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v5.1.0</span></h1>
+    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v5.1.1</span></h1>
     <div class="sub" id="baseSub">Live remediation tracking against this machine's own baseline</div>
     <div class="chips" id="chips"></div>
   </div>
@@ -1859,7 +1859,7 @@
   <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M14 3h7v7M21 3l-9 9"/></svg>Improvement details</h3><div id="sevDetail"><div class="evo-empty">Select a candidate in the history to inspect its diff, tests and benchmark.</div></div></div>
   <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18M6 16v-5M11 16V8M16 16v-3M21 16V5"/></svg>Optimisation effectiveness <span class="hint">measured before / after</span></h3><div id="sevEffect"></div></div>
   <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>Deployment <span class="hint">apply · verify · roll back</span></h3><div id="sevDeploy"></div></div>
-  <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>Third-party upgrades <span class="hint">tested in the sandbox · applied automatically</span></h3><div id="sevDeps"></div></div>
+  <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>Component upgrades <span class="hint">test · back up · apply · verify · roll back</span></h3><div id="sevDeps"></div></div>
   <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Audit trail <span class="hint">tamper-evident hash chain</span></h3><div id="sevAudit"></div></div>
 </div>
 <div id="view-settings" role="tabpanel" aria-labelledby="tab-settings" style="display:none">
@@ -2684,7 +2684,7 @@ function render(d) {
         <div class="note" style="margin:2px 0 0">${esc(c.why || "")}</div></td>
       <td>${esc(c.category || "")}</td>
       <td class="num">${curTxt}</td>
-      <td class="num">${esc(c.latest || "—")}${SRC[c.latest_source] ? `<div class="hint">${SRC[c.latest_source]}</div>` : ""}${c.channel ? `<div class="hint">via ${esc(c.channel)}</div>` : ""}${c.upstream ? `<div class="hint">upstream ${esc(c.upstream)}</div>` : ""}</td>
+      <td class="num">${esc(c.latest || "—")}${SRC[c.latest_source] ? `<div class="hint">${SRC[c.latest_source]}</div>` : ""}${c.channel ? `<div class="hint">via ${esc(c.channel)}</div>` : ""}${c.upgrade && c.upgrade.via ? `<div class="hint">auto-upgrade: ${esc(c.upgrade.via)}</div>` : ""}${c.upstream ? `<div class="hint">upstream ${esc(c.upstream)}</div>` : ""}</td>
       <td style="width:120px">${pbar}</td>
       <td>${esc(c.owner || "")}</td>
       <td>${status}</td></tr>`;
@@ -5540,20 +5540,22 @@ tick();
   }
 
   function renderDeps(s) {
-    const d = s.dependencies || {}, pk = d.packages || [];
-    const state = (p) => !p.latest ? "latest not checked yet"
-      : !p.outdated ? "up to date"
-      : p.review_state === "applied" ? "upgraded"
-      : p.decision === "retained" ? (p.review_state === "pending" ? "tested green · waiting to be applied" : p.review_state)
-      : p.decision === "rejected" ? "not upgraded — " + (p.reason || "")
-      : d.enabled ? "upgrade queued for the next evolution cycle" : "auto-upgrade is off";
-    const rows = pk.map(p => `<tr><td>${esc(p.name)}</td><td>${esc(p.current)}</td>
-      <td>${esc(p.latest || "—")}</td><td>${esc(state(p))}</td></tr>`).join("");
+    const d = s.components || {}, rows = d.rows || [];
+    const STATE = {applied: "upgraded", handed_off: "handed to its updater", verifying: "applying — SysPerf restarts to finish",
+      rolled_back: "rolled back", pending: "tested green · waiting to be applied", approved: "approved · waiting to be applied"};
+    const state = (r) => r.missing ? "not installed"
+      : r.via === "follows" ? `upgraded with ${r.of || "its parent"}`
+      : r.review_state && STATE[r.review_state] ? STATE[r.review_state] + (r.review_state === "rolled_back" && r.reason ? " — " + r.reason : "")
+      : r.decision === "rejected" ? "not upgraded — " + (r.reason || "")
+      : !r.outdated ? "up to date"
+      : d.enabled ? "queued for the next evolution cycle" : "auto-upgrade is off";
+    const body = rows.map(r => `<tr><td>${esc(r.name || r.key)}</td><td>${esc(r.current || "—")}</td>
+      <td>${esc(r.latest || "—")}</td><td>${esc(r.label)}</td><td>${esc(state(r))}</td></tr>`).join("");
     $("sevDeps").innerHTML = `<p class="evo-note">${d.enabled
-        ? "On. When a package SysPerf pins has a newer release, an evolution cycle moves the pin, runs the whole test suite against the new version in the sandbox and, if it stays green, applies it with the same verify-and-roll-back deploy as a patch."
-        : "Off. Turn on “Auto-upgrade outdated third-party packages” in Settings → AI self-evolution."}</p>`
-      + (rows ? tbl(["Package", "Pinned", "Latest", "Upgrade"], rows) : empty("No hash-locked packages were found in the approved repository."))
-      + `<p class="evo-note">The Python interpreter, Ubuntu, Git, WSL and drivers are updated by Windows and their own installers, not by SysPerf. Their upgrade path is listed under <a href="#details/components">Components</a>.</p>`;
+        ? "On. Every component below is upgraded by self-evolution, one per cycle: tested in isolation first (the sandbox, a throwaway venv or interpreter, or a throwaway copy of the WSL distro), then backed up, applied, verified, and rolled back if the check fails."
+        : "Off. Turn on “Auto-upgrade every outdated component” in Settings → AI self-evolution."}</p>`
+      + (body ? tbl(["Component", "Installed", "Latest", "Upgraded by", "Upgrade"], body) : empty("The component list is not available yet."))
+      + `<p class="evo-note">Drivers, the BIOS, the Windows build, Edge and WebView2 are handed to Windows Update or the vendor's updater, which test and roll back their own packages. Installers that need administrator rights (WSL, Git for Windows) show the Windows UAC prompt. See <a href="#details/components">Components</a>.</p>`;
   }
 
   function renderEffect(a) {

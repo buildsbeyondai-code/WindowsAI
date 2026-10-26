@@ -1,6 +1,7 @@
 """5.1 third-party upgrades: the pin rewrite and release checks (depupgrade), and
-the self-evolution lane that tests, retains and deploys them (codevolve), over
-the real fixture repository with a scripted sandbox and a fake PyPI."""
+the self-evolution component lane that tests, retains and deploys them
+(codevolve), over the real fixture repository with a scripted sandbox and a
+fake PyPI."""
 import hashlib
 import io
 import json
@@ -23,6 +24,7 @@ LOCK = ("# header\n#   regenerate with uv\n"
         "flask==3.1.3 \\\n    --hash=sha256:" + H["c"] + " \\\n    --hash=sha256:" + H["d"]
         + "\n    # via -r requirements.txt\n")
 REQS = "# pinned\nFlask==3.1.3\n"
+DEV = ("-r requirements.txt\npytest==9.1.1\nmarkdown==3.10.3; python_version < '3.11'\n")
 TOML = '[project]\ndependencies = [\n    "Flask==3.1.3",\n]\n'
 
 
@@ -66,6 +68,7 @@ def repo(tmp_path):
     (r / "requirements.lock").write_text(LOCK)
     (r / "requirements.txt").write_text(REQS)
     (r / "pyproject.toml").write_text(TOML)
+    (r / "requirements-dev.txt").write_text(DEV)
     for a in (["init", "-q", "-b", "main"], ["add", "-A"],
               ["-c", "user.name=t", "-c", "user.email=t@x", "commit", "-q", "-m", "base"]):
         subprocess.run(["git", "-C", str(r), *a], check=True)
@@ -81,9 +84,13 @@ UP = {"name": "flask", "current": "3.1.3", "latest": "3.2.0"}
 
 
 # ------------------------------------------------------------ depupgrade --
-def test_locked_outdated_and_title(tmp_path, repo):
-    assert dep.locked(tmp_path) == {}
+def test_locked_pinned_outdated_and_title(tmp_path, repo):
+    assert dep.locked(tmp_path) == {} and dep.pinned(tmp_path) == {}
     assert dep.locked(repo) == {"click": "8.5.0", "flask": "3.1.3"}
+    # dev pins join; a pin with an environment marker is not ours to move
+    assert dep.pinned(repo) == {"click": "8.5.0", "flask": "3.1.3", "pytest": "9.1.1"}
+    assert dep.outdated(repo, {"pytest": "9.2.0"}) == [
+        {"name": "pytest", "current": "9.1.1", "latest": "9.2.0"}]
     assert dep.norm("Zope_Interface") == "zope-interface"
     assert dep.outdated(repo, {"flask": "3.2.0", "click": "8.5.0"}) == [UP]
     assert dep.outdated(repo, {}) == []
@@ -117,10 +124,33 @@ def test_unsuitable_explains_every_refusal():
     assert "still supports 3.10" in dep.unsuitable(py, lock)
     sdist = [{"filename": "flask-3.2.0.tar.gz", "url": "u", "digests": {"sha256": H["e"]},
               "packagetype": "sdist"}]
-    assert "no pure-Python wheel" in dep.unsuitable(
+    assert "no wheel the sandbox's Python 3.12" in dep.unsuitable(
         dep.release("flask", "3.2.0", fake_get(pypi(files=sdist))), lock)
+    linux_only = [whl("markupsafe-3.1-cp312-cp312-manylinux_2_17_x86_64.whl")]
+    assert "no Windows wheel" in dep.unsuitable(
+        dep.release("flask", "3.2.0", fake_get(pypi(files=linux_only))), lock)
     new_dep = dep.release("flask", "3.2.0", fake_get(pypi(requires_dist=["Blinker>=1.9"])))
     assert "needs blinker" in dep.unsuitable(new_dep, lock)
+
+
+def whl(name, sha=None):
+    return {"filename": name, "url": "https://files/" + name, "packagetype": "bdist_wheel",
+            "digests": {"sha256": sha or hashlib.sha256(WHEEL).hexdigest()}}
+
+
+def test_test_wheel_picks_one_the_sandbox_can_import():
+    rel = {"files": [whl("m-1-cp311-cp311-manylinux_2_17_x86_64.whl"),
+                     whl("m-1-cp312-cp312-manylinux_2_17_x86_64.whl"),
+                     whl("m-1-cp312-cp312-win_amd64.whl")]}
+    assert dep.test_wheel(rel, "312")["filename"].startswith("m-1-cp312-cp312-manylinux")
+    abi3 = {"files": [whl("m-1-cp38-abi3-manylinux_2_17_x86_64.whl"),
+                      whl("m-1-cp313-abi3-musllinux_1_1_aarch64.whl")]}
+    assert dep.test_wheel(abi3, "312")["filename"].startswith("m-1-cp38-abi3")
+    assert dep.test_wheel({"files": [whl("m-1-cp313-abi3-manylinux_2_17_x86_64.whl")]},
+                          "312") is None
+    assert dep.test_wheel({"files": [whl("m-1-cp311-cp311-manylinux_2_17_x86_64.whl")]},
+                          "312") is None
+    assert dep._windows_ok(rel) and not dep._windows_ok(abi3)
 
 
 def test_fetch_wheel_verifies_the_hash_and_unpack_refuses_escapes(tmp_path):
@@ -153,6 +183,10 @@ def test_apply_pin_reports_changed_files(tmp_path):
     (tmp_path / "requirements.txt").write_text(REQS)
     (tmp_path / "requirements.lock").write_text("click==8.5.0 \\\n    --hash=sha256:" + H["a"] + "\n")
     assert dep.apply_pin(tmp_path, UP, {"files": [{"sha256": H["e"]}]}) == ["requirements.txt"]
+    (tmp_path / "requirements-dev.txt").write_text(DEV)
+    up = {"name": "pytest", "current": "9.1.1", "latest": "9.2.0"}
+    assert dep.apply_pin(tmp_path, up, {"files": []}) == ["requirements-dev.txt"]
+    assert "pytest==9.2.0" in (tmp_path / "requirements-dev.txt").read_text()
 
 
 def test_python_prefers_the_console_interpreter(tmp_path, monkeypatch):
@@ -165,40 +199,42 @@ def test_python_prefers_the_console_interpreter(tmp_path, monkeypatch):
     assert dep._python() == "/usr/bin/python3"
 
 
-def test_pip_sync_installs_the_lock_with_hashes(tmp_path):
+def test_pip_sync_installs_the_pins_into_both_venvs(tmp_path, monkeypatch):
     seen = []
 
     def run(argv, **kw):
         seen.append(argv)
         return SimpleNamespace(returncode=0, stdout="", stderr="")
-    assert dep.pip_sync(tmp_path, run=run) is None
-    assert "--require-hashes" in seen[0] and seen[0][-1] == str(tmp_path / "requirements.lock")
+    assert dep.pip_sync(tmp_path, run=run, wsl=False) is None
+    assert len(seen) == 1 and "--require-hashes" in seen[0]
+    assert seen[0][-1] == str(tmp_path / "requirements.lock")
+    seen.clear()
+    assert dep.pip_sync("C:\\app", run=run, wsl=True, dev=True) is None
+    assert len(seen) == 4
+    assert seen[2][:3] == ["wsl.exe", "--", dep.SANDBOX_PY]
+    assert seen[2][-1] == "/mnt/c/app/requirements.lock"
+    assert seen[3][-1] == "/mnt/c/app/requirements-dev.txt"
+    monkeypatch.setattr(dep.shutil, "which", lambda name: None)
+    seen.clear()
+    assert dep.pip_sync(tmp_path, run=run) is None and len(seen) == 1   # autodetect: no WSL
     fail = lambda argv, **kw: SimpleNamespace(returncode=1, stdout="", stderr="no match")  # noqa: E731
-    assert dep.pip_sync(tmp_path, run=fail) == "no match"
+    assert dep.pip_sync(tmp_path, run=fail, wsl=False) == "no match"
     silent = lambda argv, **kw: SimpleNamespace(returncode=2, stdout=None, stderr=None)  # noqa: E731
-    assert dep.pip_sync(tmp_path, run=silent) == "pip exited 2"
+    assert dep.pip_sync(tmp_path, run=silent, wsl=False) == "pip exited 2"
 
     def boom(argv, **kw):
         raise OSError("no pip")
-    assert dep.pip_sync(tmp_path, run=boom) == "OSError: no pip"
-
-
-def test_overview_joins_pins_latest_and_the_newest_attempt(repo):
-    assert dep.overview(None, {}, []) == []
-    cands = [{"id": "c-2", "title": dep.title(UP), "decision": "rejected",
-              "review_state": "none", "reason": "tests red"},
-             {"id": "c-1", "title": dep.title(UP), "decision": "retained"}]
-    rows = {r["name"]: r for r in dep.overview(repo, {"flask": "3.2.0"}, cands)}
-    assert rows["click"] == {"name": "click", "current": "8.5.0", "latest": None,
-                             "outdated": False}
-    assert rows["flask"]["outdated"] and rows["flask"]["candidate"] == "c-2"
-    assert rows["flask"]["reason"] == "tests red"
+    assert dep.pip_sync(tmp_path, run=boom, wsl=False) == "OSError: no pip"
 
 
 # ---------------------------------------------------------- codevolve lane --
-def lane(tmp_path, repo, box=None, latest=None, get=None, **settings):
+ROWS = [{"key": "flask", "name": "Flask", "current": "3.1.3", "latest": "3.2.0",
+         "outdated": True, "upgrade": {"via": "pip-lock"}}]
+
+
+def lane(tmp_path, repo, box=None, rows=None, get=None, **settings):
     e, db = eng(tmp_path, repo, box=box, **settings)
-    e.latest_fn = lambda: {"flask": "3.2.0"} if latest is None else latest
+    e.components_fn = lambda: ROWS if rows is None else rows
     e.http_get = get or fake_get()
     return e, db
 
@@ -206,7 +242,7 @@ def lane(tmp_path, repo, box=None, latest=None, get=None, **settings):
 @pytest.fixture
 def synced(monkeypatch):
     calls = []
-    monkeypatch.setattr(dep, "pip_sync", lambda repo: calls.append(str(repo)))
+    monkeypatch.setattr(dep, "pip_sync", lambda repo, dev=False: calls.append(str(repo)))
     return calls
 
 
@@ -230,11 +266,12 @@ def test_green_upgrade_is_retained_applied_and_restarted(tmp_path, repo, synced)
     assert head(repo) != before and "flask==3.2.0" in (repo / "requirements.lock").read_text()
     assert synced == [str(repo)] and restarts == [1]
     assert e.pending_apply()["id"] == c["id"]
-    st = e.status("self_evolve")["dependencies"]
-    assert st["enabled"] and {p["name"] for p in st["packages"]} == {"click", "flask"}
+    st = e.status("self_evolve")["components"]
+    assert st["enabled"] and st["rows"][0]["review_state"] == "approved"   # verifying
+    assert st["rows"][0]["label"].startswith("pinned in requirements.lock")
     # the same upgrade is never attempted twice; the code lane runs instead
     e.confirm_apply(True)
-    assert e._dependency_lane("x", repo, head(repo), {}) is None
+    assert e._component_lane("x", repo, head(repo), {}, repo) is None
 
 
 def test_a_skipped_auto_apply_leaves_the_upgrade_for_review(tmp_path, repo, synced):
@@ -248,15 +285,21 @@ def test_a_skipped_auto_apply_leaves_the_upgrade_for_review(tmp_path, repo, sync
     assert "candidate.auto_apply_skipped" in [a["event"] for a in db.audit_tail(limit=10)]
 
 
-def test_lane_is_off_without_feed_setting_or_work(tmp_path, repo):
+def test_lane_is_off_without_rows_setting_or_work(tmp_path, repo):
     e, db = lane(tmp_path, repo, auto_upgrade_deps=False)
-    assert e._dependency_lane("x", repo, head(repo), {}) is None
+    assert e._component_lane("x", repo, head(repo), {}, repo) is None
     (tmp_path / "b").mkdir()
-    e, db = lane(tmp_path / "b", repo, latest={})
-    assert e._dependency_lane("x", repo, head(repo), {}) is None
-    e.latest_fn = None
-    assert e._dependency_lane("x", repo, head(repo), {}) is None
-    assert e.status("self_evolve")["dependencies"]["enabled"] is False
+    current = [dict(ROWS[0], latest="3.1.3", outdated=False),
+               {"key": "docker", "missing": True, "upgrade": {"via": "apt"}},
+               {"key": "mystery", "upgrade": {}},
+               {"key": "kernel", "upgrade": {"via": "follows", "of": "wsl"}}]
+    e, db = lane(tmp_path / "b", repo, rows=current)
+    assert e._component_lane("x", repo, head(repo), {}, repo) is None
+    rows = e.status("self_evolve")["components"]["rows"]
+    assert [r["label"] for r in rows][2] == "no upgrader"
+    e.components_fn = None
+    assert e._component_lane("x", repo, head(repo), {}, repo) is None
+    assert e.status("self_evolve")["components"] == {"enabled": False, "rows": []}
 
 
 def test_unsuitable_release_is_rejected_once(tmp_path, repo):
@@ -287,7 +330,7 @@ def test_red_tests_reject_the_upgrade(tmp_path, repo):
 
 def test_apply_rolls_back_when_the_packages_do_not_install(tmp_path, repo, monkeypatch):
     calls = []
-    monkeypatch.setattr(dep, "pip_sync", lambda repo: calls.append(1) or (
+    monkeypatch.setattr(dep, "pip_sync", lambda repo, dev=False: calls.append(1) or (
         "no matching distribution" if len(calls) == 1 else "still offline"))
     e, db = lane(tmp_path, repo)
     e.apply = lambda cid, actor="user": None            # retain only
@@ -301,10 +344,11 @@ def test_apply_rolls_back_when_the_packages_do_not_install(tmp_path, repo, monke
     assert head(repo) == before and len(calls) == 2 and e.pending_apply() is None
 
 
-def test_lock_changed(repo):
+def test_pins_changed(repo):
     h = head(repo)
-    assert not cv.lock_changed(repo, h, h)
+    assert not cv.pins_changed(repo, h, h)
     (repo / "requirements.lock").write_text(LOCK + "\n")
+    (repo / "requirements-dev.txt").write_text(DEV + "\n")
     subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@x",
                     "commit", "-qam", "lock"], check=True)
-    assert cv.lock_changed(repo, h, head(repo))
+    assert cv.pins_changed(repo, h, head(repo)) == {"requirements.lock", "requirements-dev.txt"}

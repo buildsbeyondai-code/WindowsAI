@@ -37,7 +37,7 @@ TARGETS = [
     "trayquit.py", "machine_profile.py", "livestats.py", "background_process.py",
     "pwsh_session.py", "historydb.py", "health.py", "notify.py",  # 4.1
     "settings_hub.py", "supervisor.py", "desktop.py", "store_mode.py",
-    "version_check.py", "depupgrade.py",
+    "version_check.py", "depupgrade.py", "upgrader.py",
     "hostguard.py",                                       # 5.0.0
 ]
 # Two layouts: the development repo keeps the modules at the root, an exported

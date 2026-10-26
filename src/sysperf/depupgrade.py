@@ -5,27 +5,31 @@ The Components view learns from each vendor's live feed when a package SysPerf
 pins has a newer release. This module turns that into an upgrade the evolution
 cycle tests and deploys like any other candidate:
 
-* Only SysPerf's own hash-locked runtime packages (requirements.lock) are
-  upgraded, and only to a release that still supports Python 3.10 (the CI
-  floor), needs no package the lock does not already hold, and ships a
-  pure-Python wheel. A pure wheel can be unpacked into the worktree for the
-  sandboxed tests, which have no network, and replaced under a running service.
-* The pin moves in requirements.txt, requirements.lock (with the release's
-  published sha256 hashes) and pyproject.toml together, so the offline lock
-  test still holds and a fresh install gets the same versions.
-* Deploying runs ``pip install --require-hashes -r requirements.lock``; rolling
-  back resets git and runs it again, which reinstalls the previous versions.
+* SysPerf's pinned packages: the hash-locked runtime (requirements.lock) and
+  the test tools pinned in requirements-dev.txt (5.1.1). A release qualifies
+  when it still supports Python 3.10 (the CI floor), needs no package the lock
+  does not already hold, and ships a wheel for both sides: one the sandbox's
+  Linux interpreter can import (pure, or a manylinux build for its version) and
+  one Windows can install without compiling. The sandbox wheel is unpacked
+  into the worktree, because the sandboxed tests have no network.
+* The pin moves in every file that holds it (requirements.txt, the lock with
+  the release's published sha256 hashes, requirements-dev.txt, pyproject.toml),
+  so the offline lock test still holds and a fresh install gets the same set.
+* Deploying installs the pins into SysPerf's venv and into the WSL sandbox
+  venv, so later sandbox runs test what is deployed; rolling back resets git
+  and installs again, which restores the previous versions.
 
-Everything else that is outdated (the Python interpreter, Ubuntu, Git, WSL,
-drivers) belongs to the PC rather than to SysPerf. Those rows keep their
-upgrade path in the Components view and are left to their owner.
+Software outside SysPerf's own pins (the interpreter, Ubuntu, Git, WSL,
+drivers) is upgraded through ``upgrader``.
 """
 from __future__ import annotations
 
 import hashlib
 import io
 import json
+import os
 import re
+import shutil
 import sys
 import urllib.request
 import zipfile
@@ -34,7 +38,8 @@ from pathlib import Path, PurePosixPath
 from .background_process import run_hidden
 
 PIN = re.compile(r"^([A-Za-z0-9_.-]+)==([^\s;\\]+)", re.M)
-PIN_FILES = ("requirements.txt", "requirements.lock", "pyproject.toml")
+PIN_FILES = ("requirements.txt", "requirements.lock", "requirements-dev.txt", "pyproject.toml")
+DEV_PIN = re.compile(r"^([A-Za-z0-9_.-]+)==([^\s;\\]+)\s*$", re.M)   # markers: not ours to move
 PYTHON_FLOOR = (3, 10)
 TITLE = "3PP upgrade: {name} {current} → {latest}"
 
@@ -62,14 +67,26 @@ def locked(repo: Path) -> dict:
     return {norm(n): v for n, v in PIN.findall(text)}
 
 
+def pinned(repo: Path) -> dict:
+    """Every package SysPerf pins: the lock, then requirements-dev.txt."""
+    out = dict(locked(repo))
+    try:
+        text = (Path(repo) / "requirements-dev.txt").read_text(encoding="utf-8")
+    except OSError:
+        return out
+    for n, v in DEV_PIN.findall(text):
+        out.setdefault(norm(n), v)
+    return out
+
+
 def title(up: dict) -> str:
     return TITLE.format(**up)
 
 
 def outdated(repo: Path, latest: dict) -> list:
-    """Locked packages whose live-feed release is newer, in lock order."""
+    """Pinned packages whose live-feed release is newer, in pin order."""
     out = []
-    for name, cur in locked(repo).items():
+    for name, cur in pinned(repo).items():
         new = latest.get(name) or ""
         if new and _key(new) > _key(cur):
             out.append({"name": name, "current": cur, "latest": new})
@@ -101,21 +118,44 @@ def _floor_ok(spec: str) -> bool:
     return True
 
 
-def pure_wheel(rel: dict) -> dict | None:
-    return next((f for f in rel["files"] if f["packagetype"] == "bdist_wheel"
-                 and f["filename"].endswith("-py3-none-any.whl")), None)
+def _wheels(rel: dict) -> list:
+    return [f for f in rel["files"] if f["packagetype"] == "bdist_wheel"]
 
 
-def unsuitable(rel: dict, lock: dict) -> str | None:
+def test_wheel(rel: dict, pyver: str = "312") -> dict | None:
+    """The wheel the sandbox's Linux CPython ``pyver`` (e.g. "312") can import."""
+    ws = _wheels(rel)
+    pure = next((f for f in ws if f["filename"].endswith("-py3-none-any.whl")), None)
+    if pure:
+        return pure
+    x86 = [f for f in ws if re.search(r"manylinux[^-]*x86_64\.whl$", f["filename"])]
+    exact = next((f for f in x86 if f"-cp{pyver}-cp{pyver}-" in f["filename"]), None)
+    if exact:
+        return exact
+    for f in x86:                                       # cp38-abi3 runs on any newer 3.x
+        m = re.search(r"-cp3(\d+)-abi3-", f["filename"])
+        if m and int(m.group(1)) <= int(pyver[1:]):
+            return f
+    return None
+
+
+def _windows_ok(rel: dict) -> bool:
+    return any(f["filename"].endswith(("-none-any.whl", "win_amd64.whl", "win_arm64.whl"))
+               for f in _wheels(rel))
+
+
+def unsuitable(rel: dict, lock: dict, pyver: str = "312") -> str | None:
     """Why this release cannot be upgraded to automatically (None = it can)."""
     if not rel["files"]:
         return f"{rel['name']} {rel['version']} has no published files"
     if not _floor_ok(rel["requires_python"]):
         return (f"{rel['name']} {rel['version']} requires Python {rel['requires_python']}, "
                 "and SysPerf still supports 3.10")
-    if pure_wheel(rel) is None:
-        return (f"{rel['name']} {rel['version']} has no pure-Python wheel; upgrade it by "
-                "regenerating requirements.lock")
+    if test_wheel(rel, pyver) is None:
+        return (f"{rel['name']} {rel['version']} has no wheel the sandbox's Python "
+                f"{pyver[0]}.{pyver[1:]} can import")
+    if not _windows_ok(rel):
+        return f"{rel['name']} {rel['version']} has no Windows wheel; pip would have to compile it"
     for req in rel["requires_dist"]:
         if "extra ==" in req:
             continue
@@ -126,8 +166,8 @@ def unsuitable(rel: dict, lock: dict) -> str | None:
     return None
 
 
-def fetch_wheel(rel: dict, get) -> bytes:
-    f = pure_wheel(rel)
+def fetch_wheel(rel: dict, get, pyver: str = "312") -> bytes:
+    f = test_wheel(rel, pyver)
     data = get(f["url"])
     if hashlib.sha256(data).hexdigest() != f["sha256"]:
         raise ValueError(f"{f['filename']}: sha256 does not match PyPI's")
@@ -192,35 +232,38 @@ def _python() -> str:
     return sys.executable
 
 
-def pip_sync(repo: Path, run=run_hidden, timeout: float = 600) -> str | None:
-    """Install exactly what requirements.lock pins; the error text, or None."""
-    try:
-        r = run([_python(), "-m", "pip", "install", "--disable-pip-version-check",
-                 "--no-input", "--no-deps", "--require-hashes", "-r",
-                 str(Path(repo) / "requirements.lock")],
-                capture_output=True, text=True, timeout=timeout)
-    except Exception as exc:
-        return f"{type(exc).__name__}: {exc}"
-    if r.returncode != 0:
-        return ((r.stderr or "") + (r.stdout or "")).strip()[-400:] or f"pip exited {r.returncode}"
+SANDBOX_PY = "~/.sysperf-sandbox-venv/bin/python"
+
+
+def _wsl_path(p) -> str:
+    p = str(p).replace("\\", "/")
+    return f"/mnt/{p[0].lower()}{p[2:]}" if len(p) > 1 and p[1] == ":" else p
+
+
+def pip_sync(repo: Path, run=run_hidden, timeout: float = 600, dev: bool = False,
+             wsl: bool | None = None) -> str | None:
+    """Install exactly what SysPerf pins; the error text, or None.
+
+    Into SysPerf's own venv and, on Windows, into the WSL sandbox venv too, so
+    the next sandboxed test run exercises the versions that are deployed.
+    """
+    if wsl is None:
+        wsl = os.name == "nt" and shutil.which("wsl.exe") is not None
+    targets = [([_python()], lambda p: str(p))]
+    if wsl:
+        # `wsl.exe --` runs through the login shell, which expands the ~.
+        targets.append((["wsl.exe", "--", SANDBOX_PY], _wsl_path))
+    for py, path in targets:
+        steps = [["--no-deps", "--require-hashes", "-r", path(Path(repo) / "requirements.lock")]]
+        if dev:
+            steps.append(["-r", path(Path(repo) / "requirements-dev.txt")])
+        for args in steps:
+            try:
+                r = run([*py, "-m", "pip", "install", "-q", "--disable-pip-version-check",
+                         "--no-input", *args], capture_output=True, text=True, timeout=timeout)
+            except Exception as exc:
+                return f"{type(exc).__name__}: {exc}"
+            if r.returncode != 0:
+                return (((r.stderr or "") + (r.stdout or "")).strip()[-400:]
+                        or f"pip exited {r.returncode}")
     return None
-
-
-def overview(repo: Path | None, latest: dict, candidates: list) -> list:
-    """Each locked package with its live latest and its upgrade attempt, if any."""
-    if not repo:
-        return []
-    by_title = {}
-    for c in candidates:                  # newest first: keep the latest attempt
-        by_title.setdefault(c.get("title"), c)
-    out = []
-    for name, cur in locked(repo).items():
-        new = latest.get(name) or ""
-        row = {"name": name, "current": cur, "latest": new or None,
-               "outdated": bool(new) and _key(new) > _key(cur)}
-        c = by_title.get(title({"name": name, "current": cur, "latest": new})) if new else None
-        if c:
-            row.update(candidate=c["id"], decision=c.get("decision"),
-                       review_state=c.get("review_state"), reason=c.get("reason"))
-        out.append(row)
-    return out

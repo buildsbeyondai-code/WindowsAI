@@ -35,6 +35,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 from . import appctl as appctl_mod
 from . import codevolve as codevolve_mod
+from . import components as components_mod
 from . import cpuwatch, hostguard
 from . import evodb as evodb_mod
 from . import fixes as fixes_mod
@@ -319,10 +320,21 @@ tray_quitter = trayquit_mod.TrayQuitter(TRAYQUIT_STATE_FILE, TRAYQUIT_LOG_FILE,
 # never fall behind what is installed (components.py reads the file it writes).
 latest_versions = version_check_mod.LatestVersions(
     DATA_DIR / "components_latest.json", enabled=VERSION_CHECK)
-# 5.1: a newer release of a locked package becomes a self-evolution candidate.
+# 5.1.1: every Components row is upgraded through self-evolution (upgrader.py).
 # Not in the Store build: its packages are frozen into the signed package.
+_component_rows = {"t": 0.0, "rows": []}
+
+
+def _components_now() -> list:
+    """The Components rows, rebuilt at most every 5 minutes (probes are slow)."""
+    if time.time() - _component_rows["t"] > 300:
+        _component_rows.update(t=time.time(), rows=components_mod.build_components(
+            dict(collector.latest or {})).get("rows", []))
+    return _component_rows["rows"]
+
+
 if not STORE_MODE:
-    code_evolution.latest_fn = lambda: latest_versions.load().get("latest") or {}
+    code_evolution.components_fn = _components_now
 code_evolution.on_applied = lambda: _restart_soon()
 # Store mode: everything that acts outside the app is opt-in and listed on Home.
 store_features = store_mode_mod.StoreFeatures(
@@ -1428,9 +1440,10 @@ settings_hub = settings_mod.SettingsHub([
         _F("interval_s", "Run a cycle every (seconds)", "int", min=300, max=604800),
         _F("max_per_day", "At most cycles per day", "int", min=0, max=48),
         _F("auto_retain", "Keep winning patches for review", "bool"),
-        _F("auto_upgrade_deps", "Auto-upgrade outdated third-party packages", "bool",
-           help="A newer release of a package SysPerf pins is tested in the sandbox "
-                "and, when the suite stays green, applied and verified like a patch.")],
+        _F("auto_upgrade_deps", "Auto-upgrade every outdated component", "bool",
+           help="Each outdated row of Components is tested in isolation first (the "
+                "sandbox, a staging venv or a throwaway copy of the WSL distro), then "
+                "applied, verified and rolled back if the check fails.")],
         lambda: {k: code_evolution.settings[k] for k in _EVO_KEYS},
         lambda diff: code_evolution.update_settings(diff),
         {"enabled": False, "interval_s": 21600, "max_per_day": 4, "auto_retain": True,

@@ -239,6 +239,7 @@ def build_components(latest: dict) -> dict:
             "owner": c.get("owner", ""), "why": c.get("why", ""),
             "optional": bool(c.get("optional")),
             "channel": c.get("channel", ""), "upstream": c.get("upstream", ""),
+            "upgrade": c.get("upgrade") or {},
         }
         if missing:
             row.update(current="not installed", missing=True, outdated=False)

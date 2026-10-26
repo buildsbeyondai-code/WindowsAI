@@ -27,13 +27,15 @@ What this module guarantees, and what enforces it:
   available, executable validation is BLOCKED and candidates stop after static
   analysis — they are never executed un-isolated.
 * **Everything is audited** in the hash-chained log in ``evodb``.
-* **Third-party packages upgrade themselves (5.1).** When a package in
-  requirements.lock has a newer release, a cycle first tries that upgrade
-  (``depupgrade``): the pins move, the release's pure wheel is unpacked into the
-  worktree and the full suite runs against it in the sandbox. A green upgrade is
-  retained and, with ``auto_upgrade_deps`` on, applied straight away through
-  the same verified, reversible deploy as a patch; the lock is installed with
-  ``--require-hashes`` and reinstalled at the old versions on rollback.
+* **Every component upgrades itself (5.1.1).** Each row of the Components
+  view names an upgrader (``upgrader.REGISTRY``). A cycle first takes the first
+  outdated row not yet tried at that version. SysPerf's own pins
+  (``depupgrade``) become a git candidate: the pins move, the release's wheel is
+  unpacked into the worktree, the suite runs in the sandbox, and a green one is
+  applied through the verified, reversible deploy below. Everything else is
+  tested in isolation (a throwaway venv, a staging interpreter, a throwaway copy
+  of the WSL distro), backed up, applied, verified and rolled back on failure,
+  by ``upgrader.run_upgrade``. This lane needs no LLM.
 * **Deploy is one click and reversible (4.1).** ``apply`` fast-forwards main to
   a retained candidate only from a clean tree, tags the previous HEAD as a
   backup and leaves a ``pending_apply.json`` marker. The restarted service
@@ -58,7 +60,7 @@ import time
 import uuid
 from pathlib import Path, PurePosixPath
 
-from . import depupgrade
+from . import depupgrade, upgrader
 from .background_process import run_hidden
 from .llm import LLMClient, LLMError
 
@@ -217,16 +219,30 @@ def git_rollback(repo: Path, backup_sha: str, applied_sha: str) -> None:
         raise RuntimeError(f"HEAD is {head[:10]}, not the applied patch {applied_sha[:10]}; "
                            "refusing to move it")
     _git(repo, "reset", "--keep", backup_sha)
-    if lock_changed(repo, backup_sha, applied_sha):
-        err = depupgrade.pip_sync(repo)
+    changed = pins_changed(repo, backup_sha, applied_sha)
+    if changed:
+        err = depupgrade.pip_sync(repo, dev="requirements-dev.txt" in changed)
         if err:
             log.warning("rollback: reinstalling the previous packages failed: %s", err)
 
 
-def lock_changed(repo: Path, a: str, b: str) -> bool:
-    """True when requirements.lock differs between two commits."""
-    return "requirements.lock" in _git(repo, "diff", "--name-only", a, b,
-                                       check=False).split()
+def pins_changed(repo: Path, a: str, b: str) -> set:
+    """The dependency pin files that differ between two commits."""
+    names = _git(repo, "diff", "--name-only", a, b, check=False).split()
+    return {n for n in names if n in ("requirements.lock", "requirements-dev.txt")}
+
+
+def run_text(argv, timeout: float = 600, cwd=None, env=None) -> tuple:
+    """(returncode, stdout+stderr) of a host command; never raises."""
+    try:
+        r = run_hidden(argv, capture_output=True, text=True, timeout=timeout, cwd=cwd,
+                       env={**os.environ, **env} if env else None,
+                       encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL)
+        return r.returncode, ((r.stdout or "") + (r.stderr or "")).replace("\x00", "")
+    except subprocess.TimeoutExpired:
+        return 124, f"timed out after {timeout:.0f} s"
+    except OSError as exc:
+        return 127, str(exc)
 
 
 # ------------------------------------------------------------------ sandbox --
@@ -247,6 +263,8 @@ class Sandbox:
                  timeout_s: float = 300.0, mem_mb: int = 2048):
         self.docker_image = docker_image
         self.wsl_python: str | None = None    # Linux path, set by _detect()
+        self.distro: str | None = None        # wsl-bwrap: a distro other than the default
+        self.user: str | None = None
         self.timeout_s = timeout_s
         self.mem_mb = mem_mb
         self.backend = self._detect() if backend == "auto" else backend
@@ -284,6 +302,13 @@ class Sandbox:
         if self.docker_image and shutil.which("docker"):
             return "docker"
         return "none"
+
+    def in_distro(self, distro: str, user: str) -> Sandbox:
+        """The same jail, run in another WSL distro (a throwaway test copy)."""
+        import copy
+        box = copy.copy(self)
+        box.distro, box.user = distro, user
+        return box
 
     @staticmethod
     def _wsl_path(p: str) -> str:
@@ -327,7 +352,8 @@ class Sandbox:
         if self.backend == "wsl-bwrap":
             lw = self._wsl_path(w)
             venv = self.wsl_python.rsplit("/bin/", 1)[0]
-            a = ["wsl.exe", "-e", "bwrap", "--ro-bind", "/", "/", "--dev", "/dev",
+            pick = ["-d", self.distro, "-u", self.user] if self.distro else []
+            a = ["wsl.exe", *pick, "-e", "bwrap", "--ro-bind", "/", "/", "--dev", "/dev",
                  "--proc", "/proc", "--tmpfs", "/tmp"]
             for hidden in ("/home", "/root", "/mnt", "/media", "/run", "/var", "/srv",
                            "/opt"):
@@ -478,9 +504,12 @@ class CodeEvolution:
         self.state_dir = Path(state_dir) if state_dir else Path(workroot).parent
         self.on_retained = None          # called with the candidate dict when one is kept
         self.on_applied = None           # called after an automatic apply (restart)
-        self.latest_fn = None            # live latest versions; None turns the 3PP lane off
+        self.components_fn = None        # Components rows; None turns the upgrade lane off
         self.http_get = depupgrade.http_get_bytes
+        self.run = run_text
         self._apply_after: str | None = None
+        self._restart_after = False
+        self._wsl_id: tuple | None = None
         self.llm = llm
         self.settings_file = Path(settings_file)
         self.workroot = Path(workroot)
@@ -588,11 +617,10 @@ class CodeEvolution:
         day_start = int(now) - (lt.tm_hour * 3600 + lt.tm_min * 60 + lt.tm_sec)
         if self.db.cycles_since(day_start) >= self.settings["max_per_day"]:
             return f"daily limit reached ({self.settings['max_per_day']})"
-        if self.llm is None or not self.llm.available:
-            return "no LLM provider configured — monitoring and rule-based advice continue"
-        over = self.llm.meter.check()
-        if over:
-            return over
+        # With the component lane on, a cycle has work without a model: it
+        # skips the code lane instead (see _llm_blocked).
+        if self.components_fn is None and (why := self._llm_blocked()):
+            return why
         if trigger == "schedule":
             due = self.next_due()
             if due and self.clock() < due:
@@ -601,6 +629,11 @@ class CodeEvolution:
         if trigger == "event" and last and self.clock() - last["started"] < self.settings["cooldown_s"]:
             return "event trigger inside cooldown"
         return None
+
+    def _llm_blocked(self) -> str | None:
+        if self.llm is None or not self.llm.available:
+            return "no LLM provider configured — monitoring and rule-based advice continue"
+        return self.llm.meter.check()
 
     def notify(self, event: str) -> None:
         """Event trigger (e.g. a failing self-test gate)."""
@@ -653,6 +686,9 @@ class CodeEvolution:
     def _auto_apply(self) -> None:
         """Deploy a 3PP upgrade the cycle just retained (outside the cycle lock)."""
         cand_id, self._apply_after = self._apply_after, None
+        restart, self._restart_after = self._restart_after, False
+        if restart and self.on_applied is not None:
+            self.on_applied()            # a host upgrade SysPerf must reload
         if not cand_id:
             return
         try:
@@ -693,9 +729,13 @@ class CodeEvolution:
                                     f"({base_tests['summary']}); refusing to evolve on a red base"
                                     + ("; failing: " + ", ".join(base_tests["failed_tests"][:3])
                                        if base_tests.get("failed_tests") else ""))
-            upgraded = self._dependency_lane(cid, repo, base_sha, base_tests)
+            upgraded = self._component_lane(cid, repo, base_sha, base_tests, base_wt)
             if upgraded is not None:
                 return upgraded
+            blocked = self._llm_blocked()
+            if blocked:
+                return self._finish(cid, "skipped", "every component is current or already "
+                                    f"tried; the code lane needs a model: {blocked}")
             base_bench = self._bench(base_wt)
             profile = self._profile(base_wt, files) if base_bench else []
 
@@ -821,34 +861,137 @@ class CodeEvolution:
         return self._finish(cid, "awaiting_approval",
                             f"retained on {branch}: {reason}; awaiting review")
 
-    # ------------------------------------------------------- 3PP upgrades
-    def _dependency_lane(self, cid, repo, base_sha, base_tests) -> dict | None:
-        """Try one outdated locked package; None when there is none to try.
+    # ------------------------------------------------- component upgrades
+    def _component_lane(self, cid, repo, base_sha, base_tests, base_wt) -> dict | None:
+        """Upgrade the first outdated component not yet tried; None if there is none.
 
-        Each upgrade (package, from, to) is attempted once: a rejected one is
-        not retried every cycle, and a newer release is a new attempt.
+        Each attempt (component, from, to) is made once: a rejected or rolled
+        back upgrade is not retried every cycle, and a newer release is a new
+        attempt. A hand-off to another updater may repeat after ``retry_s``.
         """
-        if not self.settings.get("auto_upgrade_deps", True) or self.latest_fn is None:
+        if not self.settings.get("auto_upgrade_deps", True) or self.components_fn is None:
             return None
-        tried = {c["title"] for c in self.db.candidates(limit=500)}
-        todo = [u for u in depupgrade.outdated(repo, self.latest_fn() or {})
-                if depupgrade.title(u) not in tried]
-        if not todo:
-            return None
-        up = todo[0]
+        tried = {c["title"] for c in self.db.candidates(limit=1000)}
+        pins = depupgrade.pinned(repo)
+        host = None
+        for row in self.components_fn() or []:
+            u = upgrader.REGISTRY.get((row.get("upgrade") or {}).get("via"))
+            if u is None or row.get("missing"):
+                continue
+            if u.repo:
+                name = depupgrade.norm(row["key"])
+                up = {"name": name, "current": pins.get(name, ""), "latest": row.get("latest", "")}
+                if up["current"] and depupgrade._key(up["latest"]) > depupgrade._key(up["current"]) \
+                        and depupgrade.title(up) not in tried:
+                    return self._repo_upgrade(cid, repo, base_sha, base_tests, up)
+                continue
+            host = host or self._host(base_wt, base_tests)
+            try:
+                up = u.pending(row, host)
+            except Exception as exc:          # one broken probe must not stop the rest
+                log.warning("upgrade check for %s failed: %s", row.get("key"), exc)
+                continue
+            if up and self._upgrade_title(u, up) not in tried:
+                return self._host_upgrade(cid, u, up, host)
+        return None
+
+    def _upgrade_title(self, u, up: dict) -> str:
+        t = upgrader.title(up)
+        if u.retry_s:                         # a hand-off is repeated once per period
+            t += f" (#{int(self.clock() // u.retry_s)})"
+        return t
+
+    def _wsl_identity(self) -> tuple:
+        """(distro, user) the WSL sandbox runs in; ("", "") without WSL."""
+        if self._wsl_id is None:
+            self._wsl_id = ("", "")
+            if OS_NAME == "nt":
+                rc, out = self.run(["wsl.exe", "-e", "sh", "-c",
+                                    'echo "id=$WSL_DISTRO_NAME|$(whoami)"'], timeout=60)
+                m = re.search(r"id=([^|\s]+)\|(\S+)", out)
+                if rc == 0 and m:
+                    self._wsl_id = (m.group(1), m.group(2))
+        return self._wsl_id
+
+    def _host(self, base_wt: Path, base_tests: dict):
+        distro, user = self._wsl_identity()
+
+        def suite(distro=None):
+            box = self.sandbox.in_distro(distro, user) if distro else self.sandbox
+            return self._tests(base_wt, sandbox=box)
+        return upgrader.Host(run=self.run, get=self.http_get,
+                             staging=self.workroot.parent / "upgrade-staging",
+                             repo=Path(self.settings["repo"]), data_dir=self.state_dir,
+                             windows=OS_NAME == "nt", win_python=depupgrade._python(),
+                             venv_dir=Path(sys.prefix),
+                             sandbox_python=getattr(self.sandbox, "wsl_python", None) or "",
+                             distro=distro, wsl_user=user, suite=suite, baseline=base_tests)
+
+    def _host_upgrade(self, cid, u, up: dict, host) -> dict:
+        t = self._upgrade_title(u, up)
+        cand = {"id": f"c-{cid}", "cycle_id": cid, "created": self.clock(), "title": t,
+                "rationale": (f"{up['name']} {up['from']} is behind {up['to']}. Upgrader: "
+                              f"{u.label}. It is tested in isolation first, then applied, "
+                              "verified, and rolled back if the check fails."),
+                "target": "tested in isolation, then applied and verified", "protected": 0,
+                "files": "[]", "static_ok": 1, "security_ok": 1}
+        self._set(cid, "testing", provider="3pp", problem=json.dumps(
+            [{"kind": "3pp_outdated", **{k: up.get(k) for k in ("key", "from", "to", "via")}}]))
+        res = upgrader.run_upgrade(u, up, host, log=lambda m: self.db.audit(
+            "evolution", "upgrade.step", {"id": cand["id"], "step": m}))
+        if res["state"] == "failed" and res.get("retryable"):
+            return self._finish(cid, "failed", f"{t}: {res['reason']}",
+                                error=f"upgrade (retryable): {res['reason']}"[:500])
+        ok = res["state"] in ("applied", "handed_off", "deferred")
+        cand.update(decision="retained" if ok else "rejected", reason=res["reason"][:2000],
+                    tests_ok=0 if res["stage"] == "test" and not ok else 1,
+                    details=json.dumps({"upgrade": res}),
+                    review_state={"applied": "applied", "handed_off": "handed_off",
+                                  "deferred": "verifying"}.get(res["state"], "none"))
+        if res["state"] in ("rolled_back", "failed"):
+            cand["review_state"] = "rolled_back" if res["state"] == "rolled_back" else "none"
+        self.db.add_candidate(cand)
+        self.db.audit("evolution", f"upgrade.{res['state']}",
+                      {"id": cand["id"], **{k: res.get(k) for k in
+                                            ("key", "from", "to", "stage", "reason",
+                                             "rollback_error")}})
+        if res["state"] == "applied" and u.restart:
+            self._restart_after = True
+        return self._finish(cid, "completed", f"{t}: {res['state'].replace('_', ' ')} — "
+                            f"{res['reason']}"[:2000])
+
+    def _reconcile_upgrades(self) -> None:
+        """Record what a detached upgrade helper (the interpreter) reported."""
+        f = self.state_dir / "upgrade_result.json"
+        try:
+            res = json.loads(f.read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError):
+            return
+        for c in self.db.candidates(limit=200):
+            if c["review_state"] == "verifying" and c["title"].startswith(
+                    f"3PP upgrade: {res.get('key')} {res.get('from')} → {res.get('to')}"):
+                state = "applied" if res.get("state") == "applied" else "rolled_back"
+                self.db.update_candidate(c["id"], review_state=state,
+                                         reason=str(res.get("reason") or "")[:2000])
+                self.db.audit("system", f"upgrade.{state}", {"id": c["id"], **res})
+        f.unlink(missing_ok=True)
+
+    def _repo_upgrade(self, cid, repo, base_sha, base_tests, up) -> dict:
+        """One pinned package as a git candidate, tested in the sandbox."""
         cand = {"id": f"c-{cid}", "cycle_id": cid, "created": self.clock(),
                 "title": depupgrade.title(up),
                 "rationale": (f"{up['name']} {up['latest']} is the newest release on PyPI; "
-                              f"SysPerf pins {up['current']}. The pin moves in requirements.txt, "
-                              "requirements.lock (with PyPI's sha256 hashes) and pyproject.toml, "
-                              "and the full test suite runs against the new wheel in the sandbox."),
+                              f"SysPerf pins {up['current']}. The pin moves in every file that "
+                              "holds it (the lock with PyPI's sha256 hashes), and the full test "
+                              "suite runs against the new wheel in the sandbox."),
                 "target": "full test suite green on the new version", "protected": 0}
         self._set(cid, "generating", problem=json.dumps([{"kind": "3pp_outdated", **up}]),
                   provider="3pp")
+        pyver = self._sandbox_pyver()
         try:
             rel = depupgrade.release(up["name"], up["latest"], self.http_get)
-            why = depupgrade.unsuitable(rel, depupgrade.locked(repo))
-            wheel = None if why else depupgrade.fetch_wheel(rel, self.http_get)
+            why = depupgrade.unsuitable(rel, depupgrade.locked(repo), pyver)
+            wheel = None if why else depupgrade.fetch_wheel(rel, self.http_get, pyver)
         except Exception as exc:          # network, or a malformed PyPI answer
             return self._finish(cid, "failed", f"3PP upgrade of {up['name']}: release "
                                 f"metadata unavailable: {exc}", error=f"network (retryable): {exc}")
@@ -876,6 +1019,14 @@ class CodeEvolution:
             self._drop_worktree(repo, wt)
         self._apply_after = cand["id"]
         return out
+
+    def _sandbox_pyver(self) -> str:
+        """The sandbox interpreter's version as a wheel tag ("312"); "312" if unknown."""
+        r = self.sandbox.run(self.workroot.parent, [sys.executable, "-c",
+                                                    "import sys; print('PYV=%d%d' % "
+                                                    "sys.version_info[:2])"], timeout_s=60)
+        m = re.search(r"PYV=(\d+)", r.get("stdout") or "")
+        return m.group(1) if m else "312"
 
     # -------------------------------------------------------------- pieces
     def _prompt(self, repo: Path, files: list, evidence: list) -> str:
@@ -953,7 +1104,7 @@ class CodeEvolution:
                     out["security"].append(f"{rel} adds {k}")
         return out
 
-    def _tests(self, wt: Path, path: str | None = None) -> dict:
+    def _tests(self, wt: Path, path: str | None = None, sandbox=None) -> dict:
         # -rf lists each failure as "FAILED <test id> - <reason>", so a red run
         # says which test broke instead of only how many.
         args = ["-q", "-rf", "-p", "no:cacheprovider", "-o", "addopts=", "tests"]
@@ -962,7 +1113,7 @@ class CodeEvolution:
             # Packages unpacked into the worktree shadow the sandbox's own.
             cmd = [sys.executable, "-c", f"import sys; sys.path.insert(0, {path!r}); "
                    f"import pytest; raise SystemExit(pytest.main({args!r}))"]
-        r = self.sandbox.run(wt, cmd, timeout_s=self.settings["test_timeout_s"])
+        r = (sandbox or self.sandbox).run(wt, cmd, timeout_s=self.settings["test_timeout_s"])
         if r.get("blocked"):
             return {"blocked": True, "summary": r["stderr"]}
         tail = (r["stdout"].strip().splitlines() or [""])[-1]
@@ -1199,8 +1350,9 @@ class CodeEvolution:
             self.db.audit(actor, "candidate.approved", {"id": cand_id, "via": "apply"})
         _git(repo, "tag", "-f", f"sysperf-backup/{cand_id}", head)
         _git(repo, "merge", "-q", "--ff-only", c["branch"])
-        if lock_changed(repo, head, c["commit_sha"]):
-            err = depupgrade.pip_sync(repo)
+        changed = pins_changed(repo, head, c["commit_sha"])
+        if changed:
+            err = depupgrade.pip_sync(repo, dev="requirements-dev.txt" in changed)
             if err:
                 git_rollback(repo, head, c["commit_sha"])
                 raise RuntimeError(f"installing the upgraded packages failed: {err}")
@@ -1286,8 +1438,30 @@ class CodeEvolution:
         return marked
 
     # --------------------------------------------------------------- status
+    def component_overview(self, cands: list) -> dict:
+        """Every Components row with its upgrader and its latest upgrade attempt."""
+        on = bool(self.settings.get("auto_upgrade_deps", True) and self.components_fn)
+        rows = []
+        for r in (self.components_fn() if self.components_fn else []) or []:
+            spec = r.get("upgrade") or {}
+            u = upgrader.REGISTRY.get(spec.get("via"))
+            last = next((c for c in cands if (c.get("title") or "").startswith(
+                f"3PP upgrade: {depupgrade.norm(r['key']) if u and u.repo else r['key']} ")),
+                None)
+            row = {"key": r["key"], "name": r.get("name"), "via": spec.get("via"),
+                   "label": u.label if u else "no upgrader", "of": spec.get("of"),
+                   "current": r.get("current"), "latest": r.get("latest"),
+                   "outdated": bool(r.get("outdated")), "missing": bool(r.get("missing"))}
+            if last:
+                row.update(candidate=last["id"], decision=last["decision"],
+                           review_state=last["review_state"], reason=last.get("reason"),
+                           attempt=last["title"])
+            rows.append(row)
+        return {"enabled": on, "rows": rows}
+
     def status(self, level: str) -> dict:
         self.reconcile_shipped()
+        self._reconcile_upgrades()
         last = self._last_attempt()
         cands = self.db.candidates(limit=500)
         since = self.clock() - 86400
@@ -1310,11 +1484,7 @@ class CodeEvolution:
                     "last_24h": self.db.llm_summary(since),
                     "last_error": self.llm.last_error if self.llm else None},
             "audit": self.db.verify_audit(), "recovered_interrupted": self.recovered,
-            "dependencies": {
-                "enabled": bool(self.settings.get("auto_upgrade_deps", True)
-                                and self.latest_fn is not None),
-                "packages": depupgrade.overview(self.settings.get("repo"),
-                                                (self.latest_fn or dict)() or {}, cands)},
+            "components": self.component_overview(cands),
             "deploy": {"pending": self.pending_apply(),
                        "history": list(reversed(read_apply_log(self.state_dir, 10)))},
         }
