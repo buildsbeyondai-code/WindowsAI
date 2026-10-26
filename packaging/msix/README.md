@@ -14,7 +14,13 @@ cd packaging\msix
                  -DisplayName "<the product name you reserved>"
 ```
 
-Output: `%LOCALAPPDATA%\SysPerf\msix-build\SysPerf_<version>_x64.msix`.
+Output: `%LOCALAPPDATA%\SysPerf\msix-build\SysPerf_<version>_<arch>.msix`, where
+`<arch>` (`x64` or `arm64`) is the build Python's architecture. PyInstaller cannot
+cross-compile, so the Arm64 package needs an Arm64 Python on Windows on Arm.
+The **MSIX** workflow (`.github/workflows/msix.yml`, run it from the Actions tab)
+builds both on GitHub's `windows-latest` and `windows-11-arm` runners with the
+Partner Center identity, and uploads them as the `msix-x64` and `msix-arm64`
+artifacts.
 No Windows SDK or admin rights needed; makeappx is fetched from the
 `Microsoft.Windows.SDK.BuildTools` NuGet package on first run.
 Every Python package in the build comes from `requirements.lock` and
@@ -30,8 +36,9 @@ Every Python package in the build comes from `requirements.lock` and
    *Package/Identity/Publisher* and *Package/Properties/PublisherDisplayName*.
 4. Rebuild with those three values (above). The defaults (`SysPerf.Dashboard`,
    `CN=SysPerf`) are placeholders and Partner Center rejects them.
-5. Start a submission. **Packages**: upload the .msix (unsigned is fine, because the
-   Store signs it). **Store listings**: description, at least 1 screenshot (1366x768 or
+5. Start a submission. **Packages**: upload both .msix files, x64 and arm64, with the
+   same version (unsigned is fine, because the Store signs it). Windows on Arm devices
+   get the native Arm64 package; never ship 32-bit `arm`, which future Arm devices drop. **Store listings**: description, at least 1 screenshot (1366x768 or
    larger), and the app icon. **Properties**: category *Utilities & tools*, plus a
    privacy policy URL (publish `PRIVACY.md` and paste its link).
 6. **Submission options > Restricted capabilities**: explain `runFullTrust`:
