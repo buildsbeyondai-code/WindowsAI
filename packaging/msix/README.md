@@ -20,7 +20,8 @@ cross-compile, so the Arm64 package needs an Arm64 Python on Windows on Arm.
 The **MSIX** workflow (`.github/workflows/msix.yml`, run it from the Actions tab)
 builds both on GitHub's `windows-latest` and `windows-11-arm` runners with the
 Partner Center identity, and uploads them as the `msix-x64` and `msix-arm64`
-artifacts.
+artifacts. On a `v*` tag it also publishes both, with `SHA256SUMS.txt`, as a
+GitHub Release (no sign-in needed to download).
 No Windows SDK or admin rights needed; makeappx is fetched from the
 `Microsoft.Windows.SDK.BuildTools` NuGet package on first run.
 Every Python package in the build comes from `requirements.lock` and

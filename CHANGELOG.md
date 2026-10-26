@@ -4,6 +4,14 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.0.4 — 2026-10-26
+
+### Added
+- **GitHub Releases.** A `v*` tag now publishes the x64 and Arm64 Store
+  packages, with `SHA256SUMS.txt`, as a GitHub Release whose notes are this
+  CHANGELOG entry. They download without signing in, which the Actions
+  artifacts did not allow.
+
 ## 5.0.3 — 2026-10-26
 
 ### Removed
