@@ -4,6 +4,28 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.0.2 — 2026-10-26
+
+### Changed
+- **Details > Components lists every catalogued component.** One the machine
+  does not have (Node.js, npm, Docker, nginx, …) shows last as *not
+  installed* instead of being hidden; it never counts as an upgrade or in the
+  total, so the Details score is unchanged by it.
+- **The whole CI SBOM is listed.** Werkzeug, Jinja2, MarkupSafe,
+  itsdangerous, click, blinker and pip join Flask and waitress, each read
+  from the installed package and checked daily against PyPI.
+  `test_every_sbom_package_is_a_component_with_a_live_feed` keeps the list
+  in step with `requirements.lock`.
+- **CI** runs on Node 24 actions (checkout, setup-python and upload-artifact
+  v7) and pins `ubuntu-24.04`, since `ubuntu-latest` is moving to Ubuntu 26.
+
+### Fixed
+- **WSL tools on a Windows install.** The WSL kernel, Python 3, Node.js, npm,
+  Git, nginx, Docker, gunicorn and Kiro CLI were never probed when SysPerf
+  ran on Windows, so they were missing from Components even when installed.
+  They are now read inside the distro through `wsl.exe` (with `~/.local/bin`
+  and nvm on the path).
+
 ## 5.0.1 — 2026-10-26
 
 A packaging and CI release; the app itself is unchanged.

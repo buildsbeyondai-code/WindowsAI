@@ -262,7 +262,7 @@ footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
   <main>
     <div class="inner">
       <h1 id="sysperf-user-manual">SysPerf User Manual</h1>
-<p><strong>System Performance Agent — version 5.0.1</strong></p>
+<p><strong>System Performance Agent — version 5.0.2</strong></p>
 <p>A self-improving performance dashboard for Windows 11. It measures the PC, explains
 what holds it back, and changes it only in ways it lists and you can undo.</p>
 <hr>
@@ -499,12 +499,14 @@ computation, so they never disagree.</p>
 <li><strong>Network optimisation</strong> — the TCP connection footprint, active adapters and a
   prioritised fix plan. Each action is tagged <strong>client</strong>, <strong>router</strong> or
   <strong>windows</strong> so it is clear where it applies.</li>
-<li><strong>Component upgrades</strong> — a version-currency table for the components actually
-  present on the machine (Windows build, PowerShell 5.1/7, Edge, WebView2,
-  graphics and network drivers, BIOS/UEFI, and Python/Node/Git/WSL when
-  installed), each with an estimated performance benefit. Components that are
-  not installed are simply not listed. <code>latest</code> is a reviewed reference target
-  dated in the table, not a live query — treat it as guidance, and confirm driver
+<li><strong>Component upgrades</strong> — a version-currency table for every catalogued
+  component (Windows build, PowerShell 5.1/7, Edge, WebView2, graphics and
+  network drivers, BIOS/UEFI, WSL and the tools inside the WSL distro, and
+  SysPerf's own toolchain — every package in the CI SBOM), each with an
+  estimated performance benefit. A component the machine does not have is
+  listed last as <em>not installed</em>; it is never counted as an upgrade or in the
+  total. <code>latest</code> is the vendor's newest public release, checked daily, with the
+  reviewed catalog as the fallback — treat it as guidance, and confirm driver
   and firmware versions with your OEM's support tool.</li>
 </ul>
 <h3 id="51-header"><a class="anchor" href="#51-header" aria-hidden="true">#</a>5.1 Header</h3>
@@ -2315,8 +2317,9 @@ forward and <code>meta.error</code> reports the reason.</p>
 <li><strong>Adjust browser ownership</strong> — add host process names under
   <code>browser_hosts.mandatory</code> / <code>in_use</code> so the closability floor matches your
   environment.</li>
-<li><strong>Change the component targets</strong> — edit <code>CATALOG</code> in <code>components.py</code>. Only
-  components detected on the machine are listed, so adding an entry is safe.</li>
+<li><strong>Change the component targets</strong> — edit <code>components.json</code>. A component the
+  machine lacks shows as <em>not installed</em> and is not counted, so adding an entry
+  is safe.</li>
 <li><strong>Add a criterion</strong> — add a row to <code>config.CRITERIA</code>, derive its target in
   <code>machine_profile.targets_for</code>, and collect the field in <code>collect_win.ps1</code>.
   The scorecard, KPI cards and category score pick it up automatically.</li>

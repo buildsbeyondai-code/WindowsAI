@@ -207,7 +207,6 @@
       "channel": "Microsoft Store auto-update or python.org installer",
       "perf": 8,
       "owner": "user",
-      "show_missing": true,
       "why": "The interpreter the dashboard, collector and agent run on. Patch releases inside the same 3.11 line are safe; a new minor line needs the venv rebuilt (re-run install.ps1)."
     },
     {
@@ -219,7 +218,6 @@
       "channel": "pip (pinned in requirements.txt)",
       "perf": 3,
       "owner": "user",
-      "show_missing": true,
       "why": "Serves the dashboard API. Pinned so every install behaves the same; change the pin deliberately and run the quality gates."
     },
     {
@@ -231,8 +229,84 @@
       "channel": "pip (pinned in requirements.txt)",
       "perf": 3,
       "owner": "user",
-      "show_missing": true,
       "why": "The production WSGI server SysPerf runs under on 127.0.0.1. Without it SysPerf falls back to Flask's development server."
+    },
+    {
+      "key": "werkzeug",
+      "name": "Werkzeug (Flask's HTTP core)",
+      "category": "SysPerf toolchain",
+      "compare": "version",
+      "latest": "3.1.9",
+      "channel": "pip (hash-locked in requirements.lock)",
+      "perf": 2,
+      "owner": "user",
+      "why": "Request parsing, routing and responses under Flask. Locked with Flask; update them together and run the quality gates."
+    },
+    {
+      "key": "jinja2",
+      "name": "Jinja2 (Flask templating)",
+      "category": "SysPerf toolchain",
+      "compare": "version",
+      "latest": "3.1.6",
+      "channel": "pip (hash-locked in requirements.lock)",
+      "perf": 2,
+      "owner": "user",
+      "why": "Flask's template engine, a required Flask dependency. Locked with Flask."
+    },
+    {
+      "key": "markupsafe",
+      "name": "MarkupSafe (HTML escaping)",
+      "category": "SysPerf toolchain",
+      "compare": "version",
+      "latest": "3.0.4",
+      "channel": "pip (hash-locked in requirements.lock)",
+      "perf": 2,
+      "owner": "user",
+      "why": "Safe HTML escaping for Jinja2 and Werkzeug. Locked with Flask."
+    },
+    {
+      "key": "itsdangerous",
+      "name": "itsdangerous (signed data)",
+      "category": "SysPerf toolchain",
+      "compare": "version",
+      "latest": "2.2.0",
+      "channel": "pip (hash-locked in requirements.lock)",
+      "perf": 2,
+      "owner": "user",
+      "why": "Signs Flask session data. Locked with Flask."
+    },
+    {
+      "key": "click",
+      "name": "click (Flask command line)",
+      "category": "SysPerf toolchain",
+      "compare": "version",
+      "latest": "8.5.0",
+      "channel": "pip (hash-locked in requirements.lock)",
+      "perf": 2,
+      "owner": "user",
+      "why": "Flask's command-line interface. Locked with Flask."
+    },
+    {
+      "key": "blinker",
+      "name": "blinker (Flask signals)",
+      "category": "SysPerf toolchain",
+      "compare": "version",
+      "latest": "1.9.0",
+      "channel": "pip (hash-locked in requirements.lock)",
+      "perf": 2,
+      "owner": "user",
+      "why": "Flask's signal dispatch. Locked with Flask."
+    },
+    {
+      "key": "pip",
+      "name": "pip (package installer)",
+      "category": "SysPerf toolchain",
+      "compare": "version",
+      "latest": "26.2.2",
+      "channel": "python -m pip install --upgrade pip",
+      "perf": 1,
+      "owner": "user",
+      "why": "Installs SysPerf's locked dependencies into its venv. Listed in the CI SBOM with them."
     },
     {
       "key": "pytest",
@@ -243,7 +317,6 @@
       "channel": "pip install -e .[dev]",
       "perf": 2,
       "owner": "user",
-      "show_missing": true,
       "why": "Runs the 1,000+ test suite behind the unit and coverage gates (the Auto-Improve tab's self-test). Not needed to run the dashboard itself."
     },
     {
@@ -255,7 +328,6 @@
       "channel": "pip install playwright, then: playwright install chromium",
       "perf": 2,
       "owner": "user",
-      "show_missing": true,
       "why": "Drives a real browser for the 'browser' quality gate (100% UI coverage). Without it that gate is skipped on this machine; the dashboard itself does not need it."
     },
     {
@@ -267,7 +339,6 @@
       "channel": "playwright install chromium",
       "perf": 2,
       "owner": "user",
-      "show_missing": true,
       "why": "The headless browser the browser gate runs. Installed per user under ms-playwright; reinstall after upgrading Playwright."
     },
     {
@@ -279,7 +350,6 @@
       "channel": "winget upgrade Git.Git",
       "perf": 3,
       "owner": "user",
-      "show_missing": true,
       "why": "Self-evolution keeps every AI patch in git worktrees and review branches, and Apply/Roll back are git operations."
     },
     {
@@ -291,7 +361,6 @@
       "channel": "claude update (in WSL)",
       "perf": 4,
       "owner": "user",
-      "show_missing": true,
       "why": "The model provider that proposes self-evolution patches, run headless with all tools disabled."
     },
     {
@@ -303,7 +372,6 @@
       "channel": "sudo apt install bubblewrap (in WSL)",
       "perf": 4,
       "owner": "user",
-      "show_missing": true,
       "why": "Runs AI-written code with no network and a read-only filesystem. Without it every evolution cycle stops as 'blocked'."
     },
     {
