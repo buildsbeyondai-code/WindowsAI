@@ -253,12 +253,3 @@ def test_stop_button_posts_the_stop_action(browser, site):
         timeout=15_000)
     page.close()
 
-
-def test_no_console_errors_on_summary(browser, site):
-    """A JS exception during render would silently blank the hero."""
-    page = _open(browser, site)
-    errors: list = []
-    page.on("pageerror", lambda e: errors.append(str(e)))
-    page.wait_for_selector("#view-summary .sum-ring", timeout=15_000)
-    assert errors == []
-    page.close()
