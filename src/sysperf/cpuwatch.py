@@ -38,21 +38,27 @@ def _median(vals: list) -> float:
 def _interval_cpu(prev: dict, cur_procs: list, dt: float, ncpu: int) -> dict:
     """CPU% per process *name* for one interval (delta cpu_s / dt / cores)."""
     per_name: dict = {}
+    get_prev = prev.get
+    cores = max(ncpu, 1)
     for p in cur_procs:
         if not isinstance(p, dict):
             continue
-        pid = p.get("pid")
-        was = prev.get(pid)
+        was = get_prev(p.get("pid"))
         if was is None:
             continue                      # process not present last sample
         delta = float(p.get("cpu_s") or 0.0) - float(was.get("cpu_s") or 0.0)
         if delta <= 0:
             continue                      # idle, pid reused, or counter reset
-        pct = delta / dt / max(ncpu, 1) * 100.0
+        pct = delta / dt / cores * 100.0
         name = p.get("n") or "?"
-        acc = per_name.setdefault(name, {"pct": 0.0, "ws_mb": 0})
-        acc["pct"] += pct                 # sum instances sharing a name
-        acc["ws_mb"] = max(acc["ws_mb"], int(p.get("ws_mb") or 0))
+        ws = int(p.get("ws_mb") or 0)
+        acc = per_name.get(name)
+        if acc is None:
+            per_name[name] = {"pct": pct, "ws_mb": ws if ws > 0 else 0}
+        else:
+            acc["pct"] += pct             # sum instances sharing a name
+            if ws > acc["ws_mb"]:
+                acc["ws_mb"] = ws
     return per_name
 
 
@@ -131,16 +137,19 @@ def consistent_cpu(history, *, min_pct: float = CPU_MIN_PCT,
         ncpu_seen = ncpu
         prev = {p.get("pid"): p for p in a["cpu_procs"]
                 if isinstance(p, dict) and p.get("pid") is not None}
-        per_name = _interval_cpu(prev, b["cpu_procs"], dt, ncpu)
         if not prev:
             continue                      # nothing to difference against
+        per_name = _interval_cpu(prev, b["cpu_procs"], dt, ncpu)
         intervals += 1
         span_s += dt
         last_per_name = per_name          # newest interval wins == "current"
         for name, acc in per_name.items():
-            e = stats.setdefault(name, {"pcts": [], "active": 0, "ws_mb": 0})
+            e = stats.get(name)
+            if e is None:
+                e = stats[name] = {"pcts": [], "active": 0, "ws_mb": 0}
             e["pcts"].append(round(acc["pct"], 2))
-            e["ws_mb"] = max(e["ws_mb"], acc["ws_mb"])
+            if acc["ws_mb"] > e["ws_mb"]:
+                e["ws_mb"] = acc["ws_mb"]
             if acc["pct"] >= min_pct:
                 e["active"] += 1
 
