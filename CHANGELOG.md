@@ -4,6 +4,21 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.0.7 — 2026-10-26
+
+GitHub only; this release is not submitted to the Microsoft Store.
+
+### Changed
+- **Faster trend recording (self-evolution, approved and applied).**
+  `TrendStore.ingest` creates a daily or hourly bucket only when it is
+  missing and folds each row inline, instead of building two throwaway
+  dicts and calling three helpers per row. `trends.TrendStore.ingest+summary`
+  is 52.6% faster; the sandbox passed 1181 tests. The recorded trends are
+  unchanged: `test_ingest_matches_the_original_fold` compares it with the
+  original over 300 random runs, including NaN, strings, booleans and -0.0.
+  This is the first candidate shipped through **Apply** (verified restart),
+  and the 5.0.6 status logic marked it *applied* automatically.
+
 ## 5.0.6 — 2026-10-26
 
 ### Fixed
