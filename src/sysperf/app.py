@@ -319,6 +319,11 @@ tray_quitter = trayquit_mod.TrayQuitter(TRAYQUIT_STATE_FILE, TRAYQUIT_LOG_FILE,
 # never fall behind what is installed (components.py reads the file it writes).
 latest_versions = version_check_mod.LatestVersions(
     DATA_DIR / "components_latest.json", enabled=VERSION_CHECK)
+# 5.1: a newer release of a locked package becomes a self-evolution candidate.
+# Not in the Store build: its packages are frozen into the signed package.
+if not STORE_MODE:
+    code_evolution.latest_fn = lambda: latest_versions.load().get("latest") or {}
+code_evolution.on_applied = lambda: _restart_soon()
 # Store mode: everything that acts outside the app is opt-in and listed on Home.
 store_features = store_mode_mod.StoreFeatures(
     DATA_DIR / "store_features.json", store_mode=STORE_MODE, action_policy=action_policy,
@@ -1348,7 +1353,7 @@ def _autonomy_apply(diff: dict) -> None:
     improver.set_mode(action_policy.improver_mode())
 
 
-_EVO_KEYS = ("enabled", "interval_s", "max_per_day", "auto_retain")
+_EVO_KEYS = ("enabled", "interval_s", "max_per_day", "auto_retain", "auto_upgrade_deps")
 
 
 def _notify_get() -> dict:
@@ -1422,10 +1427,14 @@ settings_hub = settings_mod.SettingsHub([
         _F("enabled", "Evolution enabled", "bool"),
         _F("interval_s", "Run a cycle every (seconds)", "int", min=300, max=604800),
         _F("max_per_day", "At most cycles per day", "int", min=0, max=48),
-        _F("auto_retain", "Keep winning patches for review", "bool")],
+        _F("auto_retain", "Keep winning patches for review", "bool"),
+        _F("auto_upgrade_deps", "Auto-upgrade outdated third-party packages", "bool",
+           help="A newer release of a package SysPerf pins is tested in the sandbox "
+                "and, when the suite stays green, applied and verified like a patch.")],
         lambda: {k: code_evolution.settings[k] for k in _EVO_KEYS},
         lambda diff: code_evolution.update_settings(diff),
-        {"enabled": False, "interval_s": 21600, "max_per_day": 4, "auto_retain": True}),
+        {"enabled": False, "interval_s": 21600, "max_per_day": 4, "auto_retain": True,
+         "auto_upgrade_deps": True}),
     settings_mod.Section("notifications", "Notifications", [
         _F("toasts", "Show Windows notifications", "bool"),
         _F("min_interval_s", "Repeat the same alert at most every (seconds)", "int",

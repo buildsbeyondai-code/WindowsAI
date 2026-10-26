@@ -27,6 +27,13 @@ What this module guarantees, and what enforces it:
   available, executable validation is BLOCKED and candidates stop after static
   analysis — they are never executed un-isolated.
 * **Everything is audited** in the hash-chained log in ``evodb``.
+* **Third-party packages upgrade themselves (5.1).** When a package in
+  requirements.lock has a newer release, a cycle first tries that upgrade
+  (``depupgrade``): the pins move, the release's pure wheel is unpacked into the
+  worktree and the full suite runs against it in the sandbox. A green upgrade is
+  retained and, with ``auto_upgrade_deps`` on, applied straight away through
+  the same verified, reversible deploy as a patch; the lock is installed with
+  ``--require-hashes`` and reinstalled at the old versions on rollback.
 * **Deploy is one click and reversible (4.1).** ``apply`` fast-forwards main to
   a retained candidate only from a clean tree, tags the previous HEAD as a
   backup and leaves a ``pending_apply.json`` marker. The restarted service
@@ -51,6 +58,7 @@ import time
 import uuid
 from pathlib import Path, PurePosixPath
 
+from . import depupgrade
 from .background_process import run_hidden
 from .llm import LLMClient, LLMError
 
@@ -209,6 +217,16 @@ def git_rollback(repo: Path, backup_sha: str, applied_sha: str) -> None:
         raise RuntimeError(f"HEAD is {head[:10]}, not the applied patch {applied_sha[:10]}; "
                            "refusing to move it")
     _git(repo, "reset", "--keep", backup_sha)
+    if lock_changed(repo, backup_sha, applied_sha):
+        err = depupgrade.pip_sync(repo)
+        if err:
+            log.warning("rollback: reinstalling the previous packages failed: %s", err)
+
+
+def lock_changed(repo: Path, a: str, b: str) -> bool:
+    """True when requirements.lock differs between two commits."""
+    return "requirements.lock" in _git(repo, "diff", "--name-only", a, b,
+                                       check=False).split()
 
 
 # ------------------------------------------------------------------ sandbox --
@@ -459,6 +477,10 @@ class CodeEvolution:
         self.db = db
         self.state_dir = Path(state_dir) if state_dir else Path(workroot).parent
         self.on_retained = None          # called with the candidate dict when one is kept
+        self.on_applied = None           # called after an automatic apply (restart)
+        self.latest_fn = None            # live latest versions; None turns the 3PP lane off
+        self.http_get = depupgrade.http_get_bytes
+        self._apply_after: str | None = None
         self.llm = llm
         self.settings_file = Path(settings_file)
         self.workroot = Path(workroot)
@@ -481,12 +503,12 @@ class CodeEvolution:
         "max_per_day": 4, "min_evidence": 2, "cooldown_s": 1800, "bench_reps": 15,
         "min_gain": 0.10, "engine_min_gain": 0.20, "max_regression": 0.05,
         "noise_k": 3.0, "test_timeout_s": 600, "sandbox": "auto", "docker_image": None,
-        "auto_retain": True,
+        "auto_retain": True, "auto_upgrade_deps": True,
     }
     EDITABLE = {"enabled": bool, "repo": (str, type(None)), "interval_s": (int, float),
                 "max_per_day": int, "min_evidence": int, "cooldown_s": (int, float),
                 "bench_reps": int, "eligible": list, "docker_image": (str, type(None)),
-                "auto_retain": bool}
+                "auto_retain": bool, "auto_upgrade_deps": bool}
     # Acceptance thresholds are deliberately NOT editable through the API.
 
     def _load_settings(self) -> dict:
@@ -626,6 +648,22 @@ class CodeEvolution:
             return {"started": True, "cycle": cid, "state": "failed", "error": str(exc)}
         finally:
             self._lock.release()
+            self._auto_apply()
+
+    def _auto_apply(self) -> None:
+        """Deploy a 3PP upgrade the cycle just retained (outside the cycle lock)."""
+        cand_id, self._apply_after = self._apply_after, None
+        if not cand_id:
+            return
+        try:
+            self.apply(cand_id, actor="evolution")
+        except (ValueError, RuntimeError) as exc:
+            # Left pending: the user can still Apply it from the review list.
+            self.db.audit("evolution", "candidate.auto_apply_skipped",
+                          {"id": cand_id, "reason": str(exc)[:300]})
+            return
+        if self.on_applied is not None:
+            self.on_applied()
 
     def _cycle(self, cid: str) -> dict:
         repo = Path(self.settings["repo"])
@@ -655,6 +693,9 @@ class CodeEvolution:
                                     f"({base_tests['summary']}); refusing to evolve on a red base"
                                     + ("; failing: " + ", ".join(base_tests["failed_tests"][:3])
                                        if base_tests.get("failed_tests") else ""))
+            upgraded = self._dependency_lane(cid, repo, base_sha, base_tests)
+            if upgraded is not None:
+                return upgraded
             base_bench = self._bench(base_wt)
             profile = self._profile(base_wt, files) if base_bench else []
 
@@ -749,31 +790,92 @@ class CodeEvolution:
                 return self._reject(cid, cand, "passed tests and benchmark, but keeping "
                                     "winning patches is switched off: " + verdict["reason"])
 
-            # ---- retain: commit on a review branch (never merged)
-            branch = f"sysperf-evolve/{cand_id}"
-            _git(wt, "checkout", "-q", "-b", branch)
-            _git(wt, "-c", "user.name=SysPerf Evolution", "-c",
-                 "user.email=evolution@sysperf.invalid", "commit", "-q", "-am",
-                 f"evolve: {cand['title']}\n\n{cand['rationale']}\n\nCycle: {cid}\n"
-                 f"Benchmark: {verdict['reason']}\nTests: {t['summary']}\n")
-            cand["branch"] = branch
-            cand["commit_sha"] = _git(wt, "rev-parse", "HEAD").strip()
-            cand["decision"] = "retained"
-            cand["reason"] = verdict["reason"]
-            cand["review_state"] = "pending"
-            self.db.add_candidate(cand)
-            self.db.audit("evolution", "candidate.retained",
-                          {"id": cand_id, "branch": branch, "sha": cand["commit_sha"],
-                           "engine": engine})
-            if self.on_retained is not None:
-                try:
-                    self.on_retained(cand)
-                except Exception:
-                    log.exception("on_retained hook failed")
-            return self._finish(cid, "awaiting_approval",
-                                f"retained on {branch}: {verdict['reason']}; awaiting review")
+            return self._retain(cid, wt, cand, verdict["reason"], t, engine)
         finally:
             self._drop_worktree(repo, wt)
+
+    def _retain(self, cid: str, wt: Path, cand: dict, reason: str, t: dict,
+                engine: bool) -> dict:
+        """Commit the candidate on a review branch (never merged here)."""
+        cand_id = cand["id"]
+        branch = f"sysperf-evolve/{cand_id}"
+        _git(wt, "checkout", "-q", "-b", branch)
+        _git(wt, "-c", "user.name=SysPerf Evolution", "-c",
+             "user.email=evolution@sysperf.invalid", "commit", "-q", "-am",
+             f"evolve: {cand['title']}\n\n{cand['rationale']}\n\nCycle: {cid}\n"
+             f"Benchmark: {reason}\nTests: {t['summary']}\n")
+        cand["branch"] = branch
+        cand["commit_sha"] = _git(wt, "rev-parse", "HEAD").strip()
+        cand["decision"] = "retained"
+        cand["reason"] = reason
+        cand["review_state"] = "pending"
+        self.db.add_candidate(cand)
+        self.db.audit("evolution", "candidate.retained",
+                      {"id": cand_id, "branch": branch, "sha": cand["commit_sha"],
+                       "engine": engine})
+        if self.on_retained is not None:
+            try:
+                self.on_retained(cand)
+            except Exception:
+                log.exception("on_retained hook failed")
+        return self._finish(cid, "awaiting_approval",
+                            f"retained on {branch}: {reason}; awaiting review")
+
+    # ------------------------------------------------------- 3PP upgrades
+    def _dependency_lane(self, cid, repo, base_sha, base_tests) -> dict | None:
+        """Try one outdated locked package; None when there is none to try.
+
+        Each upgrade (package, from, to) is attempted once: a rejected one is
+        not retried every cycle, and a newer release is a new attempt.
+        """
+        if not self.settings.get("auto_upgrade_deps", True) or self.latest_fn is None:
+            return None
+        tried = {c["title"] for c in self.db.candidates(limit=500)}
+        todo = [u for u in depupgrade.outdated(repo, self.latest_fn() or {})
+                if depupgrade.title(u) not in tried]
+        if not todo:
+            return None
+        up = todo[0]
+        cand = {"id": f"c-{cid}", "cycle_id": cid, "created": self.clock(),
+                "title": depupgrade.title(up),
+                "rationale": (f"{up['name']} {up['latest']} is the newest release on PyPI; "
+                              f"SysPerf pins {up['current']}. The pin moves in requirements.txt, "
+                              "requirements.lock (with PyPI's sha256 hashes) and pyproject.toml, "
+                              "and the full test suite runs against the new wheel in the sandbox."),
+                "target": "full test suite green on the new version", "protected": 0}
+        self._set(cid, "generating", problem=json.dumps([{"kind": "3pp_outdated", **up}]),
+                  provider="3pp")
+        try:
+            rel = depupgrade.release(up["name"], up["latest"], self.http_get)
+            why = depupgrade.unsuitable(rel, depupgrade.locked(repo))
+            wheel = None if why else depupgrade.fetch_wheel(rel, self.http_get)
+        except Exception as exc:          # network, or a malformed PyPI answer
+            return self._finish(cid, "failed", f"3PP upgrade of {up['name']}: release "
+                                f"metadata unavailable: {exc}", error=f"network (retryable): {exc}")
+        if why:
+            return self._reject(cid, cand, why)
+        wt = self._worktree(repo, base_sha, cand["id"])
+        try:
+            cand["files"] = json.dumps(depupgrade.apply_pin(wt, up, rel))
+            cand["diff"] = _git(wt, "diff", "--no-color")[:200000]
+            cand["static_ok"] = cand["security_ok"] = 1
+            depupgrade.unpack_wheel(wheel, wt / "_deps")
+            self._set(cid, "testing")
+            t = self._tests(wt, path="_deps")
+            cand["tests_ok"] = 1 if (t["rc"] == 0 and not t["failed"] and not t["errors"] and
+                                     t["passed"] >= base_tests["passed"] and
+                                     t["collected"] >= base_tests["collected"]) else 0
+            cand["details"] = json.dumps({"tests": t, "baseline_tests": base_tests})
+            if not cand["tests_ok"]:
+                return self._reject(cid, cand, f"tests: {t['summary']} (baseline "
+                                    f"{base_tests['summary']})")
+            reason = f"{up['name']} {up['current']} → {up['latest']}, tests green"
+            cand["bench"] = json.dumps({"accept": True, "rows": {}, "reason": reason})
+            out = self._retain(cid, wt, cand, reason, t, False)
+        finally:
+            self._drop_worktree(repo, wt)
+        self._apply_after = cand["id"]
+        return out
 
     # -------------------------------------------------------------- pieces
     def _prompt(self, repo: Path, files: list, evidence: list) -> str:
@@ -851,12 +953,16 @@ class CodeEvolution:
                     out["security"].append(f"{rel} adds {k}")
         return out
 
-    def _tests(self, wt: Path) -> dict:
+    def _tests(self, wt: Path, path: str | None = None) -> dict:
         # -rf lists each failure as "FAILED <test id> - <reason>", so a red run
         # says which test broke instead of only how many.
-        r = self.sandbox.run(wt, [sys.executable, "-m", "pytest", "-q", "-rf", "-p",
-                                  "no:cacheprovider", "-o", "addopts=", "tests"],
-                             timeout_s=self.settings["test_timeout_s"])
+        args = ["-q", "-rf", "-p", "no:cacheprovider", "-o", "addopts=", "tests"]
+        cmd = [sys.executable, "-m", "pytest", *args]
+        if path:
+            # Packages unpacked into the worktree shadow the sandbox's own.
+            cmd = [sys.executable, "-c", f"import sys; sys.path.insert(0, {path!r}); "
+                   f"import pytest; raise SystemExit(pytest.main({args!r}))"]
+        r = self.sandbox.run(wt, cmd, timeout_s=self.settings["test_timeout_s"])
         if r.get("blocked"):
             return {"blocked": True, "summary": r["stderr"]}
         tail = (r["stdout"].strip().splitlines() or [""])[-1]
@@ -1093,6 +1199,11 @@ class CodeEvolution:
             self.db.audit(actor, "candidate.approved", {"id": cand_id, "via": "apply"})
         _git(repo, "tag", "-f", f"sysperf-backup/{cand_id}", head)
         _git(repo, "merge", "-q", "--ff-only", c["branch"])
+        if lock_changed(repo, head, c["commit_sha"]):
+            err = depupgrade.pip_sync(repo)
+            if err:
+                git_rollback(repo, head, c["commit_sha"])
+                raise RuntimeError(f"installing the upgraded packages failed: {err}")
         marker = {"id": cand_id, "title": c.get("title"), "backup_sha": head,
                   "applied_sha": c["commit_sha"], "repo": str(repo), "applied_at": now,
                   "by": actor}
@@ -1199,6 +1310,11 @@ class CodeEvolution:
                     "last_24h": self.db.llm_summary(since),
                     "last_error": self.llm.last_error if self.llm else None},
             "audit": self.db.verify_audit(), "recovered_interrupted": self.recovered,
+            "dependencies": {
+                "enabled": bool(self.settings.get("auto_upgrade_deps", True)
+                                and self.latest_fn is not None),
+                "packages": depupgrade.overview(self.settings.get("repo"),
+                                                (self.latest_fn or dict)() or {}, cands)},
             "deploy": {"pending": self.pending_apply(),
                        "history": list(reversed(read_apply_log(self.state_dir, 10)))},
         }
