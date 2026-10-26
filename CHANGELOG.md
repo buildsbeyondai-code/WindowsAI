@@ -4,6 +4,26 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.0.1 — 2026-10-26
+
+A packaging and CI release; the app itself is unchanged.
+
+### Added
+- **Native Arm64 Store package.** Partner Center recommends Arm64 (AArch64)
+  over 32-bit Arm. `build-msix.ps1` now builds for the build Python's
+  architecture (`-Arch x64|arm64` checks it), the manifest takes it from
+  `{{ARCH}}`, and the new **MSIX** workflow builds `SysPerf_<ver>_x64.msix`
+  and `SysPerf_<ver>_arm64.msix` (on `windows-11-arm`) with the Store
+  identity, checking each package's manifest and `SysPerf.exe` machine type.
+
+### Fixed
+- **CI on Python 3.10.** `markdown==3.11.2` needs Python 3.11, so both 3.10
+  test jobs failed at install. 3.10 now gets `markdown==3.10.3`.
+
+### Removed
+- `test_e2e_playwright.py::test_no_console_errors_on_summary`, a subset of
+  `test_e2e_ui.py::test_no_console_errors_anywhere_in_the_dashboard`.
+
 ## 5.0.0 — 2026-10-25
 
 A security and engineering-quality release from a UAISES v1.0 audit. It is a
