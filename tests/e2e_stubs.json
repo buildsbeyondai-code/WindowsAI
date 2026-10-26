@@ -120,6 +120,7 @@
   "autonomy_level": "self_evolve",
   "candidates": {
    "approved": 0,
+   "applied": 1,
    "pending_review": 1,
    "rejected": 0,
    "retained": 1,

@@ -465,6 +465,7 @@ class CodeEvolution:
         self.clock = clock
         self._lock = threading.Lock()
         self._state = "idle"
+        self._shipped_head: str | None = None
         self._wake = threading.Event()
         self._pending_event: str | None = None
         self.settings = self._load_settings()
@@ -1115,6 +1116,10 @@ class CodeEvolution:
             raise ValueError("nothing has been applied that could be rolled back")
         git_rollback(Path(m["repo"]), m["backup_sha"], m["applied_sha"])
         clear_marker(self.state_dir)
+        c = self.db.candidate(m["id"])
+        if c and c["review_state"] == "applied":
+            self.db.update_candidate(m["id"], review_state="approved")
+        self._shipped_head = None
         now = self.clock()
         append_apply_log(self.state_dir, {"at": now, "event": "rolled_back", "id": m["id"],
                                           "by": actor, "reason": reason,
@@ -1128,13 +1133,50 @@ class CodeEvolution:
         if m is None or not healthy:
             return None
         clear_marker(self.state_dir)
+        self._shipped_head = None            # re-check: it was skipped while verifying
         append_apply_log(self.state_dir, {"at": self.clock(), "event": "confirmed",
                                           "id": m["id"]})
         self.db.audit("system", "candidate.deployed", {"id": m["id"], "sha": m["applied_sha"]})
         return m
 
+    def reconcile_shipped(self) -> list:
+        """Mark approved candidates whose change is now on main as ``applied``.
+
+        A candidate reaches main by Apply (its commit becomes an ancestor of
+        HEAD) or, when main has moved on and Apply refuses it, by
+        ``git cherry-pick -x``, which records "cherry picked from commit <sha>".
+        Re-checked only when HEAD moves. Returns the ids it marked.
+        """
+        repo = self.settings.get("repo")
+        if not repo or not Path(repo, ".git").exists():
+            return []
+        head = _git(Path(repo), "rev-parse", "HEAD", check=False).strip()
+        if not head or head == self._shipped_head:
+            return []
+        self._shipped_head = head
+        verifying = (self.pending_apply() or {}).get("id")
+        picked = _git(Path(repo), "log", "--format=%b",
+                      "--grep=cherry picked from commit", check=False)
+        marked = []
+        for c in self.db.candidates(limit=500):
+            sha = c.get("commit_sha")
+            if c["review_state"] != "approved" or not sha or c["id"] == verifying:
+                continue
+            try:
+                _git(Path(repo), "merge-base", "--is-ancestor", sha, "HEAD")
+                via = "apply"
+            except RuntimeError:
+                via = "cherry-pick" if f"cherry picked from commit {sha}" in picked else None
+            if via:
+                self.db.update_candidate(c["id"], review_state="applied")
+                self.db.audit("system", "candidate.applied", {"id": c["id"], "sha": sha,
+                                                              "via": via, "head": head})
+                marked.append(c["id"])
+        return marked
+
     # --------------------------------------------------------------- status
     def status(self, level: str) -> dict:
+        self.reconcile_shipped()
         last = self._last_attempt()
         cands = self.db.candidates(limit=500)
         since = self.clock() - 86400
@@ -1148,7 +1190,8 @@ class CodeEvolution:
                            "retained": sum(c["decision"] == "retained" for c in cands),
                            "rejected": sum(c["decision"] == "rejected" for c in cands),
                            "pending_review": sum(c["review_state"] == "pending" for c in cands),
-                           "approved": sum(c["review_state"] == "approved" for c in cands)},
+                           "approved": sum(c["review_state"] == "approved" for c in cands),
+                           "applied": sum(c["review_state"] == "applied" for c in cands)},
             "llm": {"available": bool(self.llm and self.llm.available),
                     "provider": getattr(getattr(self.llm, "provider", None), "name", "none"),
                     "model": getattr(getattr(self.llm, "provider", None), "model", None),

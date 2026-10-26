@@ -135,6 +135,72 @@ def test_git_error_is_raised(tmp_path):
         cv._git(tmp_path, "rev-parse", "HEAD")
 
 
+def _git_t(repo, *a):
+    return subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@x", *a],
+                          check=True, capture_output=True, text=True).stdout.strip()
+
+
+def _approved(db, repo, cid, branch):
+    """An approved candidate whose commit sits on its own branch."""
+    _git_t(repo, "switch", "-q", "-c", branch, "main")
+    (repo / f"{cid}.txt").write_text(cid)
+    _git_t(repo, "add", "-A")
+    _git_t(repo, "commit", "-qm", f"evolve: {cid}")
+    sha = _git_t(repo, "rev-parse", "HEAD")
+    _git_t(repo, "switch", "-q", "main")
+    db.start_cycle(f"cy-{cid}", "manual")
+    db.add_candidate({"id": cid, "cycle_id": f"cy-{cid}", "created": 1.0, "decision": "retained",
+                      "branch": branch, "commit_sha": sha, "review_state": "approved"})
+    return sha
+
+
+def test_candidates_that_reach_main_are_marked_applied(tmp_path, repo):
+    e, db = eng(tmp_path, repo)
+    picked = _approved(db, repo, "c-picked", "evo/a")
+    merged = _approved(db, repo, "c-merged", "evo/b")
+    _approved(db, repo, "c-waiting", "evo/c")
+    assert e.reconcile_shipped() == []                       # nothing on main yet
+    assert e.reconcile_shipped() == []                       # HEAD unchanged: not re-checked
+    _git_t(repo, "cherry-pick", "-x", picked)                 # main moved on, so cherry-picked
+    _git_t(repo, "merge", "-q", "--no-edit", "evo/b")         # or merged
+    st = e.status("self_evolve")["candidates"]
+    assert st["applied"] == 2 and st["approved"] == 1
+    assert db.candidate("c-picked")["review_state"] == "applied"
+    assert db.candidate("c-merged")["review_state"] == "applied"
+    assert db.candidate("c-waiting")["review_state"] == "approved"
+    applied = [json.loads(a["payload"]) for a in db.audit_tail(limit=10)
+               if a["event"] == "candidate.applied"]
+    vias = {p["id"]: p["via"] for p in applied}
+    assert vias == {"c-picked": "cherry-pick", "c-merged": "apply"}
+    assert merged
+
+
+def test_reconcile_skips_a_patch_still_being_verified_and_needs_a_repo(tmp_path, repo):
+    e, db = eng(tmp_path, repo)
+    sha = _approved(db, repo, "c-live", "evo/live")
+    _git_t(repo, "merge", "-q", "--ff-only", "evo/live")
+    cv.write_marker(e.state_dir, {"id": "c-live", "backup_sha": "b", "applied_sha": sha})
+    assert e.reconcile_shipped() == []                        # still being verified
+    e.confirm_apply(healthy=True)
+    assert e.reconcile_shipped() == ["c-live"]                # confirmed: now applied
+    e.settings["repo"] = str(tmp_path / "nowhere")
+    assert e.reconcile_shipped() == []
+
+
+def test_rollback_returns_an_applied_candidate_to_approved(tmp_path, repo):
+    e, db = eng(tmp_path, repo)
+    before = _git_t(repo, "rev-parse", "HEAD")
+    sha = _approved(db, repo, "c-back", "evo/back")
+    _git_t(repo, "merge", "-q", "--ff-only", "evo/back")
+    cv.append_apply_log(e.state_dir, {"at": 1.0, "event": "applied", "id": "c-back",
+                                      "backup_sha": before, "applied_sha": sha,
+                                      "repo": str(repo)})
+    assert e.reconcile_shipped() == ["c-back"]
+    e.rollback("c-back")
+    assert db.candidate("c-back")["review_state"] == "approved"
+    assert e.reconcile_shipped() == []                        # main no longer has it
+
+
 def test_git_timeout_is_a_clear_error(monkeypatch, tmp_path):
     seen = {}
 

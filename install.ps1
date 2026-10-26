@@ -363,7 +363,7 @@ if (-not $NoStart) {
             $health = $r.Content | ConvertFrom-Json
             $metrics = Invoke-WebRequest -Uri "${url}api/metrics" -UseBasicParsing -TimeoutSec 10
             $payload = $metrics.Content | ConvertFrom-Json
-            if ($r.StatusCode -eq 200 -and $health.version -eq '5.0.5' -and $metrics.StatusCode -eq 200 -and $payload.latest -and $payload.latest._t -and -not $payload.meta.error) { $ok = $true; break }
+            if ($r.StatusCode -eq 200 -and $health.version -eq '5.0.6' -and $metrics.StatusCode -eq 200 -and $payload.latest -and $payload.latest._t -and -not $payload.meta.error) { $ok = $true; break }
         } catch { $null = $_ }
     }
     if ($ok) {
