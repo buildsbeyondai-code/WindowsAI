@@ -14,6 +14,10 @@
   Partner Center. -IdentityName / -Publisher / -PublisherDisplayName must be the
   exact values from Partner Center > your app > Product identity.
 
+  The package architecture (x64 or arm64) is the build Python's: PyInstaller
+  freezes with that interpreter, so an arm64 package must be built with an
+  arm64 Python on Windows on Arm (CI does this on a windows-11-arm runner).
+
 .EXAMPLE
   .\build-msix.ps1 -IdentityName 12345Contoso.SysPerf -Publisher "CN=ABCD1234-..." -PublisherDisplayName "Contoso" -DisplayName "SysPerf"
   .\build-msix.ps1 -SignForTest     # local test build with a self-signed cert
@@ -29,6 +33,8 @@ param(
     [string]$Version = "",
     [string]$Python = "",
     [string]$OutDir = "",
+    [ValidateSet("", "x64", "arm64")]
+    [string]$Arch = "",
     [switch]$SignForTest
 )
 $ErrorActionPreference = "Stop"
@@ -65,6 +71,12 @@ $Venv = Join-Path $Work "venv"
 if (Test-Path $Venv) { Remove-Item -Recurse -Force $Venv }
 & $Python -m venv $Venv; if ($LASTEXITCODE) { throw "venv failed" }
 $Py = Join-Path $Venv "Scripts\python.exe"
+$machine = (& $Py -c "import platform; print(platform.machine())").Trim()
+$PyArch = @{ "AMD64" = "x64"; "ARM64" = "arm64" }[$machine]
+if (-not $PyArch) { throw "unsupported build Python architecture: $machine (need x64 or arm64)" }
+if ($Arch -and $Arch -ne $PyArch) { throw "-Arch $Arch needs a $Arch Python; $Python is $PyArch" }
+$Arch = $PyArch
+Write-Host "Architecture: $Arch"
 & $Py -m pip install -q --upgrade pip
 # Reproducible: every runtime and build package comes from a hash-locked file,
 # then SysPerf itself is installed without resolving anything else.
@@ -92,7 +104,7 @@ Remove-Item (Join-Path $Assets "SysPerf.ico")
 $manifest = Get-Content -Raw (Join-Path $Here "AppxManifest.xml")
 $manifest = $manifest.Replace("{{IDENTITY_NAME}}", $IdentityName).Replace("{{PUBLISHER}}", $Publisher)
 $manifest = $manifest.Replace("{{PUBLISHER_DISPLAY_NAME}}", [Security.SecurityElement]::Escape($PublisherDisplayName)).Replace("{{VERSION}}", $Version)
-$manifest = $manifest.Replace("{{DISPLAY_NAME}}", [Security.SecurityElement]::Escape($DisplayName))
+$manifest = $manifest.Replace("{{DISPLAY_NAME}}", [Security.SecurityElement]::Escape($DisplayName)).Replace("{{ARCH}}", $Arch)
 [IO.File]::WriteAllText((Join-Path $Layout "AppxManifest.xml"), $manifest, (New-Object Text.UTF8Encoding $false))
 
 # --- 4. makeappx ---------------------------------------------------------------
@@ -116,7 +128,7 @@ function Find-SdkTool($name) {
     return $hit.FullName
 }
 $MakeAppx = Find-SdkTool "makeappx.exe"
-$Msix = Join-Path $OutDir "SysPerf_${Version}_x64.msix"
+$Msix = Join-Path $OutDir "SysPerf_${Version}_${Arch}.msix"
 if (Test-Path $Msix) { Remove-Item -Force $Msix }
 & $MakeAppx pack /o /d $Layout /p $Msix | Select-String -Pattern "error|succeeded" | Out-Host
 if ($LASTEXITCODE) { throw "makeappx pack failed" }

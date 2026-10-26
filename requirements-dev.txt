@@ -1,4 +1,6 @@
 -r requirements.txt
 pytest==9.1.1
 ruff==0.6.9
-markdown==3.11.2
+# Markdown 3.11 needs Python 3.11; CI still tests 3.10 (requires-python >=3.10).
+markdown==3.10.3; python_version < "3.11"
+markdown==3.11.2; python_version >= "3.11"

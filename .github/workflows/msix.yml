@@ -1,0 +1,69 @@
+name: MSIX
+
+# Store packages for both Windows architectures. PyInstaller freezes with the
+# interpreter it runs under, so the Arm64 package is built on an Arm64 runner.
+# Upload both artifacts to the same Partner Center submission.
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+  # Packaging changes get both builds before they reach main.
+  pull_request:
+    paths: ['packaging/msix/**', '.github/workflows/msix.yml', 'requirements.lock']
+
+permissions:
+  contents: read
+
+env:
+  # Partner Center > Product management > Product identity.
+  IDENTITY_NAME: JudeFinney.SysPerfPCPerformanceAgent
+  PUBLISHER: CN=E915F59E-531D-4192-827B-41D3234152B5
+  PUBLISHER_DISPLAY_NAME: Jude Finney
+  DISPLAY_NAME: 'SysPerf: PC Performance Agent'
+
+jobs:
+  msix:
+    name: msix (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, runner: windows-latest, machine: 0x8664 }
+          - { arch: arm64, runner: windows-11-arm, machine: 0xAA64 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        id: py
+        with:
+          python-version: '3.13'
+
+      - name: Build
+        shell: pwsh
+        run: |
+          ./packaging/msix/build-msix.ps1 -Arch ${{ matrix.arch }} `
+            -Python '${{ steps.py.outputs.python-path }}' `
+            -OutDir (Join-Path $env:RUNNER_TEMP msix) `
+            -IdentityName $env:IDENTITY_NAME -Publisher $env:PUBLISHER `
+            -PublisherDisplayName $env:PUBLISHER_DISPLAY_NAME -DisplayName $env:DISPLAY_NAME
+
+      - name: Package and executable are ${{ matrix.arch }}
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP msix
+          $manifest = [xml](Get-Content -Raw (Join-Path $out layout/AppxManifest.xml))
+          $arch = $manifest.Package.Identity.ProcessorArchitecture
+          if ($arch -ne '${{ matrix.arch }}') { throw "manifest says $arch" }
+          # PE header: e_lfanew at 0x3C, then 'PE\0\0', then the machine type.
+          $b = [IO.File]::ReadAllBytes((Join-Path $out layout/SysPerf/SysPerf.exe))
+          $machine = [BitConverter]::ToUInt16($b, [BitConverter]::ToInt32($b, 0x3C) + 4)
+          if ($machine -ne ${{ matrix.machine }}) { throw ('SysPerf.exe machine 0x{0:X4}' -f $machine) }
+          Get-ChildItem $out -Filter *.msix | ForEach-Object {
+            "$($_.Name)  $([math]::Round($_.Length / 1MB, 1)) MB  $((Get-FileHash $_.FullName).Hash)" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: msix-${{ matrix.arch }}
+          path: ${{ runner.temp }}/msix/*.msix
+          if-no-files-found: error
