@@ -1,2 +1,2 @@
 """SysPerf — self-improving Windows 11 performance dashboard."""
-__version__ = "5.1.0"
+__version__ = "5.1.1"

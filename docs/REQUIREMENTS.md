@@ -57,6 +57,8 @@ acceptance criteria.
 | R15 | the dashboard is opened | each tab is clicked in a real browser | every view renders, with loading, empty and error states | `tests/test_e2e_ui.py::test_every_tab_opens_its_view`, `tests/test_e2e_v41.py::test_home_with_nothing_to_do` |
 | R17 | a package in requirements.lock has a newer pure-wheel release | a self-evolution cycle runs | the pin moves in all three pin files, the suite runs against it in the sandbox and a green upgrade is applied and verified; a red one is rejected and main is unchanged | `tests/test_depupgrade.py::test_green_upgrade_is_retained_applied_and_restarted`, `tests/test_depupgrade.py::test_red_tests_reject_the_upgrade` |
 | R18 | an applied upgrade's packages fail to install | Apply runs pip | main returns to the previous commit and the previous packages are reinstalled | `tests/test_depupgrade.py::test_apply_rolls_back_when_the_packages_do_not_install` |
+| R19 | a component is added to components.json | the suite runs | it fails unless the row names a known upgrader | `tests/test_upgrader.py::test_every_component_row_names_a_known_upgrader` |
+| R20 | a host component's isolated test fails, or its post-upgrade check fails | the upgrade runs | the real install is left untouched, or rolled back from the backup | `tests/test_upgrader.py::test_pipeline_outcomes`, `tests/test_upgrader.py::test_apt_failures_and_rollback` |
 | R16 | a worker fails repeatedly | it logs the same error | the log keeps the first three per 10 minutes and reports the rest | `tests/test_health.py::test_repeat_filter_lets_a_burst_through_then_reports_the_rest` |
 
 ## Non-functional targets

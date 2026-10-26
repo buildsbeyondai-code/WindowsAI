@@ -383,23 +383,27 @@ def test_optional_features_are_hidden_outside_the_store_app_and_errors_show(brow
     page.close()
 
 
-def test_third_party_upgrades_card_shows_each_package_state(browser, site):
+def test_component_upgrades_card_shows_every_component_and_its_state(browser, site):
     page = _open(browser, site, hash_="#self-evolution")
-    page.wait_for_function("() => document.getElementById('sevDeps').innerText.includes('flask')")
+    page.wait_for_function("() => document.getElementById('sevDeps').innerText.includes('Flask')")
     text = page.inner_text("#sevDeps")
     assert text.startswith("On.") and "upgraded" in text
     assert "not upgraded — jinja2 3.2.0 requires Python >=3.11" in text
-    assert "upgrade queued for the next evolution cycle" in text      # waitress
-    assert "latest not checked yet" in text and "up to date" in text
+    assert "applying — SysPerf restarts to finish" in text                   # python
+    assert "queued for the next evolution cycle" in text                     # ubuntu
+    assert "rolled back — git reports" in text and "handed to its updater" in text
+    assert "upgraded with wsl" in text and "up to date" in text and "not installed" in text
+    assert "throwaway copy" in text
     assert page.query_selector("#sevDeps a[href='#details/components']")
-    off = dict(STUBS["api/codevolve"], dependencies={"enabled": False, "packages": [
-        {"name": "waitress", "current": "3.0.2", "latest": "3.0.3", "outdated": True}]})
+    off = dict(STUBS["api/codevolve"], components={"enabled": False, "rows": [
+        {"key": "waitress", "name": "waitress", "label": "pinned", "current": "3.0.2",
+         "latest": "3.0.3", "outdated": True}]})
     page = _open(browser, site, hash_="#self-evolution", overrides={"api/codevolve": off})
     page.wait_for_function("() => document.getElementById('sevDeps').innerText.includes('Off.')")
     assert "auto-upgrade is off" in page.inner_text("#sevDeps")
     page = _open(browser, site, hash_="#self-evolution", overrides={
-        "api/codevolve": dict(STUBS["api/codevolve"], dependencies={})})
-    page.wait_for_function("() => document.getElementById('sevDeps').innerText.includes('No hash-locked')")
+        "api/codevolve": dict(STUBS["api/codevolve"], components={})})
+    page.wait_for_function("() => document.getElementById('sevDeps').innerText.includes('not available yet')")
     page.close()
 
 

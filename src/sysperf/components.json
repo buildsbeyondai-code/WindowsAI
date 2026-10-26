@@ -3,6 +3,7 @@
   "note": "current = measured live on this machine. latest = each vendor's newest public release, checked daily from its release feed (version_check.py); the values here are the fallback when that check is off or offline. An installed build newer than any public release is shown as its own target. Driver/BIOS staleness is judged by age. perf = estimated performance/stability benefit (0-100).",
   "catalog": [
     {
+      "upgrade": {"via": "wsl"},
       "key": "wsl",
       "name": "WSL 2 platform",
       "category": "Platform",
@@ -14,6 +15,7 @@
       "why": "WSL updates carry autoMemoryReclaim + networking-mode improvements that directly reduce the vmmemWSL footprint. Update with `wsl --update`."
     },
     {
+      "upgrade": {"via": "follows", "of": "wsl"},
       "key": "kernel",
       "name": "WSL 2 kernel",
       "category": "Platform",
@@ -25,6 +27,7 @@
       "why": "The WSL2 Linux kernel governs guest memory reclaim and virtio I/O. Ships with `wsl --update`."
     },
     {
+      "upgrade": {"via": "windows-update"},
       "key": "net-driver",
       "name": "Wi-Fi / network driver",
       "category": "Driver",
@@ -38,6 +41,7 @@
       "why": "A current network driver improves sustained throughput, roaming stability and power, and fixes latency spikes."
     },
     {
+      "upgrade": {"via": "windows-update"},
       "key": "gpu-driver",
       "name": "Graphics driver",
       "category": "Driver",
@@ -51,6 +55,7 @@
       "why": "Newer graphics drivers fix rendering stalls and improve compositor and WebView2 performance."
     },
     {
+      "upgrade": {"via": "pwsh"},
       "key": "powershell",
       "name": "PowerShell",
       "category": "Tooling",
@@ -62,6 +67,7 @@
       "why": "PowerShell 7.6.6 installed alongside the frozen Windows PowerShell 5.1 (user-scope portable, no admin needed) - faster startup/parsing. For a machine-wide managed install, IT can run `winget install Microsoft.PowerShell` elevated. The collector still uses 5.1 for compatibility."
     },
     {
+      "upgrade": {"via": "vendor-update"},
       "key": "edge",
       "name": "Microsoft Edge",
       "category": "Browser",
@@ -73,6 +79,7 @@
       "why": "Edge + WebView2 dominate process/handle counts here. It auto-updates, so it is usually at most a few days behind; trimming extensions and idle tabs helps more than the version."
     },
     {
+      "upgrade": {"via": "vendor-update"},
       "key": "webview2",
       "name": "WebView2 Runtime",
       "category": "Browser",
@@ -84,6 +91,7 @@
       "why": "WebView2 backs many app UIs (Teams, Outlook, GlobalProtect). The evergreen runtime keeps itself current."
     },
     {
+      "upgrade": {"via": "ubuntu-release"},
       "key": "ubuntu",
       "name": "Ubuntu (WSL distro)",
       "category": "OS",
@@ -95,6 +103,7 @@
       "why": "Ubuntu 26.04 LTS is available as a release upgrade (LTS to LTS). Until then keep 24.04 patched with `sudo apt update && sudo apt full-upgrade`."
     },
     {
+      "upgrade": {"via": "windows-update"},
       "key": "bios",
       "name": "UEFI / BIOS firmware",
       "category": "Firmware",
@@ -108,6 +117,7 @@
       "why": "UEFI/BIOS updates improve power/thermal management, Thunderbolt/Wi-Fi stability and ship Intel microcode and security fixes."
     },
     {
+      "upgrade": {"via": "apt", "package": "docker-ce"},
       "key": "docker",
       "name": "Docker engine",
       "category": "Container",
@@ -120,6 +130,7 @@
       "optional": true
     },
     {
+      "upgrade": {"via": "apt", "package": "python3"},
       "key": "python3",
       "name": "Python 3 runtime",
       "category": "Runtime",
@@ -132,6 +143,7 @@
       "why": "At the LTS-maintained version (security-backported; the interpreter that runs this dashboard and the API). Upstream 3.12.7 would need deadsnakes/source and risks the system Python - do NOT auto-replace."
     },
     {
+      "upgrade": {"via": "windows-update"},
       "key": "windows",
       "name": "Windows 11 build",
       "category": "OS",
@@ -143,6 +155,7 @@
       "why": "IT-managed; newer builds carry scheduler, memory-compression and security-agent interoperability fixes."
     },
     {
+      "upgrade": {"via": "apt", "package": "git"},
       "key": "git",
       "name": "Git",
       "category": "Tooling",
@@ -155,6 +168,7 @@
       "why": "At the LTS-maintained version. Upstream 2.46 (faster large-repo status/checkout) needs the git-core PPA."
     },
     {
+      "upgrade": {"via": "python-org"},
       "key": "python",
       "name": "Python (runs SysPerf)",
       "category": "SysPerf toolchain",
@@ -166,6 +180,7 @@
       "why": "The interpreter the dashboard, collector and agent run on. Patch releases inside the same 3.11 line are safe; a new minor line needs the venv rebuilt (re-run install.ps1)."
     },
     {
+      "upgrade": {"via": "pip-lock"},
       "key": "flask",
       "name": "Flask (web framework)",
       "category": "SysPerf toolchain",
@@ -177,6 +192,7 @@
       "why": "Serves the dashboard API. Pinned so every install behaves the same; change the pin deliberately and run the quality gates."
     },
     {
+      "upgrade": {"via": "pip-lock"},
       "key": "waitress",
       "name": "waitress (web server)",
       "category": "SysPerf toolchain",
@@ -188,6 +204,7 @@
       "why": "The production WSGI server SysPerf runs under on 127.0.0.1. Without it SysPerf falls back to Flask's development server."
     },
     {
+      "upgrade": {"via": "pip-lock"},
       "key": "werkzeug",
       "name": "Werkzeug (Flask's HTTP core)",
       "category": "SysPerf toolchain",
@@ -199,6 +216,7 @@
       "why": "Request parsing, routing and responses under Flask. Locked with Flask; update them together and run the quality gates."
     },
     {
+      "upgrade": {"via": "pip-lock"},
       "key": "jinja2",
       "name": "Jinja2 (Flask templating)",
       "category": "SysPerf toolchain",
@@ -210,6 +228,7 @@
       "why": "Flask's template engine, a required Flask dependency. Locked with Flask."
     },
     {
+      "upgrade": {"via": "pip-lock"},
       "key": "markupsafe",
       "name": "MarkupSafe (HTML escaping)",
       "category": "SysPerf toolchain",
@@ -221,6 +240,7 @@
       "why": "Safe HTML escaping for Jinja2 and Werkzeug. Locked with Flask."
     },
     {
+      "upgrade": {"via": "pip-lock"},
       "key": "itsdangerous",
       "name": "itsdangerous (signed data)",
       "category": "SysPerf toolchain",
@@ -232,6 +252,7 @@
       "why": "Signs Flask session data. Locked with Flask."
     },
     {
+      "upgrade": {"via": "pip-lock"},
       "key": "click",
       "name": "click (Flask command line)",
       "category": "SysPerf toolchain",
@@ -243,6 +264,7 @@
       "why": "Flask's command-line interface. Locked with Flask."
     },
     {
+      "upgrade": {"via": "pip-lock"},
       "key": "blinker",
       "name": "blinker (Flask signals)",
       "category": "SysPerf toolchain",
@@ -254,6 +276,7 @@
       "why": "Flask's signal dispatch. Locked with Flask."
     },
     {
+      "upgrade": {"via": "pip-tool", "package": "pip"},
       "key": "pip",
       "name": "pip (package installer)",
       "category": "SysPerf toolchain",
@@ -265,6 +288,7 @@
       "why": "Installs SysPerf's locked dependencies into its venv. Listed in the CI SBOM with them."
     },
     {
+      "upgrade": {"via": "pip-dev"},
       "key": "pytest",
       "name": "pytest (test runner)",
       "category": "SysPerf toolchain",
@@ -276,6 +300,7 @@
       "why": "Runs the 1,000+ test suite behind the unit and coverage gates (the Auto-Improve tab's self-test). Not needed to run the dashboard itself."
     },
     {
+      "upgrade": {"via": "pip-tool", "package": "playwright"},
       "key": "playwright",
       "name": "Playwright (browser testing)",
       "category": "SysPerf toolchain",
@@ -287,6 +312,7 @@
       "why": "Drives a real browser for the 'browser' quality gate (100% UI coverage). Without it that gate is skipped on this machine; the dashboard itself does not need it."
     },
     {
+      "upgrade": {"via": "playwright-browser"},
       "key": "chromium",
       "name": "Chromium for Playwright",
       "category": "SysPerf toolchain",
@@ -298,6 +324,7 @@
       "why": "The headless browser the browser gate runs. Installed per user under ms-playwright; reinstall after upgrading Playwright."
     },
     {
+      "upgrade": {"via": "winget", "id": "Git.Git"},
       "key": "git-windows",
       "name": "Git for Windows",
       "category": "SysPerf toolchain",
@@ -309,6 +336,7 @@
       "why": "Self-evolution keeps every AI patch in git worktrees and review branches, and Apply/Roll back are git operations."
     },
     {
+      "upgrade": {"via": "claude"},
       "key": "claude-code",
       "name": "Claude Code (AI provider)",
       "category": "SysPerf toolchain",
@@ -320,6 +348,7 @@
       "why": "The model provider that proposes self-evolution patches, run headless with all tools disabled."
     },
     {
+      "upgrade": {"via": "apt", "package": "bubblewrap"},
       "key": "bubblewrap",
       "name": "bubblewrap (evolution sandbox)",
       "category": "SysPerf toolchain",

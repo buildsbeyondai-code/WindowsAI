@@ -2,6 +2,15 @@
 
 _Last updated: 2026-10-25, release 5.0.0._
 
+## 5.1.1 (2026-10-27)
+
+- Every Components row has an upgrader (`upgrader.py`); self-evolution tests
+  each upgrade in isolation, applies it, verifies it and rolls it back on
+  failure. Major upgrades (Ubuntu LTS→LTS, Python minor) are automatic, at the
+  user's request, with a distro export / previous installer as the backup.
+  Drivers, BIOS, the Windows build and Edge are handed to their own updaters.
+- GitHub only, not submitted to the Store.
+
 ## 5.1.0 (2026-10-27)
 
 - Self-evolution upgrades outdated hash-locked runtime packages

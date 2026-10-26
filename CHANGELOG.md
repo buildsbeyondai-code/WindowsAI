@@ -4,6 +4,52 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.1.1 — 2026-10-27
+
+GitHub only; this release is not submitted to the Microsoft Store.
+
+### Added
+- **Every component upgrades itself through self-evolution.** Each of the 29
+  rows of Components now names an upgrader in `components.json`
+  (`upgrade.via`), and `tests/test_upgrader.py` fails if a row, today's or one
+  added later, has none. One outdated component per cycle goes through
+  *test in isolation → back up → apply → verify → keep or roll back*
+  (`upgrader.py`), and every step lands in the audit log:
+  - **SysPerf's pins** (Flask and its locked dependencies, pytest): moved in
+    git and tested in the sandbox as in 5.1.0. Platform wheels such as
+    MarkupSafe now qualify: the sandbox gets the manylinux wheel for its
+    Python, and Windows must have a wheel too. Deploys also update the WSL
+    sandbox venv.
+  - **pip, Playwright**: installed into a throwaway venv first.
+  - **Ubuntu (including the 24.04 → 26.04 release upgrade), apt packages
+    (python3, git, bubblewrap, Docker), Claude Code**: the distro is exported,
+    imported as a throwaway copy, upgraded there, and SysPerf's suite runs in
+    the copy's sandbox. The export stays as the backup until the real upgrade
+    is verified; a failed release upgrade restores it. The sandbox venv is
+    rebuilt when the distro's Python changes.
+  - **Python (the interpreter SysPerf runs on)**: the same release from NuGet
+    runs the full Windows suite in a staging venv. A detached helper stops
+    SysPerf, upgrades (in place for a patch, a new venv for a minor), starts
+    it, waits for `/api/health`, and reverts if it does not come back healthy.
+  - **PowerShell**: the release zip must run the real collector script before
+    the MSIX is installed; the previous MSIX is the rollback.
+  - **Git for Windows**: that release's PortableGit runs every git operation
+    self-evolution uses before `winget upgrade`; `winget install --version`
+    is the rollback.
+  - **WSL**: the MSI's Microsoft Authenticode signature is checked; the
+    sandbox suite must pass afterwards, or the previous MSI is reinstalled.
+  - **Chromium for Playwright**: installed beside the old build and launched.
+  - **Drivers, BIOS, the Windows build, Edge, WebView2**: handed to Windows
+    Update or Edge Update, which test and roll back their own packages (at
+    most once a month per component). SysPerf never flashes firmware itself.
+  - The WSL kernel is upgraded with WSL.
+  Installers that need administrator rights (WSL, machine-wide Git) show the
+  normal UAC prompt; a declined prompt is reported and retried with the next
+  release. The component lane needs no LLM. The Self-evolution page's
+  **Component upgrades** card lists every component, its upgrader and its
+  last attempt, and Components shows each row's upgrader. The setting is
+  now **Auto-upgrade every outdated component** (on; off in the Store build).
+
 ## 5.1.0 — 2026-10-27
 
 GitHub only; this release is not submitted to the Microsoft Store.

@@ -1,4 +1,4 @@
-SysPerf 5.1.0 - START HERE
+SysPerf 5.1.1 - START HERE
 ================================================================================
 A performance dashboard for Windows 11. It measures your PC from Windows' own
 counters, learns this PC's normal, and shows what is slowing it down and why.

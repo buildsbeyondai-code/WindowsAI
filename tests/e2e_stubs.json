@@ -112,46 +112,132 @@
   "title": "set membership"
  },
  "api/codevolve": {
-  "dependencies": {
+  "components": {
    "enabled": true,
-   "packages": [
+   "rows": [
     {
-     "current": "1.9.0",
-     "latest": "1.9.0",
-     "name": "blinker",
-     "outdated": false
+     "attempt": "3PP upgrade: python 3.15.1 → 3.15.2",
+     "candidate": "c-20261027-030000-aa0001",
+     "current": "3.15.1",
+     "decision": "retained",
+     "key": "python",
+     "label": "python.org installer; staged from NuGet and run against the full suite",
+     "latest": "3.15.2",
+     "missing": false,
+     "name": "Python (runs SysPerf)",
+     "of": null,
+     "outdated": true,
+     "reason": "SysPerf restarts to finish this upgrade",
+     "review_state": "verifying",
+     "via": "python-org"
     },
     {
+     "current": "24.04",
+     "key": "ubuntu",
+     "label": "release upgrade, tested in a throwaway copy; the export is the backup",
+     "latest": "26.04.1",
+     "missing": false,
+     "name": "Ubuntu (WSL distro)",
+     "of": null,
+     "outdated": true,
+     "via": "ubuntu-release"
+    },
+    {
+     "attempt": "3PP upgrade: flask 3.1.3 → 3.2.0",
      "candidate": "c-20261027-010000-abc123",
      "current": "3.1.3",
      "decision": "retained",
+     "key": "flask",
+     "label": "pinned in requirements.lock (hashes)",
      "latest": "3.2.0",
-     "name": "flask",
+     "missing": false,
+     "name": "Flask (web framework)",
+     "of": null,
      "outdated": true,
      "reason": "flask 3.1.3 → 3.2.0, tests green",
-     "review_state": "applied"
+     "review_state": "applied",
+     "via": "pip-lock"
     },
     {
-     "current": "2.2.0",
-     "latest": null,
-     "name": "itsdangerous",
-     "outdated": false
-    },
-    {
+     "attempt": "3PP upgrade: jinja2 3.1.6 → 3.2.0",
      "candidate": "c-20261027-020000-def456",
      "current": "3.1.6",
      "decision": "rejected",
+     "key": "jinja2",
+     "label": "pinned in requirements.lock (hashes)",
      "latest": "3.2.0",
-     "name": "jinja2",
+     "missing": false,
+     "name": "Jinja2 (Flask templating)",
+     "of": null,
      "outdated": true,
      "reason": "jinja2 3.2.0 requires Python >=3.11, and SysPerf still supports 3.10",
-     "review_state": "none"
+     "review_state": "none",
+     "via": "pip-lock"
     },
     {
-     "current": "3.0.2",
-     "latest": "3.0.3",
-     "name": "waitress",
-     "outdated": true
+     "attempt": "3PP upgrade: git-windows 2.56.0 → 2.57.0",
+     "candidate": "c-20261027-040000-bb0002",
+     "current": "2.56.0",
+     "decision": "rejected",
+     "key": "git-windows",
+     "label": "winget; the release's PortableGit runs every git operation first",
+     "latest": "2.57.0",
+     "missing": false,
+     "name": "Git for Windows",
+     "of": null,
+     "outdated": true,
+     "reason": "git reports git version 2.56.0",
+     "review_state": "rolled_back",
+     "via": "winget"
+    },
+    {
+     "attempt": "3PP upgrade: bios F.26 → manufacturer's latest (#20753)",
+     "candidate": "c-20261027-050000-cc0003",
+     "current": "F.26",
+     "decision": "retained",
+     "key": "bios",
+     "label": "Windows Update scan (drivers arrive as optional updates)",
+     "latest": "manufacturer's latest",
+     "missing": false,
+     "name": "UEFI / BIOS firmware",
+     "of": null,
+     "outdated": true,
+     "reason": "Windows Update scan started",
+     "review_state": "handed_off",
+     "via": "windows-update"
+    },
+    {
+     "current": "6.18.54.1",
+     "key": "kernel",
+     "label": "upgraded with another component",
+     "latest": "6.18.54.1",
+     "missing": false,
+     "name": "WSL 2 kernel",
+     "of": "wsl",
+     "outdated": false,
+     "via": "follows"
+    },
+    {
+     "current": "156.0.4314.42",
+     "key": "edge",
+     "label": "Microsoft Edge Update",
+     "latest": "156.0.4314.42",
+     "missing": false,
+     "name": "Microsoft Edge",
+     "of": null,
+     "outdated": false,
+     "via": "vendor-update"
+    },
+    {
+     "current": "not installed",
+     "key": "docker",
+     "label": "apt in WSL, tested in a throwaway copy of the distro",
+     "latest": "29.9.1",
+     "missing": true,
+     "name": "Docker engine",
+     "of": null,
+     "outdated": false,
+     "via": "apt"
     }
    ]
   },
