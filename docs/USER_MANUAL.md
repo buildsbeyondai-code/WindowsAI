@@ -1,6 +1,6 @@
 # SysPerf User Manual
 
-**System Performance Agent — version 5.1.2**
+**System Performance Agent — version 5.2.0**
 
 A self-improving performance dashboard for Windows 11. It measures the PC, explains
 what holds it back, and changes it only in ways it lists and you can undo.
@@ -279,6 +279,12 @@ computation, so they never disagree.
   total. `latest` is the vendor's newest public release, checked daily, with the
   reviewed catalog as the fallback — treat it as guidance, and confirm driver
   and firmware versions with your OEM's support tool.
+  The Windows-side upgrades (Windows Update, Edge Update, PowerShell, winget,
+  WSL) need no AI model, WSL sandbox or source checkout. They run on their own
+  every six hours from the Safe-auto autonomy level, or one at a time with
+  **Upgrade now** on the AI Self-Evolution tab's Component upgrades card at any
+  level except Off. Rows that need the sandbox (SysPerf's pinned packages, the
+  WSL distro's tools) say so.
 
 ### 5.1 Header
 

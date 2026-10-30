@@ -635,6 +635,81 @@ class CodeEvolution:
             return "no LLM provider configured — monitoring and rule-based advice continue"
         return self.llm.meter.check()
 
+    # ------------------------------------------------------ standalone upgrades
+    # Windows-side upgrades (Windows Update, Edge Update, PowerShell, winget, WSL)
+    # need no model, no source checkout and no sandbox. Tying them to the full
+    # cycle meant a PC without AI or WSL never upgraded anything, so they also
+    # run on their own: unattended from Safe-auto, or on request from Observe.
+    UPGRADE_EVERY_S = 6 * 3600
+    _next_upgrade = 0.0
+
+    def _cycle_covers_upgrades(self, level: str) -> bool:
+        """True when the self-evolution cycle runs these upgrades itself."""
+        return (level == "self_evolve" and bool(self.settings["enabled"])
+                and bool(self.settings.get("repo")) and self.sandbox.backend != "none")
+
+    def upgrade_gate(self, level: str, manual: bool = False) -> str | None:
+        """Why an upgrade pass may not start now (None = go)."""
+        if not self.settings.get("auto_upgrade_deps", True) or self.components_fn is None:
+            return "auto-upgrade is off"
+        if level == "off":
+            return "autonomy level is 'off'"
+        if manual:
+            return None
+        if level not in ("safe_auto", "self_evolve"):
+            return (f"autonomy level is '{level}': upgrades run on their own from "
+                    "Safe-auto, or press Upgrade now")
+        if self._cycle_covers_upgrades(level):
+            return "the self-evolution cycle runs the upgrades"
+        if self.clock() < self._next_upgrade:
+            return f"next upgrade check in {int(self._next_upgrade - self.clock())} s"
+        return None
+
+    def upgrade_pass(self, level: str, trigger: str = "schedule") -> dict:
+        """Upgrade the first outdated standalone component not yet tried."""
+        why = self.upgrade_gate(level, manual=trigger == "manual")
+        if why:
+            return {"started": False, "reason": why}
+        if not self._lock.acquire(blocking=False):
+            return {"started": False, "reason": "a cycle is already running"}
+        cid = None
+        try:
+            self._next_upgrade = self.clock() + self.UPGRADE_EVERY_S
+            tried = {c["title"] for c in self.db.candidates(limit=1000)}
+            host = upgrader.Host(run=self.run, get=self.http_get,
+                                 staging=self.workroot.parent / "upgrade-staging",
+                                 repo=Path(self.settings.get("repo") or self.state_dir),
+                                 data_dir=self.state_dir, windows=OS_NAME == "nt",
+                                 win_python=depupgrade._python(), venv_dir=Path(sys.prefix))
+            for row in self.components_fn() or []:
+                u = upgrader.REGISTRY.get((row.get("upgrade") or {}).get("via"))
+                if u is None or not u.standalone or row.get("missing"):
+                    continue
+                try:
+                    up = u.pending(row, host)
+                except Exception as exc:      # one broken probe must not stop the rest
+                    log.warning("upgrade check for %s failed: %s", row.get("key"), exc)
+                    continue
+                if not up or self._upgrade_title(u, up) in tried:
+                    continue
+                cid = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
+                self.db.start_cycle(cid, f"upgrade:{trigger}")
+                self.db.audit("evolution", "cycle.start", {"id": cid, "trigger": f"upgrade:{trigger}"})
+                out = self._host_upgrade(cid, u, up, host)
+                self.db.audit("evolution", "cycle.end", {"id": cid, "state": out["state"],
+                                                         "explanation": out["explanation"]})
+                return {"started": True, "cycle": cid, **out}
+            return {"started": False, "reason": "every component is current or already tried"}
+        except Exception as exc:
+            log.exception("upgrade pass failed")
+            if cid:
+                self._set(cid, "failed", finished=self.clock(), error=str(exc)[:500],
+                          explanation=f"internal error: {exc}")
+            return {"started": bool(cid), "cycle": cid, "state": "failed", "error": str(exc)}
+        finally:
+            self._lock.release()
+            self._auto_apply()
+
     def notify(self, event: str) -> None:
         """Event trigger (e.g. a failing self-test gate)."""
         self._pending_event = event
@@ -650,6 +725,7 @@ class CodeEvolution:
                 if not self.gate(trig, level_fn()):
                     self.run_cycle(trig, level_fn(), detail=self._pending_event)
                 self._pending_event = None
+                self.upgrade_pass(level_fn())
             except Exception:        # pragma: no cover - the loop must survive anything
                 log.exception("evolution loop error")
                 self._state = "failed"
@@ -1450,6 +1526,7 @@ class CodeEvolution:
                 None)
             row = {"key": r["key"], "name": r.get("name"), "via": spec.get("via"),
                    "label": u.label if u else "no upgrader", "of": spec.get("of"),
+                   "standalone": bool(u and u.standalone),
                    "current": r.get("current"), "latest": r.get("latest"),
                    "outdated": bool(r.get("outdated")), "missing": bool(r.get("missing"))}
             if last:
@@ -1485,6 +1562,9 @@ class CodeEvolution:
                     "last_error": self.llm.last_error if self.llm else None},
             "audit": self.db.verify_audit(), "recovered_interrupted": self.recovered,
             "components": self.component_overview(cands),
+            "upgrades": {"gate": self.upgrade_gate(level),
+                         "manual": self.upgrade_gate(level, manual=True),
+                         "by_cycle": self._cycle_covers_upgrades(level)},
             "deploy": {"pending": self.pending_apply(),
                        "history": list(reversed(read_apply_log(self.state_dir, 10)))},
         }

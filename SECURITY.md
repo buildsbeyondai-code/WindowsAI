@@ -103,8 +103,9 @@ masked in that response.
 
 | Version | Supported |
 |---|---|
-| 5.1.x | Yes |
-| 5.0.x | No. Upgrade to 5.1 (a drop-in upgrade). |
+| 5.2.x | Yes |
+| 5.1.x | No. Upgrade to 5.2 (a drop-in upgrade). |
+| 5.0.x | No. Upgrade to 5.2 (a drop-in upgrade). |
 | 4.1.x and older | No. Upgrade to 5.0 (4.1 is exposed to DNS rebinding). |
 
 ## Mutating surface
@@ -132,6 +133,7 @@ list and the route table disagree.
 | `POST /api/evolution/promote` | Promotes (needs `confirm`) or rejects a candidate remediation |
 | `POST /api/evolution/rollback` | Undoes the latest promoted remediation |
 | `POST /api/codevolve/run` | Starts one code self-evolution cycle |
+| `POST /api/codevolve/upgrade` | Starts one component upgrade (no AI provider needed) |
 | `POST /api/codevolve/settings` | Changes self-evolution settings |
 | `POST /api/codevolve/review` | Approves or rejects a code candidate |
 | `POST /api/codevolve/apply` | Deploys an approved candidate and restarts |

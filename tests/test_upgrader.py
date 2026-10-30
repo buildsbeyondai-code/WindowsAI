@@ -590,6 +590,67 @@ def test_no_model_still_runs_the_component_lane(tmp_path, repo, probe):  # noqa:
     assert res["state"] == "skipped" and "needs a model" in res["explanation"]
 
 
+def test_only_windows_side_upgraders_are_standalone():
+    assert sorted(v for v, u in ug.REGISTRY.items() if u.standalone) == [
+        "pwsh", "vendor-update", "windows-update", "winget", "wsl"]
+
+
+def test_upgrades_run_without_a_model_sandbox_or_checkout(tmp_path, repo, probe):  # noqa: F811
+    """A PC with no AI provider, no WSL sandbox and no source checkout still upgrades
+    its Windows-side components: unattended from Safe-auto, or with Upgrade now."""
+    u = probe(Probe(restart=True))
+    u.standalone = True
+    e, db = eng(tmp_path, repo, provider=False, box=cv.Sandbox(backend="none"))
+    e.settings["repo"] = None                              # no source checkout
+    e.run = Run()
+    assert e.upgrade_gate("safe_auto") == "auto-upgrade is off"      # no Components rows
+    e.components_fn = lambda: [row("tool", "1.0", "2.0", "probe")]
+    assert e.upgrade_gate("off", manual=True) == "autonomy level is 'off'"
+    assert "press Upgrade now" in e.upgrade_gate("observe")
+    assert e.upgrade_gate("observe", manual=True) is None
+    restarts = []
+    e.on_applied = lambda: restarts.append(1)
+    res = e.upgrade_pass("safe_auto")
+    assert res["started"] and res["state"] == "completed" and restarts == [1]
+    c = db.candidates()[0]
+    assert c["title"] == "3PP upgrade: tool 1.0 → 2.0" and c["review_state"] == "applied"
+    assert "next upgrade check in" in e.upgrade_gate("safe_auto")
+    assert e.upgrade_pass("observe", "manual") == {
+        "started": False, "reason": "every component is current or already tried"}
+    st = e.status("safe_auto")
+    assert st["upgrades"] == {"gate": e.upgrade_gate("safe_auto"), "manual": None,
+                              "by_cycle": False}
+    assert st["components"]["rows"][0]["standalone"] is True
+
+
+def test_upgrade_pass_skips_what_it_cannot_run_and_survives_errors(tmp_path, repo, probe,  # noqa: F811
+                                                                   monkeypatch):
+    p = probe(Probe(raises=OSError("down")))
+    p.standalone = True
+    e, db = eng(tmp_path, repo, provider=False, box=Box())
+    e.run = Run()
+    rows = [row("tool", "1.0", "2.0", "probe"), dict(row("gone", "1", "2", "probe"), missing=True),
+            row("flask", "1", "2", "pip-lock"), row("odd", "1", "2", "no-such-upgrader")]
+    e.components_fn = lambda: rows
+    assert e.upgrade_pass("observe", "manual")["reason"].startswith("every component")
+    # with a checkout and a sandbox, the evolution cycle runs them instead
+    assert e.upgrade_gate("self_evolve") == "the self-evolution cycle runs the upgrades"
+    e._lock.acquire()
+    assert e.upgrade_pass("observe", "manual")["reason"] == "a cycle is already running"
+    e._lock.release()
+    p.raises = None
+
+    def boom(*a):
+        raise RuntimeError("boom")
+    monkeypatch.setattr(e, "_host_upgrade", boom)
+    res = e.upgrade_pass("observe", "manual")
+    assert res["started"] and res["state"] == "failed" and res["error"] == "boom"
+    assert db.cycles(limit=1)[0]["state"] == "failed"
+    e.components_fn = lambda: 1 / 0
+    assert e.upgrade_pass("observe", "manual") == {
+        "started": False, "cycle": None, "state": "failed", "error": "division by zero"}
+
+
 def test_host_context_and_wsl_identity(tmp_path, repo, monkeypatch):  # noqa: F811
     e, db = hostlane(tmp_path, repo, [])
     e.sandbox = cv.Sandbox(backend="none")

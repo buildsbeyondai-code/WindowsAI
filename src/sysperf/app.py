@@ -1014,6 +1014,20 @@ def api_codevolve_run():
     return jsonify({"started": True})
 
 
+@app.post("/api/codevolve/upgrade")
+def api_codevolve_upgrade():
+    """Run one component upgrade now. Needs no AI provider, WSL or source checkout."""
+    body = request.get_json(silent=True) or {}
+    if (bad := _csrf(body)):
+        return bad
+    reason = code_evolution.upgrade_gate(action_policy.level, manual=True)
+    if reason:
+        return jsonify({"started": False, "reason": reason})
+    threading.Thread(target=code_evolution.upgrade_pass,
+                     args=(action_policy.level, "manual"), daemon=True).start()
+    return jsonify({"started": True})
+
+
 @app.post("/api/codevolve/settings")
 def api_codevolve_settings():
     body = request.get_json(silent=True) or {}

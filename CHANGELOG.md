@@ -4,6 +4,39 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.2.0 — 2026-10-30
+
+GitHub only; this release is not submitted to the Microsoft Store.
+
+### Fixed
+- **Component upgrades work on a PC without AI.** Every upgrade used to run
+  inside the self-evolution cycle, which needs the *Software Self-Evolution*
+  level, a source checkout and a green sandbox baseline. A PC with no AI
+  provider, no WSL or no git therefore never upgraded anything, not even the
+  parts that need none of them. The Windows-side upgraders (Windows Update,
+  Edge Update, PowerShell, winget, WSL) are now marked `standalone` and run in
+  their own pass (`CodeEvolution.upgrade_pass`): unattended every 6 hours from
+  **Safe-auto**, or one at a time with the new **Upgrade now** button on the
+  Component upgrades card (`POST /api/codevolve/upgrade`), at any level except
+  Off. Each upgrade still goes through test → back up → apply → verify →
+  roll back, and lands in the same history and audit log. Where the full
+  cycle can run (self-evolution on, a checkout and a sandbox), it keeps doing
+  these upgrades itself. Rows that need the sandbox (SysPerf's pinned
+  packages, the WSL distro's tools) now say so instead of "queued".
+
+### Changed
+- **The evolution history says what happened in plain words.** The
+  *Decision* column, which showed internal state names such as
+  `retained · handed_off` or `rejected · rolled_back`, is now **Outcome**:
+  "Passed every check — waiting for your approval", "Upgraded — tested,
+  applied and verified", "Handed to Windows Update / the vendor's updater —
+  checked later", "Tried, failed the check and rolled back — nothing changed",
+  and so on, coloured green (done), amber (waiting on something) or red
+  (rolled back or failed). Cycles that kept nothing read "Skipped — nothing to
+  do", "Blocked — no safe sandbox to test in" and the like. Hovering a cell
+  shows the raw state for matching against the audit log. The candidate detail
+  uses the same wording.
+
 ## 5.1.2 — 2026-10-30
 
 GitHub only; this release is not submitted to the Microsoft Store.

@@ -316,7 +316,12 @@
    "sandbox": "auto",
    "test_timeout_s": 600
   },
-  "state": "awaiting_approval"
+  "state": "awaiting_approval",
+  "upgrades": {
+   "by_cycle": true,
+   "gate": "the self-evolution cycle runs the upgrades",
+   "manual": null
+  }
  },
  "api/autonomy": {
   "actions": [

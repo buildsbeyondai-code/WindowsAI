@@ -1176,7 +1176,7 @@
 
 <header>
   <div>
-    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v5.1.2</span></h1>
+    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v5.2.0</span></h1>
     <div class="sub" id="baseSub">Live remediation tracking against this machine's own baseline</div>
     <div class="chips" id="chips"></div>
   </div>
@@ -5459,6 +5459,32 @@ tick();
     });
   }
 
+  // Plain-language outcome of one attempt, with a colour cue. The raw
+  // decision/review state stays in the tooltip, to match against the audit log.
+  const OUTCOME = {
+    "retained|pending": ["Passed every check — waiting for your approval", "st-degraded"],
+    "retained|approved": ["Approved — waiting to be applied", "st-degraded"],
+    "retained|applied": ["Applied — now part of SysPerf", "st-ok"],
+    "retained|verifying": ["Applying — checked after SysPerf restarts", "st-degraded"],
+    "retained|handed_off": ["Handed to Windows Update / the vendor's updater — checked later", "st-ok"],
+    "retained|rolled_back": ["Applied, then rolled back — nothing changed", "st-error"],
+    "retained|rejected": ["Rejected by you — not applied", ""],
+    "rejected|rolled_back": ["Tried, failed the check and rolled back — nothing changed", "st-error"],
+    "rejected|none": ["Not kept — it failed a check (see Reason)", ""] };
+  const CYCLE_OUTCOME = { completed: ["Finished — nothing kept", ""],
+    skipped: ["Skipped — nothing to do (see Reason)", ""],
+    blocked: ["Blocked — no safe sandbox to test in", "st-degraded"],
+    failed: ["Failed — see Reason", "st-error"],
+    interrupted: ["Interrupted — SysPerf restarted mid-cycle", "st-degraded"] };
+  function outcome(c, cy) {
+    if (!c.decision) return CYCLE_OUTCOME[cy.state] || ["In progress — " + (STATE_TEXT[cy.state] || cy.state), "st-degraded"];
+    const o = OUTCOME[c.decision + "|" + (c.review_state || "none")] || [c.decision, ""];
+    const upgrade = (c.title || "").startsWith("3PP upgrade");
+    return upgrade && c.review_state === "applied" ? ["Upgraded — tested, applied and verified", "st-ok"]
+      : upgrade && o[0].startsWith("Not kept") ? ["Not upgraded — a check failed (see Reason)", ""] : o;
+  }
+  const rawState = (c, cy) => c.decision ? `decision: ${c.decision} · review: ${c.review_state || "none"}` : `cycle: ${cy.state}`;
+
   function renderHistory(h) {
     const byCycle = {};
     (h.candidates || []).forEach(c => { byCycle[c.cycle_id] = c; });
@@ -5469,9 +5495,9 @@ tick();
       return `<tr><td>${esc(fmtT(cy.started))}</td><td>${esc(cy.trigger)}</td><td>${esc(problem)}</td>
         <td>${esc(cy.model || "—")}</td><td>${c.id ? `<a href="#self-evolution" class="evo-pick" data-id="${esc(c.id)}">${esc(c.title || c.id)}</a>` : "—"}</td>
         <td>${esc(files)}</td><td>${esc(yes(c.tests_ok))}</td><td>${esc(yes(c.security_ok))}</td>
-        <td>${esc(c.decision ? c.decision + (c.review_state && c.review_state !== "none" ? " · " + c.review_state : "") : (STATE_TEXT[cy.state] || cy.state))}</td>
+        <td class="${outcome(c, cy)[1]}" title="${esc(rawState(c, cy))}">${esc(outcome(c, cy)[0])}</td>
         <td>${esc((c.reason || cy.explanation || "").slice(0, 220))}</td></tr>`; }).join("");
-    $("sevHistory").innerHTML = rows ? tbl(["When","Trigger","Problem","Model","Proposal","Files","Tests","Security","Decision","Reason"], rows)
+    $("sevHistory").innerHTML = rows ? tbl(["When","Trigger","Problem","Model","Proposal","Files","Tests","Security","Outcome","Reason"], rows)
       : empty("No evolution attempts yet. Complete the readiness checklist above, then run a cycle.");
     view.querySelectorAll(".evo-pick").forEach(a => { a.onclick = (e) => { e.preventDefault(); selected = a.dataset.id; renderDetail(); }; });
     $("sevAudit").innerHTML = (h.audit || []).length ? tbl(["#","When","Actor","Event","Detail"],
@@ -5494,7 +5520,7 @@ tick();
     const deploying = !!(lastStatus && lastStatus.deploy && lastStatus.deploy.pending);
     const deployable = c.decision === "retained" && (c.review_state === "pending" || c.review_state === "approved") && !deploying;
     $("sevDetail").innerHTML = `<p><b>${esc(c.title || c.id)}</b> — ${esc(c.rationale || "")}</p>
-      <p class="evo-note">Decision: <b>${esc(c.decision || "—")}</b> · ${esc(c.reason || "")}${c.branch ? " · branch <code>" + esc(c.branch) + "</code> @ " + esc((c.commit_sha || "").slice(0, 10)) : ""}${c.protected ? " · engine module: stricter threshold, approval required" : ""}</p>
+      <p class="evo-note">Outcome: <b class="${outcome(c, {})[1]}" title="${esc(rawState(c, {}))}">${esc(c.decision ? outcome(c, {})[0] : "—")}</b> · ${esc(c.reason || "")}${c.branch ? " · branch <code>" + esc(c.branch) + "</code> @ " + esc((c.commit_sha || "").slice(0, 10)) : ""}${c.protected ? " · engine module: stricter threshold, approval required" : ""}</p>
       ${det && det.tests ? `<p class="evo-note">Tests: candidate ${esc(det.tests.summary)} · baseline ${esc(det.baseline_tests.summary)}</p>` : ""}
       ${rows ? tbl(["Benchmark","Baseline median","Candidate median","Gain","Noise","Runs"], rows) : empty("No benchmark recorded for this candidate.")}
       ${c.diff ? `<pre class="evo-diff">${diff}</pre>` : ""}
@@ -5539,8 +5565,9 @@ tick();
     };
   }
 
+  let upgradeNote = "";
   function renderDeps(s) {
-    const d = s.components || {}, rows = d.rows || [];
+    const d = s.components || {}, rows = d.rows || [], U = s.upgrades || {};
     const STATE = {applied: "upgraded", handed_off: "handed to its updater", verifying: "applying — SysPerf restarts to finish",
       rolled_back: "rolled back", pending: "tested green · waiting to be applied", approved: "approved · waiting to be applied"};
     const state = (r) => r.missing ? "not installed"
@@ -5548,14 +5575,26 @@ tick();
       : r.review_state && STATE[r.review_state] ? STATE[r.review_state] + (r.review_state === "rolled_back" && r.reason ? " — " + r.reason : "")
       : r.decision === "rejected" ? "not upgraded — " + (r.reason || "")
       : !r.outdated ? "up to date"
-      : d.enabled ? "queued for the next evolution cycle" : "auto-upgrade is off";
+      : !d.enabled ? "auto-upgrade is off"
+      : U.by_cycle ? "queued for the next evolution cycle"
+      : r.standalone ? (U.gate ? "waiting — " + U.gate : "queued for the next upgrade check")
+      : "needs self-evolution (a source checkout and the sandbox)";
     const body = rows.map(r => `<tr><td>${esc(r.name || r.key)}</td><td>${esc(r.current || "—")}</td>
       <td>${esc(r.latest || "—")}</td><td>${esc(r.label)}</td><td>${esc(state(r))}</td></tr>`).join("");
     $("sevDeps").innerHTML = `<p class="evo-note">${d.enabled
         ? "On. Every component below is upgraded by self-evolution, one per cycle: tested in isolation first (the sandbox, a throwaway venv or interpreter, or a throwaway copy of the WSL distro), then backed up, applied, verified, and rolled back if the check fails."
         : "Off. Turn on “Auto-upgrade every outdated component” in Settings → AI self-evolution."}</p>`
+      + (d.enabled ? `<p class="evo-note">Windows Update, Edge, PowerShell, winget and WSL upgrades need no AI model, WSL sandbox or source checkout: they run on their own every 6 hours from Safe-auto${U.by_cycle ? " (here the evolution cycle runs them)" : ""}, or one at a time with Upgrade now.</p>`
+         + `<div class="evo-row">${U.manual == null ? `<button id="sevUpgrade">Upgrade now</button>` : ""}<span id="sevUpgradeMsg" class="evo-note" role="status">${esc(upgradeNote || (U.manual ? "Upgrade now is unavailable: " + U.manual : ""))}</span></div>` : "")
       + (body ? tbl(["Component", "Installed", "Latest", "Upgraded by", "Upgrade"], body) : empty("The component list is not available yet."))
       + `<p class="evo-note">Drivers, the BIOS, the Windows build, Edge and WebView2 are handed to Windows Update or the vendor's updater, which test and roll back their own packages. Installers that need administrator rights (WSL, Git for Windows) show the Windows UAC prompt. See <a href="#details/components">Components</a>.</p>`;
+    if ($("sevUpgrade")) $("sevUpgrade").onclick = async () => {
+      try { const r = await post("api/codevolve/upgrade", {});
+        upgradeNote = r.started ? "Upgrade started — progress appears in the history below." : "Not started: " + r.reason; }
+      catch (e) { upgradeNote = "Error: " + e.message; }
+      $("sevUpgradeMsg").textContent = upgradeNote;
+      setTimeout(refresh, 3000);
+    };
   }
 
   function renderEffect(a) {

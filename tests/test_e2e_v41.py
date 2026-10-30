@@ -407,6 +407,41 @@ def test_component_upgrades_card_shows_every_component_and_its_state(browser, si
     page.close()
 
 
+def test_upgrades_work_without_ai_and_upgrade_now_starts_one(browser, site):
+    """5.2: on a PC with no AI provider, WSL sandbox or source checkout, the
+    Windows-side upgrades still run and the card says which rows cannot."""
+    rows = [{"key": "pwsh", "name": "PowerShell", "label": "PowerShell MSIX", "via": "pwsh",
+             "standalone": True, "current": "7.6.9", "latest": "7.7.0", "outdated": True},
+            {"key": "flask", "name": "Flask", "label": "pinned", "via": "pip-lock",
+             "standalone": False, "current": "3.1.3", "latest": "3.2.0", "outdated": True}]
+    plain = dict(STUBS["api/codevolve"], components={"enabled": True, "rows": rows},
+                 upgrades={"gate": None, "manual": None, "by_cycle": False})
+    page = _open(browser, site, hash_="#self-evolution", overrides={"api/codevolve": plain},
+                 posts={"api/codevolve/upgrade": {"started": True}})
+    page.wait_for_selector("#sevUpgrade")
+    text = page.inner_text("#sevDeps")
+    assert "need no AI model" in text and "queued for the next upgrade check" in text
+    assert "needs self-evolution (a source checkout and the sandbox)" in text
+    page.click("#sevUpgrade")
+    page.wait_for_function("() => document.getElementById('sevUpgradeMsg').innerText.includes('Upgrade started')")
+    assert page.posted and any("api/codevolve/upgrade" in u for u in page.posted)
+    page.close()
+    waiting = dict(plain, upgrades={"gate": "autonomy level is 'observe'", "manual": "autonomy level is 'off'",
+                                    "by_cycle": False})
+    page = _open(browser, site, hash_="#self-evolution", overrides={"api/codevolve": waiting},
+                 posts={"api/codevolve/upgrade": {"started": False, "reason": "x"}})
+    page.wait_for_function("() => document.getElementById('sevUpgradeMsg').innerText.includes('unavailable')")
+    assert "waiting — autonomy level is 'observe'" in page.inner_text("#sevDeps")
+    assert not page.query_selector("#sevUpgrade")
+    page.close()
+    page = _open(browser, site, hash_="#self-evolution", overrides={"api/codevolve": plain},
+                 posts={"api/codevolve/upgrade": {"started": False, "reason": "a cycle is already running"}})
+    page.wait_for_selector("#sevUpgrade")
+    page.click("#sevUpgrade")
+    page.wait_for_function("() => document.getElementById('sevUpgradeMsg').innerText.includes('Not started: a cycle')")
+    page.close()
+
+
 def test_times_are_shown_in_the_viewers_zone(browser, site):
     page = browser.new_page(timezone_id="Asia/Kolkata", locale="en-IN")
     page.goto(site)
