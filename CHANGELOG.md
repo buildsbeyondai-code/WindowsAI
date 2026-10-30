@@ -4,6 +4,30 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.2.1 — 2026-10-30
+
+GitHub only; this release is not submitted to the Microsoft Store.
+
+### Fixed
+- **The open dashboard no longer burns CPU.** Measured in headless Chromium
+  over 60–120 s, the page kept its renderer 6.1% of a core busy with the
+  Home tab open, and 5.8% even when the window was hidden; the background
+  service and its PowerShell collector together use about 2% of one core
+  (6.1 s of CPU per 5 minutes on the developer PC). Four causes, all fixed:
+  - the page polled every 20 s but a sample lands every 60 s, so two of every
+    three polls redrew an identical dashboard. An unchanged sample is no
+    longer redrawn;
+  - nothing paused while the window was hidden or minimised. The snapshot
+    poll, the countdown and every per-tab poller now stop while hidden and
+    refresh as soon as the window is shown again;
+  - the header's "live" dot pulsed by animating `box-shadow`, which repaints
+    every frame. It now animates `transform` and `opacity`, which the
+    compositor runs without repainting;
+  - the Live Architecture diagram's SVG animations ran forever behind other
+    tabs. They now run only while that view is on screen.
+
+  Result: 0.4% of a core with Home open, 0.1% hidden (about 15x less).
+
 ## 5.2.0 — 2026-10-30
 
 GitHub only; this release is not submitted to the Microsoft Store.
