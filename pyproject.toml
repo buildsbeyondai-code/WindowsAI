@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sysperf"
-version = "5.1.1"
+version = "5.1.2"
 description = "Self-improving Windows 11 performance dashboard: measures the machine, learns which remediations actually work, proposes new ones from evidence, and states plainly what it needs a human to do."
 readme = "README.md"
 requires-python = ">=3.10"
