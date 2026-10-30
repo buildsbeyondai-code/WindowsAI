@@ -2,6 +2,12 @@
 
 _Last updated: 2026-10-25, release 5.0.0._
 
+## 5.2.1 (2026-10-30)
+
+- The open dashboard costs 0.4% of a core instead of 6.1% (0.1% hidden):
+  unchanged samples are not redrawn, polling stops while hidden, and the
+  animations no longer repaint every frame. GitHub only.
+
 ## 5.2.0 (2026-10-30)
 
 - Windows-side component upgrades work on a PC with no AI provider, no WSL

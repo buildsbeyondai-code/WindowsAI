@@ -32,12 +32,14 @@
 
   .live{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);
     white-space:nowrap}
-  .dot{width:9px;height:9px;border-radius:50%;background:var(--green);
-    box-shadow:0 0 0 0 rgba(77,208,138,.7);animation:pulse 2s infinite}
-  .dot.stale{background:var(--amber);animation:none}
-  .dot.err{background:var(--red);animation:none}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(77,208,138,.6)}
-    70%{box-shadow:0 0 0 9px rgba(77,208,138,0)}100%{box-shadow:0 0 0 0 rgba(77,208,138,0)}}
+  /* The ring animates transform and opacity only, which the compositor runs
+     without repainting; the old box-shadow pulse repainted every frame. */
+  .dot{position:relative;width:9px;height:9px;border-radius:50%;background:var(--green)}
+  .dot::after{content:"";position:absolute;inset:0;border-radius:50%;
+    background:rgba(77,208,138,.6);animation:pulse 2s infinite}
+  .dot.stale{background:var(--amber)} .dot.err{background:var(--red)}
+  .dot.stale::after,.dot.err::after{animation:none;opacity:0}
+  @keyframes pulse{0%{transform:scale(1);opacity:.7}70%{transform:scale(3);opacity:0}100%{opacity:0}}
 
   h2{font-size:16px;margin:16px 0 10px;padding-bottom:7px;border-bottom:1px solid var(--line);
     display:flex;align-items:center;gap:10px}
@@ -1176,7 +1178,7 @@
 
 <header>
   <div>
-    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v5.2.0</span></h1>
+    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v5.2.1</span></h1>
     <div class="sub" id="baseSub">Live remediation tracking against this machine's own baseline</div>
     <div class="chips" id="chips"></div>
   </div>
@@ -2897,6 +2899,16 @@ function renderSummary(d) {
 }
 
 /* ---- Live Architecture: how THIS dashboard works (data-flow pipeline) ---- */
+// The diagram's SVG animations (moving dots, the blinking LIVE badge) ran
+// forever once drawn, even behind another tab or a hidden window. They now run
+// only while the diagram can be seen.
+function syncArchMotion() {
+  const v = $("view-architecture"), svg = document.querySelector("#archDiagram svg");
+  if (!svg || !svg.pauseAnimations) return;
+  if (!document.hidden && v && v.style.display !== "none") svg.unpauseAnimations();
+  else svg.pauseAnimations();
+}
+
 function renderArchitecture(d) {
   const host = $("archDiagram");
   if (!host) return;
@@ -3138,6 +3150,7 @@ function renderArchitecture(d) {
       <text x="1454" y="38" style="font:700 12px 'Segoe UI',sans-serif;fill:${ok ? GREEN : RED}">${ok ? "LIVE" : "ERROR"}</text></g>
     ${parts.join("")}
   </svg>`;
+  syncArchMotion();
 }
 
 /* Extra facts for the architecture view, refreshed while it is open. */
@@ -3154,7 +3167,7 @@ function renderArchitecture(d) {
   window.perfdashArchExtras = {load};
   const view = $("view-architecture");
   load();
-  setInterval(() => { if (view && view.style.display !== "none") load(); }, 30000);
+  setInterval(() => { if (!document.hidden && view && view.style.display !== "none") load(); }, 30000);
 })();
 
 /* ---- view tabs: Summary (default) / Details / Live Architecture ---- */
@@ -3202,6 +3215,7 @@ function renderArchitecture(d) {
       tabs[k].setAttribute("aria-selected", k === v ? "true" : "false");
     });
     localStorage.setItem("perfdash_view", v);
+    syncArchMotion();
     // Refresh the auto-improve view on entry so it is never stale on open.
     if (v === "auto" && window.perfdashAuto) window.perfdashAuto.refresh();
     if (v === "appctl" && window.perfdashAppctl) window.perfdashAppctl.refresh();
@@ -3264,7 +3278,13 @@ function renderArchitecture(d) {
 /* ------------------------------ polling ------------------------------ */
 let timer = null, countdown = REFRESH_MS / 1000, failures = 0, inFlight = false;
 
-async function tick() {
+// A sample lands every sample_seconds (60 s by default) but the page polls
+// every REFRESH_MS, so most polls returned the snapshot already on screen.
+// Redrawing the whole dashboard for nothing was the page's main CPU cost while
+// open, so an unchanged sample is not redrawn and nothing polls while hidden.
+let drawnKey = null;
+async function tick(force) {
+  if (document.hidden && drawnKey !== null && !force) return;
   // Guard against overlapping polls: if a previous fetch is still in flight
   // (slow response under load), skip this cycle instead of stacking requests.
   // Without this, a fetch that takes >1s keeps countdown<=0 and the 1s ticker
@@ -3283,7 +3303,8 @@ async function tick() {
       $("liveTxt").textContent = "waiting for first sample…";
       return;
     }
-    render(d);
+    const key = d.latest._t + "|" + (d.meta.error || "");
+    if (force || key !== drawnKey) { render(d); drawnKey = key; }
     liveTick();                       // re-apply real-time values over the snapshot
     failures = 0;
     const age = d.latest._t ? Math.round(Date.now() / 1000 - d.latest._t) : null;
@@ -3323,13 +3344,17 @@ async function liveTick() {
 setInterval(liveTick, LIVE_MS);
 
 setInterval(() => {
-  if (inFlight) return;               // don't count down while a poll is running
+  if (inFlight || document.hidden) return;   // no countdown while polling or hidden
   countdown--;
   $("refreshIn").textContent = countdown > 0 ? `next refresh in ${countdown}s` : "refreshing…";
   if (countdown <= 0) tick();
 }, 1000);
 
 tick();
+document.addEventListener("visibilitychange", () => {
+  syncArchMotion();
+  if (!document.hidden) { tick(); liveTick(); }
+});
 
 /* ------------------------- Common Fix modal ------------------------- */
 (function initCommonFix() {
@@ -3425,7 +3450,7 @@ tick();
         (r.output ? `\n    ${esc(String(r.output).slice(0, 300))}` : "");
     }).join("\n");
     // refresh metrics soon so the score reflects the fix
-    setTimeout(() => { if (typeof tick === "function") tick(); }, 1500);
+    setTimeout(() => { if (typeof tick === "function") tick(true); }, 1500);
   }
 
   function open() { modal.hidden = false; loadFixes(); }
@@ -4765,8 +4790,8 @@ tick();
   // Poll only while the tab is visible — the loop itself runs server-side. Use
   // the same cadence as the rest of the dashboard (REFRESH_MS) so this tab is as
   // live as every other, and refresh immediately whenever it becomes visible.
-  setInterval(() => { if (view.style.display !== "none") refresh(); }, REFRESH_MS);
-  if (view.style.display !== "none") refresh();
+  setInterval(() => { if (!document.hidden && view.style.display !== "none") refresh(); }, REFRESH_MS);
+  if (!document.hidden && view.style.display !== "none") refresh();
 })();
 
 /* --------- App Control: start/stop the top CPU applications --------- */
@@ -5268,7 +5293,7 @@ tick();
         `Saving your choice for ${esc(cs.dataset.tqConsent)}…`);
       if (ro) trayquitSet({reopen: ro.dataset.tqReopen}, `Reopening ${esc(ro.dataset.tqReopen)}…`);
     });
-    setInterval(() => { if (view.style.display !== "none") refreshTrayquit(); }, 15000);
+    setInterval(() => { if (!document.hidden && view.style.display !== "none") refreshTrayquit(); }, 15000);
   }
 
   window.perfdashAppctl = {refresh};
@@ -5282,8 +5307,8 @@ tick();
   const _pwToggle = $("pwToggle"), _pwRun = $("pwRun");
   if (_pwToggle) _pwToggle.addEventListener("click", procwatchToggle);
   if (_pwRun) _pwRun.addEventListener("click", procwatchRun);
-  setInterval(() => { if (view.style.display !== "none") refresh(); }, 30000);
-  if (view.style.display !== "none") refresh();
+  setInterval(() => { if (!document.hidden && view.style.display !== "none") refresh(); }, 30000);
+  if (!document.hidden && view.style.display !== "none") refresh();
 })();
 
 /* --------- AI Self-Evolution (4.0): status, history, diffs, controls --------- */
@@ -5616,8 +5641,8 @@ tick();
     } catch (e) { $("sevStatus").innerHTML = empty("Self-evolution status unavailable: " + esc(e.message)); }
   }
   window.perfdashEvo = { refresh, last: () => lastStatus };
-  if (view.style.display !== "none") refresh();      // deep link (#self-evolution)
-  setInterval(() => { if (view.style.display !== "none") refresh(); }, 20000);
+  if (!document.hidden && view.style.display !== "none") refresh();      // deep link (#self-evolution)
+  setInterval(() => { if (!document.hidden && view.style.display !== "none") refresh(); }, 20000);
 })();
 
 /* --------- 4.0 header: version + autonomy / self-evolution strip --------- */
@@ -5650,7 +5675,7 @@ tick();
     } catch (e) { $("asEvo").textContent = "status unavailable"; }
   }
   refresh();
-  setInterval(refresh, 30000);
+  setInterval(() => { if (!document.hidden) refresh(); }, 30000);
 })();
 
 /* ------------------- 4.1: shared helpers for the new views ------------------- */
@@ -5713,7 +5738,7 @@ const api41 = (() => {
   });
   window.perfdashBell = {refresh};
   refresh();
-  setInterval(refresh, 30000);
+  setInterval(() => { if (!document.hidden) refresh(); }, 30000);
 })();
 
 /* ------------------------------------- Home ------------------------------------- */
@@ -5854,8 +5879,8 @@ const api41 = (() => {
   $("homeHistKey").addEventListener("change", chart);
   $("homeHistRange").addEventListener("change", chart);
   window.perfdashHome = {refresh, paint};
-  if (view.style.display !== "none") refresh();
-  setInterval(() => { if (view.style.display !== "none") refresh(); }, 30000);
+  if (!document.hidden && view.style.display !== "none") refresh();
+  setInterval(() => { if (!document.hidden && view.style.display !== "none") refresh(); }, 30000);
 })();
 
 /* --------------------------------- Settings ---------------------------------- */
@@ -5971,8 +5996,8 @@ const api41 = (() => {
     diagnostics();
   }
   window.perfdashSettings = {refresh};
-  if (view.style.display !== "none") refresh();
-  setInterval(() => { if (view.style.display !== "none") diagnostics(); }, 30000);
+  if (!document.hidden && view.style.display !== "none") refresh();
+  setInterval(() => { if (!document.hidden && view.style.display !== "none") diagnostics(); }, 30000);
 })();
 </script>
 <style>
