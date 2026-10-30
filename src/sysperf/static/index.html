@@ -1178,7 +1178,7 @@
 
 <header>
   <div>
-    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v5.2.1</span></h1>
+    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v5.3.0</span></h1>
     <div class="sub" id="baseSub">Live remediation tracking against this machine's own baseline</div>
     <div class="chips" id="chips"></div>
   </div>
@@ -1275,6 +1275,13 @@
   <a href="#sect-hardware">Hardware</a>
   <a href="#sect-drivers">Drivers</a>
   <a href="#sect-components">Components</a>
+  <a href="#sect-maintenance">Maintenance</a>
+  <a href="#sect-protection">Protection</a>
+  <a href="#sect-cleanup">Cleanup</a>
+  <a href="#sect-registry">Registry</a>
+  <a href="#sect-security">Security</a>
+  <a href="#sect-services">Services &amp; tasks</a>
+  <a href="#sect-appupdates">App updates</a>
 </nav>
 
 <section class="det-sect" id="sect-overview">
@@ -1328,6 +1335,44 @@
 <section class="det-sect" id="sect-components">
   <h2>Component upgrades — performance improvement <span class="hint">current vs recommended version · estimated performance gain · major components</span></h2>
   <div id="components"></div>
+</section>
+
+<section class="det-sect" id="sect-maintenance">
+  <h2>Maintenance check <span class="hint">read-only scan every 6 hours · what needs attention, worst first</span></h2>
+  <div id="mtStatus" class="note keep">Loading…</div>
+  <div class="acts" style="margin:8px 0"><button id="mtScan" class="fixbtn">Scan now</button>
+    <span id="mtMsg" class="fix-result" role="status"></span></div>
+  <div id="mtFindings"></div>
+</section>
+
+<section class="det-sect" id="sect-protection">
+  <h2>System protection &amp; repair <span class="hint">restore point · Windows system files</span></h2>
+  <div class="grid g-3" id="mtProtection"></div>
+</section>
+
+<section class="det-sect" id="sect-cleanup">
+  <h2>Disk cleanup <span class="hint">caches and temporary files you can reclaim · large files (listed only)</span></h2>
+  <div class="grid g-2" id="mtCleanup"></div>
+</section>
+
+<section class="det-sect" id="sect-registry">
+  <h2>Registry check <span class="hint">start-up and uninstall entries that point to a missing program</span></h2>
+  <div id="mtRegistry"></div>
+</section>
+
+<section class="det-sect" id="sect-security">
+  <h2>Security &amp; crashes <span class="hint">antivirus · firewall · blue screens · app crashes</span></h2>
+  <div class="grid g-3" id="mtSecurity"></div>
+</section>
+
+<section class="det-sect" id="sect-services">
+  <h2>Services &amp; scheduled tasks <span class="hint">third-party only · what starts with Windows</span></h2>
+  <div class="grid g-2" id="mtServices"></div>
+</section>
+
+<section class="det-sect" id="sect-appupdates">
+  <h2>App updates <span class="hint">installed apps with a newer version · one at a time, with winget</span></h2>
+  <div id="mtApps"></div>
 </section>
 
 </div><!-- /view-details -->
@@ -3168,6 +3213,126 @@ function renderArchitecture(d) {
   const view = $("view-architecture");
   load();
   setInterval(() => { if (!document.hidden && view && view.style.display !== "none") load(); }, 30000);
+})();
+
+/* ---- Maintenance sections (maintenance.py) -------------------------------
+   The checks are slow and change over days, so the service scans every 6 hours
+   (or on Scan now) and these sections read the cached report. Every button is
+   an ordinary registered fix (POST api/fix) or a one-app winget update. */
+(function initMaintenance() {
+  const view = $("view-details");
+  if (!view || !$("mtStatus")) return;
+  let token = null, note = "";
+  async function post(path, body) {
+    if (!token) token = (await (await fetch("api/fixes", {cache: "no-store"})).json()).token;
+    const r = await fetch(path, {method: "POST", headers: {"Content-Type": "application/json"},
+                                 body: JSON.stringify(Object.assign({}, body, {token}))});
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
+    return d;
+  }
+  const TAG = {bad: "tr", warn: "ta", info: "tg"};
+  const LEVEL = {bad: "needs action", warn: "check", info: "tip"};
+  const MB = v => v == null ? "unavailable" : fmt(v) + " MB";
+  const when = t => t ? localTime(t) : "—";
+  const part = (rep, k) => { const v = rep[k]; return v && !v.error ? v : null; };
+  const missing = (rep, k) => `<div class="note keep">${rep[k] && rep[k].error
+    ? "Unavailable on this PC: " + esc(rep[k].error)
+    : "Measuring — the first maintenance scan has not finished yet."}</div>`;
+  function action(rep, id, label) {
+    const f = (rep.fixes || {})[id];
+    if (!f) return "";
+    return f.executable
+      ? `<button class="fixbtn ghost mt-fix" data-fix="${esc(id)}" data-title="${esc(f.title)}">${esc(label || f.title)}</button>`
+      : `<div class="note keep"><b>How:</b> ${esc(f.manual_hint)}</div>`;
+  }
+  const table = (head, rows) => `<table><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
+
+  function render(rep) {
+    const age = rep.age_s;
+    $("mtStatus").innerHTML = rep.at
+      ? `Last scan ${esc(when(rep.at))} (${fmt(Math.round(age / 60))} min ago) · next ${esc(when(rep.next_due))}${rep.scanning ? " · <b>scanning now…</b>" : ""}${rep.error ? ` · <span class="st-error">${esc(rep.error)}</span>` : ""}`
+      : (rep.scanning ? "<b>First scan running…</b> it takes about half a minute." : `No scan yet.${rep.error ? " " + esc(rep.error) : ""}`);
+    const F = rep.findings || [];
+    $("mtFindings").innerHTML = rep.at ? (F.length
+      ? F.map(f => `<div class="note keep" style="margin:6px 0"><span class="tag ${TAG[f.level]}">${esc(LEVEL[f.level])}</span> ${esc(f.text)} ${f.fix ? action(rep, f.fix) : ""}</div>`).join("")
+      : `<div class="note keep"><span class="tag tg">all clear</span> Nothing needs attention.</div>`) : "";
+
+    const P = part(rep, "protection"), C = part(rep, "crashes");
+    $("mtProtection").innerHTML = `
+      <div class="card"><h3>Restore point</h3>${P ? `<div class="note keep">Newest restore point: <b>${P.last_restore_point ? esc(when(P.last_restore_point)) : "none recorded"}</b>.
+        Windows servicing last ran ${esc(when(P.last_servicing))}.</div>${action(rep, "create_restore_point")}` : missing(rep, "protection")}</div>
+      <div class="card"><h3>System file check</h3>${C ? `<div class="note keep">${(C.bugchecks_30d || []).length} blue screen(s) and ${fmt(C.unexpected_shutdowns_30d || 0)} unexpected shutdown(s) in 30 days.</div>` : ""}${action(rep, "repair_system_files")}</div>`;
+
+    const K = part(rep, "cleanup");
+    $("mtCleanup").innerHTML = K ? `
+      <div class="card"><h3>Reclaimable space</h3>${table(["Where", "Size", ""], (K.items || []).map(i =>
+        `<tr><td>${esc(i.label)}</td><td class="num">${esc(MB(i.mb))}</td><td>${i.fix && i.mb ? action(rep, i.fix, "Clear") : ""}</td></tr>`))}</div>
+      <div class="card"><h3>Large files <span class="hint">500 MB or more in Downloads, Desktop, Documents and Videos</span></h3>${(K.large_files || []).length
+        ? table(["File", "Size", "Changed"], K.large_files.map(f => `<tr><td>${esc(f.path)}</td><td class="num">${esc(MB(f.mb))}</td><td>${esc(when(f.modified))}</td></tr>`))
+        : `<div class="note keep">None found.</div>`}<div class="note keep">Listed only: SysPerf never deletes your files.</div></div>` : missing(rep, "cleanup");
+
+    const R = part(rep, "registry");
+    $("mtRegistry").innerHTML = R ? `<div class="card"><h3>Entries that point to a missing program</h3>${(R.orphans || []).length
+      ? table(["Kind", "Name", "Missing program", "Scope"], R.orphans.map(o => `<tr><td>${esc(o.kind === "startup" ? "start-up" : "uninstall")}</td><td>${esc(o.name)}</td><td>${esc(o.target || "")}</td><td>${o.user ? "yours" : "machine-wide (admin)"}</td></tr>`))
+        + (R.orphans.some(o => o.user) ? action(rep, "fix_registry_orphans", "Back up and remove yours") : "")
+      : `<div class="note keep"><span class="tag tg">clean</span> Every start-up and uninstall entry points to a program that exists.</div>`}
+      <div class="note keep">Read-only check of ${fmt((R.checked || {}).startup_keys || 0)} start-up and ${fmt((R.checked || {}).uninstall_keys || 0)} uninstall keys. SysPerf does not "clean" anything else in the registry: Microsoft does not support registry cleaners, and the space they free is negligible.</div></div>` : missing(rep, "registry");
+
+    const S = part(rep, "security"), D = S && S.defender;
+    $("mtSecurity").innerHTML = (S ? `
+      <div class="card"><h3>Antivirus</h3>${D ? `<div class="note keep">Defender real-time protection <span class="tag ${D.realtime ? "tg" : "tr"}">${D.realtime ? "on" : "off"}</span> · definitions ${fmt(D.signature_age_days)} day(s) old · last quick scan ${fmt(D.quick_scan_age_days)} day(s) ago · mode ${esc(D.mode || "—")}</div>` : `<div class="note keep">Defender status is unavailable.</div>`}
+        ${(S.antivirus || []).map(a => `<div class="note keep">${esc(a.name)} <span class="tag ${a.active ? "tg" : "ta"}">${a.active ? "active" : "inactive"}</span></div>`).join("")}</div>
+      <div class="card"><h3>Firewall</h3>${(S.firewall || []).map(f => `<div class="note keep">${esc(f.name)} <span class="tag ${f.enabled ? "tg" : "tr"}">${f.enabled ? "on" : "off"}</span></div>`).join("") || `<div class="note keep">Firewall status is unavailable.</div>`}</div>` : missing(rep, "security"))
+      + (C ? `<div class="card"><h3>Crashes</h3><div class="note keep">Blue screens (30 days): <b>${(C.bugchecks_30d || []).length}</b>${(C.bugchecks_30d || []).map(b => ` · ${esc(when(b.at))} <code>${esc(b.code || "?")}</code>`).join("")}</div>
+        <div class="note keep">Apps that crashed (7 days): ${(C.app_crashes_7d || []).map(a => `${esc(a.app)} ×${fmt(a.count)}`).join(", ") || "none"}</div></div>` : "");
+
+    const V = part(rep, "services"), T = part(rep, "tasks");
+    $("mtServices").innerHTML = `
+      <div class="card"><h3>Third-party services that start automatically</h3>${V ? (V.length ? table(["Service", "State"], V.map(v => `<tr><td>${esc(v.display)}${v.delayed ? ' <span class="hint">delayed</span>' : ""}</td><td>${esc(v.state)}</td></tr>`)) : `<div class="note keep">None.</div>`) : missing(rep, "services")}
+        <div class="note keep">Change one in Services (services.msc) → its Startup type. Set it to <i>Automatic (Delayed Start)</i> rather than disabling it if you are unsure.</div></div>
+      <div class="card"><h3>Third-party scheduled tasks</h3>${T ? (T.length ? table(["Task", "State", "Last run", "Result"], T.map(t => `<tr><td>${esc(t.path + t.name)}</td><td>${esc(t.state)}</td><td>${esc(when(t.last_run))}</td><td>${t.last_result ? "0x" + Number(t.last_result).toString(16) : "OK"}</td></tr>`)) : `<div class="note keep">None.</div>`) : missing(rep, "tasks")}</div>`;
+
+    const A = part(rep, "app_updates"), J = rep.job;
+    $("mtApps").innerHTML = `<div class="card"><h3>Apps with an update <span class="hint">from winget</span></h3>${A ? (!A.available
+      ? `<div class="note keep">winget (App Installer) is not installed, so app updates cannot be listed.</div>`
+      : (A.apps || []).length ? table(["App", "Installed", "Available", ""], A.apps.map(a => `<tr><td>${esc(a.name)} <span class="hint">${esc(a.id)}</span></td><td>${esc(a.current)}</td><td>${esc(a.available)}</td>
+          <td><button class="fixbtn ghost mt-up" data-id="${esc(a.id)}" data-name="${esc(a.name)}" ${J && J.state === "running" ? "disabled" : ""}>Update</button></td></tr>`))
+      : `<div class="note keep"><span class="tag tg">up to date</span> Every app winget knows about is current.</div>`) : missing(rep, "app_updates")}
+      ${J ? `<div class="note keep">Last update: <b>${esc(J.name || J.id)}</b> ${esc(J.from || "")} → ${esc(J.to || "")} — <b>${esc(J.state)}</b>${J.state === "failed" ? " (rc " + esc(String(J.returncode)) + ")" : ""}. To go back: <code>${esc(J.rollback)}</code></div>` : ""}</div>`;
+  }
+
+  async function refresh() {
+    try { render(await (await fetch("api/maintenance", {cache: "no-store"})).json()); }
+    catch (e) { $("mtStatus").textContent = "Maintenance report unavailable: " + e.message; }
+  }
+  const say = (t) => { note = t; $("mtMsg").textContent = t; };
+
+  view.addEventListener("click", async (e) => {
+    const f = e.target.closest(".mt-fix"), u = e.target.closest(".mt-up");
+    if (f) {
+      if (!confirm("Run “" + f.dataset.title + "” now?")) return;
+      try {
+        const d = await post("api/fix", {ids: [f.dataset.fix], confirm: true});
+        const r = (d.results || [])[0] || {};
+        say(r.status === "ok" ? "Done. " + (r.output || "") : "Failed: " + (r.output || r.reason || "unknown error"));
+        await post("api/maintenance/scan", {});
+      } catch (err) { say("Error: " + err.message); }
+      refresh();
+    } else if (u) {
+      if (!confirm("Update " + u.dataset.name + " with winget now? The app may close while it updates.")) return;
+      try { await post("api/maintenance/upgrade", {id: u.dataset.id}); say("Updating " + u.dataset.name + "…"); }
+      catch (err) { say("Error: " + err.message); }
+      refresh();
+    }
+  });
+  $("mtScan").onclick = async () => {
+    try { const d = await post("api/maintenance/scan", {}); say(d.started ? "Scan started — about half a minute." : "A scan is already running."); }
+    catch (err) { say("Error: " + err.message); }
+    refresh();
+  };
+  refresh();
+  setInterval(() => { if (!document.hidden && view.style.display !== "none") refresh(); }, 30000);
 })();
 
 /* ---- view tabs: Summary (default) / Details / Live Architecture ---- */

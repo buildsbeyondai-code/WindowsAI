@@ -111,6 +111,31 @@ def test_codevolve_run_gated_and_started(client, monkeypatch):
     assert ran and ran[0][0] == "manual"
 
 
+def test_maintenance_report_scan_and_upgrade(client, monkeypatch):
+    m = app.maintenance
+    monkeypatch.setattr(m, "data", {"at": time.time() - 5, "registry": {"orphans": [
+        {"user": True}]}, "app_updates": {"available": True, "apps": [
+            {"id": "Git.Git", "name": "Git", "current": "1", "available": "2"}]}})
+    rep = client.get("/api/maintenance").get_json()
+    assert rep["findings"][0]["fix"] == "fix_registry_orphans"
+    assert set(rep["fixes"]) >= set(app.MAINTENANCE_FIXES) | {"fix_registry_orphans"}
+    assert rep["fixes"]["clear_browser_cache"]["executable"] is True
+    assert rep["fixes"]["create_restore_point"]["executable"] is False
+    listed = {f["id"] for f in client.get("/api/fixes").get_json()["fixes"]}
+    assert "fix_registry_orphans" in listed
+    _csrf_refused(client, "/api/maintenance/scan")
+    monkeypatch.setattr(m, "scan_async", lambda: True)
+    assert client.post("/api/maintenance/scan", json=T).get_json() == {"started": True}
+    _csrf_refused(client, "/api/maintenance/upgrade")
+    bad = client.post("/api/maintenance/upgrade", json={**T, "id": "Evil.App"})
+    assert bad.status_code == 400 and "not in the last scan" in bad.get_json()["error"]
+    monkeypatch.setattr(m, "start_upgrade", lambda app_id: {"started": True, "id": app_id})
+    assert client.post("/api/maintenance/upgrade", json={**T, "id": "Git.Git"}).get_json() == {
+        "started": True, "id": "Git.Git"}
+    monkeypatch.setattr(app, "FIX_ENABLED", False)
+    assert client.post("/api/maintenance/upgrade", json={**T, "id": "Git.Git"}).status_code == 403
+
+
 def test_codevolve_upgrade_gated_and_started(client, monkeypatch):
     _csrf_refused(client, "/api/codevolve/upgrade")
     monkeypatch.setattr(app.code_evolution, "upgrade_gate",

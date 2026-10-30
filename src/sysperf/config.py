@@ -29,7 +29,7 @@ from .platform_paths import detect_platform, resolve_data_dir, resolve_powershel
 # Where the code lives. Read-only: nothing is ever written here.
 BASE = Path(__file__).resolve().parent
 # Shown in the dashboard header and /api/health; stamped by scripts/build_release.py.
-APP_VERSION = "5.2.1"
+APP_VERSION = "5.3.0"
 
 PLATFORM = detect_platform()
 # Microsoft Store mode (store_mode.py): the frozen SysPerf.exe of the MSIX build,
@@ -118,6 +118,10 @@ HISTORY_FILE = DATA_DIR / "history.jsonl"
 # 4.1: SQLite history (raw samples for HISTORY_RAW_DAYS, hourly rollups for a
 # year+). The JSONL file above is migrated into it once and renamed .migrated.
 HISTORY_DB = DATA_DIR / "history.db"
+# Maintenance checks (maintenance.py): the cached report, and the .reg backups
+# the registry fix writes before it removes anything.
+MAINTENANCE_FILE = DATA_DIR / "maintenance.json"
+MAINTENANCE_BACKUP_DIR = DATA_DIR / "registry-backups"
 HISTORY_RAW_DAYS = int(_bounded("SYSPERF_HISTORY_RAW_DAYS", ("history", "raw_days"), 14, 1, 90))
 NOTIFY_STATE_FILE = DATA_DIR / "notifications.json"
 # Reuse one PowerShell process for every sample instead of spawning one each time.

@@ -2,6 +2,17 @@
 
 _Last updated: 2026-10-25, release 5.0.0._
 
+## 5.3.0 (2026-10-30)
+
+- Maintenance check (`maintenance.py`, `maintenance.ps1`): seven Details
+  sections fed by a read-only scan every 6 hours — protection, cleanup,
+  registry, security and crashes, services and tasks, app updates. New fixes:
+  clear browser caches, back up and remove registry orphans (HKCU only), and
+  one-app winget updates; restore point, DISM/SFC and Windows Update cleanup
+  are manual (administrator). GitHub only.
+- Next: privacy settings, power plan and battery report, visual effects and
+  Game Mode, hosts-file check, network speed test (not started).
+
 ## 5.2.1 (2026-10-30)
 
 - The open dashboard costs 0.4% of a core instead of 6.1% (0.1% hidden):

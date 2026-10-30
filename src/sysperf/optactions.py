@@ -108,6 +108,33 @@ REGISTRY = {s.id: s for s in (
     _spec("trim_office_addins", "Disable slow-loading Office add-ins", "slow Office start",
           "high", True, "user", "word_launch_s", False, "faster Word start",
           "word_launch_s", "re-enable the add-ins in File > Options > Add-ins"),
+    # 5.3: the maintenance scan's fixes; each runs only on a confirmed request.
+    _spec("clear_browser_cache", "Empty the cache folders of closed browsers",
+          "browser caches above 500 MB", "medium", False, "user", "c_free_gb", True,
+          "more free disk", "cache sizes on the next maintenance scan",
+          "none needed — the cache refills while browsing"),
+    _spec("fix_registry_orphans", "Remove the user's start-up and uninstall entries whose "
+          "program is gone, after exporting each key", "an entry points to a missing program",
+          "medium", True, "user", None, False, "a clean start-up and uninstall list",
+          "the entries are gone on the next maintenance scan",
+          "reg import the .reg backup the result names (data\\registry-backups)"),
+    _spec("create_restore_point", "Create a System Restore point (manual, administrator)",
+          "no recent restore point", "medium", True, "admin", None, False,
+          "a way back before risky changes", "a new restore point on the next scan",
+          "none needed — a restore point changes nothing"),
+    _spec("repair_system_files", "Run DISM RestoreHealth and SFC (manual, administrator)",
+          "blue screens or repeated unexpected shutdowns", "medium", True, "admin", None,
+          False, "repaired Windows files", "fewer crashes over the following weeks",
+          "none needed — only Microsoft's original files are restored"),
+    _spec("windows_update_cleanup", "Remove superseded update files (manual, administrator)",
+          "Windows Update cache above 1 GB", "high", False, "admin", "c_free_gb", True,
+          "more free disk", "c_free_gb",
+          "irreversible — installed updates can no longer be uninstalled"),
+    ActionSpec("winget_upgrade_app", "Update one app the maintenance scan listed, with winget",
+               "winget lists a newer version", "medium", True, "user", None, False,
+               "a current app", "maintenance.Maintenance.start_upgrade(app_id)",
+               "the app leaves the update list on the next scan",
+               "winget install --id <id> --exact --version <previous> --force"),
 )}
 
 

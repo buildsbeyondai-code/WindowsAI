@@ -78,6 +78,11 @@ def snapshot_degraded():
             _row("cpu_queue", "regress", current=6, target=1),
             _row("disk_active_pct", "regress", current=60, target=10),
         ]},
+        # 5.3: what /api/fixes adds; every maintenance fix has a finding
+        "maintenance": {"findings": [
+            {"fix": f, "text": f"{f} finding"} for f in (
+                "clear_browser_cache", "fix_registry_orphans", "create_restore_point",
+                "repair_system_files", "windows_update_cleanup")]},
     }
 
 # The evolution fixture is a separate mini-repository with its own suite; it is

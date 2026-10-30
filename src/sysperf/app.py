@@ -43,6 +43,7 @@ from . import health as health_mod
 from . import historydb as historydb_mod
 from . import livestats as livestats_mod
 from . import llm as llm_mod
+from . import maintenance as maintenance_mod
 from . import notify as notify_mod
 from . import onedrive as onedrive_mod
 from . import onedrive_control as onedrive_control_mod
@@ -82,6 +83,8 @@ from .config import (
     HISTORY_FILE,
     HISTORY_RAW_DAYS,
     HOST,
+    MAINTENANCE_BACKUP_DIR,
+    MAINTENANCE_FILE,
     NOTIFY_STATE_FILE,
     ONEDRIVE_CONTROL_FILE,
     ONEDRIVE_DEFAULT_STOPPED,
@@ -167,6 +170,9 @@ history_store = historydb_mod.open_store(
 _shell = pwsh_mod.PwshSession(PS_EXE) if PERSISTENT_SHELL and CAN_COLLECT else None
 collector = Collector(scorer, store=history_store, shell=_shell)
 fix_engine = FixEngine()
+# 5.3: slow read-only maintenance checks, scanned every 6 h into a cached report.
+maintenance = maintenance_mod.Maintenance(MAINTENANCE_FILE, PS_EXE if CAN_COLLECT else None,
+                                          backup_dir=MAINTENANCE_BACKUP_DIR)
 trend_store = TrendStore(TRENDS_FILE)
 # Long-term reasoning needs history on day one: import the adaptive scorer's
 # per-day aggregates for any (day, metric) the trend store does not have yet.
@@ -452,12 +458,53 @@ def api_health():
 @app.get("/api/fixes")
 def api_fixes():
     """Detect applicable common fixes for the current snapshot (read-only)."""
-    snap = collector.snapshot()
+    # The maintenance report is added here only, so its fixes are offered to the
+    # user and never chosen by the unattended loop.
+    snap = {**collector.snapshot(), "maintenance": maintenance.report()}
     return jsonify({
         "enabled": FIX_ENABLED,
         "token": FIX_TOKEN,
         "fixes": fix_engine.detect(snap),
     })
+
+
+# Fixes the maintenance sections offer whether or not a finding names them.
+MAINTENANCE_FIXES = ("create_restore_point", "repair_system_files", "clear_temp",
+                     "clear_browser_cache", "windows_update_cleanup", "fix_registry_orphans")
+
+
+@app.get("/api/maintenance")
+def api_maintenance():
+    """The cached maintenance report, its findings and the fixes they lead to."""
+    rep = maintenance.report()
+    ids = set(MAINTENANCE_FIXES) | {f["fix"] for f in rep["findings"] if f["fix"]}
+    rep["fixes"] = {i: {"title": f.title, "risk": f.risk, "manual_hint": f.manual_hint,
+                        "executable": f.executable and FIX_ENABLED}
+                    for i in sorted(ids) if (f := fix_engine.get(i))}
+    return jsonify(rep)
+
+
+@app.post("/api/maintenance/scan")
+def api_maintenance_scan():
+    """Start a maintenance scan now (read-only, about 30 s)."""
+    body = request.get_json(silent=True) or {}
+    if (bad := _csrf(body)):
+        return bad
+    return jsonify({"started": maintenance.scan_async()})
+
+
+@app.post("/api/maintenance/upgrade")
+def api_maintenance_upgrade():
+    """Update one app the last scan listed. Body: {"id": "<winget id>", "token"}."""
+    body = request.get_json(silent=True) or {}
+    if (bad := _csrf(body)):
+        return bad
+    if not FIX_ENABLED:
+        return jsonify({"error": "fix execution disabled (PERFDASH_FIX_ENABLED=0)"}), 403
+    try:
+        return jsonify(maintenance.start_upgrade(str(body.get("id") or "")))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
 
 @app.post("/api/fix")
@@ -1636,6 +1683,7 @@ def main() -> None:
     _start("self-evolution", code_evolution.loop, lambda: action_policy.level)
     _start("action-verification", _verify_actions_loop)
     _start("housekeeping", _housekeeping_loop)
+    _start("maintenance", maintenance.loop)
     if VERSION_CHECK:
         _start("version-check", latest_versions.loop)
     if PLATFORM == "windows":

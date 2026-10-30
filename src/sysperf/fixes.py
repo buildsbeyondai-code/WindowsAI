@@ -38,6 +38,7 @@ from typing import Callable
 
 from . import appctl
 from .background_process import run_hidden
+from .maintenance import script_command
 
 # The processes these fixes must never touch. appctl.CRITICAL is imported rather
 # than restated — a second copy in PowerShell would drift, and drift here means
@@ -61,9 +62,10 @@ _DENY_PS = "@(" + ",".join(
     f"'{n}'" for n in sorted(appctl.CRITICAL | _EXTRA_DENY)) + ")"
 
 try:                                    # config import is optional for unit tests
-    from .config import PS_EXE
+    from .config import MAINTENANCE_BACKUP_DIR, PS_EXE
 except Exception:                       # pragma: no cover - defensive only
     PS_EXE = "pwsh"
+    MAINTENANCE_BACKUP_DIR = "registry-backups"
 
 try:                                    # standby elevation-broker exchange paths
     from .config import (
@@ -261,6 +263,18 @@ def _detect_working_set(snap: dict) -> str | None:
             "sets returns pages without stopping anything")
 
 
+def _maintenance(fix_id: str):
+    """A detector for a fix the maintenance scan recommends.
+
+    It reads ``snapshot["maintenance"]``, which only ``/api/fixes`` adds, so the
+    unattended loop never selects these fixes; each runs on a confirmed request.
+    """
+    def detect(snap: dict) -> str | None:
+        found = (snap.get("maintenance") or {}).get("findings") or []
+        return next((f["text"] for f in found if f.get("fix") == fix_id), None)
+    return detect
+
+
 # --------------------------------------------------------------------------- #
 def build_registry() -> list:
     """The ordered list of known fixes (severity-relevant order)."""
@@ -409,6 +423,47 @@ def build_registry() -> list:
                          "uncheck add-ins you do not need (e.g. legacy archiving/CRM "
                          "plugins). Left manual so required corporate add-ins are never "
                          "removed automatically.")),
+        # ---- maintenance scan (maintenance.py); run only on a confirmed request ----
+        Fix(id="clear_browser_cache", title="Clear browser caches",
+            category="storage", risk="caution", reversible=False, shell="pwsh",
+            command=script_command("clear-browser-cache"),
+            detect=_maintenance("clear_browser_cache"),
+            manual_hint=("Empties the cache folders of Edge, Chrome, Brave and Firefox. "
+                         "Sign-ins, history, passwords and bookmarks are kept, and a "
+                         "browser that is open is skipped. Nothing to undo: the cache "
+                         "refills as you browse.")),
+        Fix(id="fix_registry_orphans",
+            title="Back up and remove your start-up and uninstall entries for missing programs",
+            category="registry", risk="caution", reversible=True, shell="pwsh",
+            command=script_command("fix-registry", Backup=str(MAINTENANCE_BACKUP_DIR)),
+            detect=_maintenance("fix_registry_orphans"),
+            manual_hint=("Only your own (HKCU) entries, and only those whose program is "
+                         "gone. Each key is exported to a .reg file in "
+                         f"{MAINTENANCE_BACKUP_DIR} first; undo with the `reg import` "
+                         "command the result names. Machine-wide entries need an "
+                         "administrator and are listed, not changed.")),
+        Fix(id="create_restore_point", title="Create a system restore point",
+            category="protection", risk="manual", reversible=True, shell="pwsh",
+            command="", detect=_maintenance("create_restore_point"),
+            manual_hint=("In PowerShell run as administrator: `Checkpoint-Computer "
+                         "-Description 'Before changes' -RestorePointType "
+                         "MODIFY_SETTINGS`. If it reports System Restore is off, turn "
+                         "on protection for C: in System Properties -> System "
+                         "Protection. Needs elevation, which this service does not have.")),
+        Fix(id="repair_system_files", title="Check and repair Windows system files",
+            category="protection", risk="manual", reversible=True, shell="pwsh",
+            command="", detect=_maintenance("repair_system_files"),
+            manual_hint=("In a terminal run as administrator: `DISM /Online "
+                         "/Cleanup-Image /RestoreHealth`, then `sfc /scannow`. Both only "
+                         "restore Microsoft's own files and take 10-30 minutes; restart "
+                         "afterwards if SFC repaired anything.")),
+        Fix(id="windows_update_cleanup", title="Remove old Windows Update files",
+            category="storage", risk="manual", reversible=False, shell="pwsh",
+            command="", detect=_maintenance("windows_update_cleanup"),
+            manual_hint=("Settings -> System -> Storage -> Temporary files -> tick "
+                         "Windows Update Cleanup -> Remove files (or Disk Cleanup -> "
+                         "Clean up system files). Needs an administrator; installed "
+                         "updates can no longer be uninstalled afterwards.")),
     ]
 
 

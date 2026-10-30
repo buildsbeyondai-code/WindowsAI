@@ -2259,6 +2259,233 @@
   ],
   "window_cycles": 500
  },
+ "api/maintenance": {
+  "age_s": 600,
+  "app_updates": {
+   "apps": [
+    {
+     "available": "2.57.0",
+     "current": "2.56.0",
+     "id": "Git.Git",
+     "name": "Git"
+    }
+   ],
+   "available": true
+  },
+  "at": 1792583000,
+  "cleanup": {
+   "items": [
+    {
+     "fix": "clear_temp",
+     "id": "temp",
+     "label": "Your TEMP folder",
+     "mb": 3.7
+    },
+    {
+     "fix": null,
+     "id": "crashdumps",
+     "label": "App crash dumps",
+     "mb": null
+    },
+    {
+     "fix": "clear_browser_cache",
+     "id": "msedge",
+     "label": "Microsoft Edge cache",
+     "mb": 676.6
+    },
+    {
+     "fix": "windows_update_cleanup",
+     "id": "wucache",
+     "label": "Windows Update download cache",
+     "mb": 92.1
+    }
+   ],
+   "large_files": [
+    {
+     "mb": 5800,
+     "modified": 1792496600,
+     "path": "C:\\Users\\<user>\\Downloads\\ubuntu.iso"
+    }
+   ]
+  },
+  "crashes": {
+   "app_crashes_7d": [
+    {
+     "app": "Explorer.EXE",
+     "count": 2
+    }
+   ],
+   "bugchecks_30d": [
+    {
+     "at": 1792575800,
+     "code": "0x0000009f"
+    }
+   ],
+   "unexpected_shutdowns_30d": 4
+  },
+  "error": null,
+  "every_s": 21600,
+  "findings": [
+   {
+    "area": "crashes",
+    "fix": "repair_system_files",
+    "level": "bad",
+    "text": "1 blue-screen crash(es) in 30 days (stop code 0x0000009f). Check the system files, then the drivers."
+   },
+   {
+    "area": "security",
+    "fix": null,
+    "level": "bad",
+    "text": "The firewall is off for the Public network profile(s)."
+   },
+   {
+    "area": "registry",
+    "fix": "fix_registry_orphans",
+    "level": "warn",
+    "text": "1 start-up or uninstall entry of yours points to a program that is no longer there."
+   },
+   {
+    "area": "cleanup",
+    "fix": "clear_browser_cache",
+    "level": "info",
+    "text": "Browser caches hold 677 MB."
+   }
+  ],
+  "fixes": {
+   "clear_browser_cache": {
+    "executable": true,
+    "manual_hint": "x",
+    "risk": "caution",
+    "title": "Clear browser caches"
+   },
+   "clear_temp": {
+    "executable": true,
+    "manual_hint": "",
+    "risk": "safe",
+    "title": "Clear user TEMP folder"
+   },
+   "create_restore_point": {
+    "executable": false,
+    "manual_hint": "In PowerShell run as administrator: Checkpoint-Computer",
+    "risk": "manual",
+    "title": "Create a system restore point"
+   },
+   "fix_registry_orphans": {
+    "executable": true,
+    "manual_hint": "y",
+    "risk": "caution",
+    "title": "Back up and remove your start-up and uninstall entries for missing programs"
+   },
+   "repair_system_files": {
+    "executable": false,
+    "manual_hint": "DISM /Online /Cleanup-Image /RestoreHealth, then sfc /scannow",
+    "risk": "manual",
+    "title": "Check and repair Windows system files"
+   },
+   "windows_update_cleanup": {
+    "executable": false,
+    "manual_hint": "Settings -> System -> Storage",
+    "risk": "manual",
+    "title": "Remove old Windows Update files"
+   }
+  },
+  "job": {
+   "from": "1.0",
+   "id": "OpenAI.ChatGPT",
+   "name": "ChatGPT",
+   "returncode": 3,
+   "rollback": "winget install --id OpenAI.ChatGPT --exact --version 1.0 --force",
+   "state": "failed",
+   "to": "1.1"
+  },
+  "next_due": 1792604600,
+  "protection": {
+   "last_restore_point": null,
+   "last_servicing": 1792579400
+  },
+  "registry": {
+   "checked": {
+    "startup_keys": 5,
+    "uninstall_keys": 3
+   },
+   "orphans": [
+    {
+     "key": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+     "kind": "startup",
+     "name": "OldSync",
+     "target": "C:\\Program Files\\OldSync\\sync.exe",
+     "user": true
+    },
+    {
+     "key": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Gone",
+     "kind": "uninstall",
+     "name": "Gone Tool",
+     "target": "C:\\Gone\\unins000.exe",
+     "user": false
+    }
+   ]
+  },
+  "scanning": false,
+  "security": {
+   "antivirus": [
+    {
+     "active": true,
+     "name": "Windows Defender"
+    }
+   ],
+   "defender": {
+    "mode": "Normal",
+    "quick_scan_age_days": 3,
+    "realtime": true,
+    "service": true,
+    "signature_age_days": 0
+   },
+   "firewall": [
+    {
+     "enabled": true,
+     "name": "Domain"
+    },
+    {
+     "enabled": true,
+     "name": "Private"
+    },
+    {
+     "enabled": false,
+     "name": "Public"
+    }
+   ]
+  },
+  "services": [
+   {
+    "delayed": false,
+    "display": "Adobe Acrobat Update Service",
+    "name": "AdobeARMservice",
+    "state": "Running"
+   },
+   {
+    "delayed": true,
+    "display": "Google Updater Service",
+    "name": "gupdate",
+    "state": "Stopped"
+   }
+  ],
+  "tasks": [
+   {
+    "last_result": 0,
+    "last_run": 1792582400,
+    "name": "Adobe Acrobat Update Task",
+    "path": "\\",
+    "state": "Ready"
+   },
+   {
+    "last_result": 2147942402,
+    "last_run": null,
+    "name": "Vendor Telemetry",
+    "path": "\\Vendor\\",
+    "state": "Ready"
+   }
+  ]
+ },
  "api/metrics": {
   "browser": {
    "current_total": 93,
