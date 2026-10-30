@@ -111,6 +111,23 @@ def test_codevolve_run_gated_and_started(client, monkeypatch):
     assert ran and ran[0][0] == "manual"
 
 
+def test_codevolve_upgrade_gated_and_started(client, monkeypatch):
+    _csrf_refused(client, "/api/codevolve/upgrade")
+    monkeypatch.setattr(app.code_evolution, "upgrade_gate",
+                        lambda lvl, manual=False: "auto-upgrade is off")
+    assert client.post("/api/codevolve/upgrade", json=T).get_json() == {
+        "started": False, "reason": "auto-upgrade is off"}
+    ran = []
+    monkeypatch.setattr(app.code_evolution, "upgrade_gate", lambda lvl, manual=False: None)
+    monkeypatch.setattr(app.code_evolution, "upgrade_pass", lambda *a: ran.append(a))
+    assert client.post("/api/codevolve/upgrade", json=T).get_json() == {"started": True}
+    for _ in range(1000):
+        if ran:
+            break
+        time.sleep(0.01)
+    assert ran and ran[0][1] == "manual"
+
+
 def test_codevolve_settings_and_llm_settings(client, monkeypatch):
     _csrf_refused(client, "/api/codevolve/settings")
     j = client.post("/api/codevolve/settings", json={**T, "evolution": {"max_per_day": 3},

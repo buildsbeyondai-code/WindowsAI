@@ -2,6 +2,19 @@
 
 _Last updated: 2026-10-25, release 5.0.0._
 
+## 5.2.0 (2026-10-30)
+
+- Windows-side component upgrades work on a PC with no AI provider, no WSL
+  and no source checkout (`CodeEvolution.upgrade_pass`): unattended from
+  Safe-auto, or with Upgrade now. The AI cycle keeps the repository and WSL
+  upgrades.
+- GitHub only, not submitted to the Store.
+
+## 5.1.2 (2026-10-30)
+
+- Shipped self-evolution candidate c-20261027-022409-a8b8d7 (vmmem_trend).
+- GitHub only, not submitted to the Store.
+
 ## 5.1.1 (2026-10-27)
 
 - Every Components row has an upgrader (`upgrader.py`); self-evolution tests

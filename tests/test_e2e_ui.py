@@ -705,6 +705,7 @@ CONDITIONAL = {
     "brokerCopy": "a button rendered inside brokerCard, so only when it shows",
     "autoDecisionsCard": "shown only once the loop has made an auto-goal decision",
     "homeOptional": "filled only in the Microsoft Store app (Store mode)",
+    "sevUpgradeMsg": "a status line, written only after Upgrade now or when it is unavailable",
 }
 
 
@@ -767,17 +768,51 @@ def test_self_evolution_tab_shows_recorded_cycle_and_diff(browser, site):
                                                  "merge_command": "git merge --ff-only x"}})
     page.wait_for_timeout(800)
     assert "Awaiting approval" in page.inner_text("#sevStatus")
-    assert "retained" in page.inner_text("#sevHistory")
+    assert "Passed every check — waiting for your approval" in page.inner_text("#sevHistory")
+    assert page.get_attribute("#sevHistory td.st-degraded", "title") == "decision: retained · review: pending"
     page.click("#sevHistory .sev-pick" if page.query_selector("#sevHistory .sev-pick")
                else "#sevHistory .evo-pick")
     page.wait_for_timeout(500)
     detail = page.inner_text("#sevDetail")
     # the table header is text-transform:uppercase, so innerText reads "BENCHMARK"
     assert "seen = set()" in detail and "benchmark" in detail.lower()
+    assert "Outcome: Passed every check" in detail
     page.click("#sevApprove")
     page.wait_for_timeout(400)
     assert any("api/codevolve/review" in u for u in page.posted)
     assert "Approved" in page.inner_text("#sevReviewMsg")
+    page.close()
+
+
+def test_self_evolution_outcomes_read_in_plain_language(browser, site):
+    """5.2: the Outcome column says what happened, not the internal state names."""
+    cases = [("retained", "applied", "Speed up x", "Applied — now part of SysPerf"),
+             ("retained", "applied", "3PP upgrade: pwsh 1 → 2", "Upgraded — tested, applied and verified"),
+             ("retained", "handed_off", "3PP upgrade: bios", "Handed to Windows Update"),
+             ("retained", "approved", "y", "Approved — waiting to be applied"),
+             ("retained", "verifying", "3PP upgrade: python", "Applying — checked after SysPerf restarts"),
+             ("retained", "rolled_back", "z", "Applied, then rolled back"),
+             ("retained", "rejected", "w", "Rejected by you"),
+             ("rejected", "rolled_back", "3PP upgrade: git", "Tried, failed the check and rolled back"),
+             ("rejected", "none", "v", "Not kept — it failed a check"),
+             ("rejected", "none", "3PP upgrade: jinja2", "Not upgraded — a check failed"),
+             ("odd", "none", "u", "odd")]
+    cycles = [{"id": f"k{i}", "started": 1792583000 + i, "trigger": "manual", "state": "completed"}
+              for i in range(len(cases))]
+    cands = [{"id": f"c-k{i}", "cycle_id": f"k{i}", "decision": d, "review_state": r, "title": t}
+             for i, (d, r, t, _) in enumerate(cases)]
+    for i, state in enumerate(["completed", "skipped", "blocked", "failed", "interrupted", "testing"]):
+        cycles.append({"id": f"n{i}", "started": 1792580000 + i, "trigger": "schedule", "state": state})
+    hist = dict(STUBS["api/codevolve/history"], cycles=cycles, candidates=cands)
+    page = _open(browser, site, hash_="#self-evolution", overrides={"api/codevolve/history": hist})
+    page.wait_for_function("() => document.getElementById('sevHistory').innerText.includes('Upgraded')")
+    text = page.inner_text("#sevHistory")
+    for *_, want in cases:
+        assert want in text
+    for want in ("Finished — nothing kept", "Skipped — nothing to do", "Blocked — no safe sandbox",
+                 "Failed — see Reason", "Interrupted — SysPerf restarted", "In progress — Running tests"):
+        assert want in text
+    assert "OUTCOME" in text.upper() and "retained ·" not in text
     page.close()
 
 

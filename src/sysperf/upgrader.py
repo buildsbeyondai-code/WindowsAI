@@ -198,6 +198,9 @@ class Upgrader:
     handoff = False       # another updater finishes it; verified on later samples
     windows_only = True
     retry_s = 0           # >0: a hand-off may be repeated after this long
+    # Needs neither SysPerf's source checkout nor the sandbox, so it also runs
+    # on a PC with no AI provider, no WSL and no git (CodeEvolution.upgrade_pass).
+    standalone = False
 
     def pending(self, row: dict, host: Host) -> dict | None:
         cur, new = row.get("current") or "", row.get("latest") or ""
@@ -610,6 +613,7 @@ Done 'rolled_back' 'SysPerf did not become healthy on the new interpreter; rever
 
 class Pwsh(Upgrader):
     via = "pwsh"
+    standalone = True
     label = "PowerShell MSIX; the release zip runs the real collector first"
     restart = True
 
@@ -674,6 +678,7 @@ GIT_SMOKE = (["init", "-q", "-b", "main", "r"],
 
 class Winget(Upgrader):
     via = "winget"
+    standalone = True
     label = "winget; the release's PortableGit runs every git operation first"
 
     def _smoke(self, host, git: str) -> str | None:
@@ -731,6 +736,7 @@ class Winget(Upgrader):
 
 class Wsl(Upgrader):
     via = "wsl"
+    standalone = True
     label = "signed WSL MSI (UAC); the sandbox suite must pass afterwards"
 
     def _msi(self, host, ver) -> Path:
@@ -769,6 +775,7 @@ class Wsl(Upgrader):
 # ================================================================ hand-off
 class WindowsUpdate(Upgrader):
     via = "windows-update"
+    standalone = True
     label = "Windows Update scan (drivers arrive as optional updates)"
     handoff = True
     retry_s = 30 * 86400
