@@ -4,6 +4,43 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.3.0 — 2026-10-30
+
+GitHub only; this release is not submitted to the Microsoft Store.
+
+### Added
+- **Maintenance check: seven new Details sections** (Maintenance, Protection,
+  Cleanup, Registry, Security, Services & tasks, App updates), next to
+  Hardware, Drivers and Components. A read-only scan (`maintenance.py`,
+  `maintenance.ps1`) fills them every 6 hours, or on **Scan now**; it takes
+  about 30 s and never runs on the 60 s sampler. What needs attention is listed
+  first, worst first, with the fix that acts on it.
+  - **Protection & repair**: the newest restore point and the last Windows
+    servicing run. Creating a restore point and DISM `/RestoreHealth` + `sfc
+    /scannow` need an administrator, so they are manual fixes with the exact
+    commands, suggested after blue screens or repeated unexpected shutdowns.
+  - **Disk cleanup**: TEMP, app crash dumps, the Edge/Chrome/Brave/Firefox
+    caches and the Windows Update download cache, with sizes, and the ten
+    largest files in Downloads, Desktop, Documents and Videos (listed only).
+    New fix **Clear browser caches** (closed browsers only; sign-ins, history
+    and bookmarks are kept). Windows Update cleanup is manual (administrator).
+  - **Registry check**: start-up and uninstall entries that point to a program
+    that is gone. New fix **Back up and remove yours** exports each HKCU key to
+    `data\registry-backups` first and names the `reg import` that undoes it;
+    machine-wide entries are listed only. Nothing else in the registry is
+    touched: Microsoft does not support registry cleaners.
+  - **Security & crashes**: Defender real-time protection and definition age,
+    other antivirus products, the firewall per profile, blue screens with stop
+    codes, unexpected shutdowns and app crashes.
+  - **Services & scheduled tasks**: third-party auto-start services and
+    third-party tasks with their last result.
+  - **App updates**: what winget can update, one app at a time
+    (`POST /api/maintenance/upgrade`, only for an id the last scan listed),
+    with the command that goes back.
+- Every new fix is registered in `optactions.py` and runs only on a confirmed
+  request: its detector reads the maintenance report, which only
+  `/api/fixes` supplies, so the unattended loop never picks it.
+
 ## 5.2.1 — 2026-10-30
 
 GitHub only; this release is not submitted to the Microsoft Store.

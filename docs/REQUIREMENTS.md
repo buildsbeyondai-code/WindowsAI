@@ -60,6 +60,8 @@ acceptance criteria.
 | R19 | a component is added to components.json | the suite runs | it fails unless the row names a known upgrader | `tests/test_upgrader.py::test_every_component_row_names_a_known_upgrader` |
 | R20 | a host component's isolated test fails, or its post-upgrade check fails | the upgrade runs | the real install is left untouched, or rolled back from the backup | `tests/test_upgrader.py::test_pipeline_outcomes`, `tests/test_upgrader.py::test_apt_failures_and_rollback` |
 | R21 | a PC has no AI provider, no WSL sandbox and no source checkout | a Windows-side component is outdated | it is upgraded on its own from Safe-auto, or with Upgrade now at any level but Off, and rows that need the sandbox say so | `tests/test_upgrader.py::test_upgrades_run_without_a_model_sandbox_or_checkout`, `tests/test_e2e_v41.py::test_upgrades_work_without_ai_and_upgrade_now_starts_one` |
+| R22 | an entry in the user's Run key points to a program that no longer exists | the registry fix runs | the key is exported to a .reg file before the entry is removed, and machine-wide entries are only listed | `tests/test_maintenance.py::test_every_finding_and_its_fix`, `tests/test_e2e_maintenance.py::test_every_maintenance_section_renders_the_scan` |
+| R23 | the maintenance scan lists an app update | someone asks to update an app that is not on the list | the request is refused and nothing runs | `tests/test_maintenance.py::test_upgrade_one_listed_app`, `tests/test_app_api.py::test_maintenance_report_scan_and_upgrade` |
 | R16 | a worker fails repeatedly | it logs the same error | the log keeps the first three per 10 minutes and reports the rest | `tests/test_health.py::test_repeat_filter_lets_a_burst_through_then_reports_the_rest` |
 
 ## Non-functional targets

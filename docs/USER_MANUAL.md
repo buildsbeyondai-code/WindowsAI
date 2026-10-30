@@ -1,6 +1,6 @@
 # SysPerf User Manual
 
-**System Performance Agent — version 5.2.1**
+**System Performance Agent — version 5.3.0**
 
 A self-improving performance dashboard for Windows 11. It measures the PC, explains
 what holds it back, and changes it only in ways it lists and you can undo.
@@ -20,10 +20,14 @@ sampler that reads Windows performance data every twenty seconds.
 
 ### 1.2 What SysPerf is not
 
-It is **not** an optimiser that changes settings for you. SysPerf reads. It never
-writes to the registry, never disables a service, never deletes a file, never
-changes a power plan. When it finds something worth fixing it tells you what it
-measured, why that matters, and what to do — and then you decide.
+It is **not** an optimiser that changes settings for you behind your back.
+SysPerf reads. It changes something only when you press a fix, or turn on an
+automatic one, and every such change is registered, says how to undo it, and is
+logged: the registry fix, for example, exports each key to a `.reg` file before
+removing your entries for programs that are gone. It never disables a service,
+never deletes your files and never changes a power plan. When it finds something
+worth fixing it tells you what it measured, why that matters, and what to do —
+and then you decide.
 
 This is a deliberate design constraint rather than an unfinished feature. Tools
 that silently modify Windows are impossible to audit: when something breaks a week
@@ -409,6 +413,39 @@ Third-party driver inventory, unsigned packages, packages older than four years,
 and driver-specific fault codes. Stale storage, chipset, graphics and network
 drivers are the ones that measurably affect performance; a stale driver for a
 printer you no longer own does not matter.
+
+### 5.13 Maintenance check
+
+Seven Details sections, filled by a read-only scan (`maintenance.py`,
+`maintenance.ps1`) that runs every **6 hours** in the background, or when you
+press **Scan now**; it takes about half a minute. These things change over days,
+so they are not checked on the 60-second sampler. What needs attention is listed
+first, worst first, each with the fix that acts on it.
+
+- **Protection** — the newest restore point (from the event System Restore
+  writes; none recorded is reported as such) and when Windows servicing last
+  ran. Creating a restore point and running `DISM /RestoreHealth` + `sfc
+  /scannow` need an administrator, so SysPerf gives the exact commands.
+- **Cleanup** — your TEMP folder, app crash dumps, the Edge, Chrome, Brave and
+  Firefox caches, and the Windows Update download cache, with their sizes; and
+  the ten largest files (500 MB or more) in Downloads, Desktop, Documents and
+  Videos. **Clear browser caches** empties the caches of browsers that are
+  closed (sign-ins, history and bookmarks are kept). Large files are listed
+  only; SysPerf never deletes your files.
+- **Registry** — start-up (Run/RunOnce) and uninstall entries whose program is
+  gone. **Back up and remove yours** exports each of your (HKCU) keys to
+  `data\registry-backups` and then removes the entries; undo with the `reg
+  import` command the result names. Machine-wide entries need an administrator
+  and are listed only. Nothing else in the registry is "cleaned": Microsoft does
+  not support registry cleaners, and what they free is negligible.
+- **Security** — Defender real-time protection, definition and scan age, other
+  antivirus products, and the firewall for each network profile; blue screens
+  (with stop codes) and unexpected shutdowns in 30 days, and app crashes in 7.
+- **Services & tasks** — third-party services that start automatically, and
+  third-party scheduled tasks with their last result.
+- **App updates** — installed apps winget has a newer version of. **Update**
+  upgrades one app at a time; the result shows the `winget install --version`
+  command that goes back.
 
 ---
 
