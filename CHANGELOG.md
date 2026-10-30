@@ -4,6 +4,22 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.1.2 — 2026-10-30
+
+GitHub only; this release is not submitted to the Microsoft Store.
+
+### Changed
+- **Faster WSL memory trend (self-evolution, approved and applied).**
+  Candidate c-20261027-022409-a8b8d7: `scoring.vmmem_trend` finds the newest
+  sample with one reverse scan, filters the window in a single pass and checks
+  for resets without re-indexing. `scoring.vmmem_trend` is 44.3% faster and
+  `scoring.build_scorecard` 13.5% faster; the sandbox passed 1210 tests. Main
+  had moved since the candidate was measured, so it was cherry-picked
+  (`-x`), and the 5.0.6 status logic marks it *applied*. The result is
+  unchanged: `test_trend_matches_the_original` compares it with the original
+  over 500 random histories, including gaps, collapses, missing fields, zero
+  values and out-of-order samples.
+
 ## 5.1.1 — 2026-10-27
 
 GitHub only; this release is not submitted to the Microsoft Store.

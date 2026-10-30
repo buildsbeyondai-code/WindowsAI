@@ -164,6 +164,60 @@ def test_trend_reanchor_on_collapse():
     assert n == 7
 
 
+def _vmmem_trend_reference(history):
+    """vmmem_trend as it was before 5.1.2, kept to pin the evolved version."""
+    pts = [(s["_t"], s["vmmem_mb"]) for s in history
+           if s.get("vmmem_mb") and s.get("_t")]
+    if not pts:
+        return 0.0, 0.0, 0
+    newest = pts[-1][0]
+    pts = [(t, v) for t, v in pts if newest - t <= scoring.TREND_WINDOW_S]
+    collapse_from = scoring._cfg.VMMEM_CAP_MB * 0.45
+    anchor = 0
+    for i in range(1, len(pts)):
+        gap = pts[i][0] - pts[i - 1][0]
+        reset = (pts[i - 1][1] >= collapse_from and pts[i][1] < pts[i - 1][1] * 0.5)
+        if gap > scoring.TREND_GAP_S or reset:
+            anchor = i
+    pts = pts[anchor:]
+    n = len(pts)
+    if n < 2:
+        return 0.0, 0.0, n
+    span = pts[-1][0] - pts[0][0]
+    if n < scoring.MIN_TREND_SAMPLES or span < scoring.MIN_TREND_SPAN_S:
+        return 0.0, span, n
+    t0 = pts[0][0]
+    xs = [(t - t0) / 3600.0 for t, _ in pts]
+    ys = [v for _, v in pts]
+    mx, my = sum(xs) / n, sum(ys) / n
+    den = sum((x - mx) ** 2 for x in xs)
+    if den == 0:
+        return 0.0, span, n
+    return sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / den, span, n
+
+
+def test_trend_matches_the_original():
+    """5.1.2 (self-evolution, applied): the single-pass vmmem_trend must return
+    exactly what the original did, including gaps, collapses, missing fields,
+    zero values and out-of-order samples."""
+    import random
+    rng = random.Random(512)
+    cap = scoring._cfg.VMMEM_CAP_MB
+    for _ in range(500):
+        t, hist = rng.uniform(0, 1e6), []
+        for _ in range(rng.randint(0, 40)):
+            t += rng.choice([0, 20, 120, 600, scoring.TREND_GAP_S + 1,
+                             scoring.TREND_WINDOW_S + 1, -300])
+            row = {}
+            if rng.random() > 0.1:
+                row["_t"] = rng.choice([t, t, t, 0, None])
+            if rng.random() > 0.1:
+                row["vmmem_mb"] = rng.choice([0, None, rng.uniform(0, cap),
+                                              cap * 0.9, cap * 0.2])
+            hist.append(row)
+        assert vmmem_trend(hist) == _vmmem_trend_reference(hist)
+
+
 # ------------------------------------------------------------------ _row_note -
 def test_row_note_startup():
     n = _row_note("startup_apps", 10, {"startup_apps_total": 25})
