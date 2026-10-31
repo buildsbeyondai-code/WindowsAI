@@ -2,6 +2,7 @@
 import json
 import re
 import subprocess
+from datetime import datetime
 
 import sysperf.components as components
 from sysperf.components import _cmp, _months_old, _run, _ver, build_components
@@ -324,5 +325,44 @@ def test_build_components_uses_live_versions(tmp_path, monkeypatch):
     assert by["powershell"]["latest"] == "7.6.8" and by["powershell"]["latest_source"] == "installed"
     assert by["flask"]["latest"] == "3.1.3" and by["flask"]["missing"]
     assert out["latest_checked_at"] == 123.0 and out["upgrades"] == 0
+    assert out["assessment_date"] == out["catalog_date"] == "2026-10-21"   # 1970 check is older
     live.write_text("[1]")
     assert build_components({"pwsh_version": "7.6.8"})["latest_checked_at"] is None
+
+
+def test_assessment_date_follows_the_daily_live_check(tmp_path, monkeypatch):
+    # 5.4 live: the card read "Dated 2026-10-25" days after the daily re-check
+    f = tmp_path / "c.json"
+    f.write_text(json.dumps({"assessment_date": "2026-10-25", "catalog": []}))
+    live = tmp_path / "live.json"
+    ts = datetime(2026, 10, 31, 12).timestamp()
+    live.write_text(json.dumps({"checked_at": ts, "latest": {}}))
+    monkeypatch.setattr(components, "COMPONENTS_FILE", f)
+    monkeypatch.setattr(components, "LATEST_FILE", live)
+    monkeypatch.setattr(components, "_linux_versions", lambda: {})
+    out = build_components({})
+    assert out["assessment_date"] == "2026-10-31" and out["catalog_date"] == "2026-10-25"
+    live.write_text(json.dumps({"checked_at": "never"}))
+    assert build_components({})["assessment_date"] == "2026-10-25"
+
+
+def test_a_component_that_ships_in_a_current_carrier_waits_for_it(tmp_path, monkeypatch):
+    # 5.4 live: the WSL kernel read "upgrade" for 6.18.58.1 while the newest WSL
+    # (installed) still ships 6.18.54.1, so nothing could ever upgrade it
+    f = tmp_path / "c.json"
+    f.write_text(json.dumps({"catalog": [
+        {"key": "kernel", "name": "WSL kernel", "latest": "6.18.58.1", "perf": 20,
+         "upgrade": {"via": "follows", "of": "wsl"}},
+        {"key": "wsl", "name": "WSL", "latest": "3.0.3", "perf": 25,
+         "upgrade": {"via": "wsl"}}]}))
+    monkeypatch.setattr(components, "COMPONENTS_FILE", f)
+    monkeypatch.setattr(components, "LATEST_FILE", tmp_path / "none.json")
+    monkeypatch.setattr(components, "_linux_versions",
+                        lambda: {"kernel": "6.18.54.1", "wsl": "3.0.3"})
+    out = build_components({})
+    k = {r["key"]: r for r in out["rows"]}["kernel"]
+    assert k["outdated"] is False and k["waiting_on"] == "WSL" and out["upgrades"] == 0
+    monkeypatch.setattr(components, "_linux_versions",          # WSL behind: both upgrade
+                        lambda: {"kernel": "6.18.54.1", "wsl": "3.0.2"})
+    out = build_components({})
+    assert out["upgrades"] == 2 and "waiting_on" not in out["rows"][0]

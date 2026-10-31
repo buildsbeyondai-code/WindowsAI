@@ -727,3 +727,12 @@ def test_run_text_reports_rc_output_timeouts_and_missing_programs(tmp_path):
     assert rc == 0 and "hi" in out
     assert cv.run_text([sys.executable, "-c", "import time; time.sleep(5)"], timeout=0.5)[0] == 124
     assert cv.run_text([str(tmp_path / "nope.exe")])[0] == 127
+
+
+
+def test_the_first_export_measures_a_staging_folder_that_does_not_exist_yet(tmp_path):
+    # 5.4 live: shutil.disk_usage raised WinError 3 on the missing staging folder
+    h = host(tmp_path, Run([("--export", (0, ""))]))
+    h.free_gb = ug.Host.free_gb
+    assert not h.staging.exists()
+    assert h.export_distro().name == "Ubuntu-backup.tar"

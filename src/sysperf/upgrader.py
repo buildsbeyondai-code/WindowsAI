@@ -155,9 +155,9 @@ class Host:
 
     # ------------------------------------------- throwaway copy of the distro
     def export_distro(self) -> Path:
+        self.staging.mkdir(parents=True, exist_ok=True)   # disk_usage needs a path that exists
         if self.free_gb(self.staging) < MIN_FREE_GB:
             raise RuntimeError(f"less than {MIN_FREE_GB} GB free for a test copy of the distro")
-        self.staging.mkdir(parents=True, exist_ok=True)
         tar = self.staging / f"{self.distro}-backup.tar"
         rc, out = self.run(["wsl.exe", "--export", self.distro, str(tar)], timeout=3600)
         if rc != 0:

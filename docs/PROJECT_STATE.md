@@ -2,6 +2,15 @@
 
 _Last updated: 2026-10-25, release 5.0.0._
 
+## 5.4.1 (2026-10-31)
+
+- Component upgrades drain in hours: the next cycle follows after `cooldown_s`
+  (30 min), not `interval_s` (6 h), and upgrade cycles do not spend `max_per_day`.
+- The Components assessment date follows the daily live version check.
+- Edit loop: `tools/affected_tests.py` (impact-based selection), full suite in
+  `tools/hooks/pre-push`, Linux/sandbox from CI; `docs/LEARNINGS.md`.
+- Ubuntu 24.04 -> 26.04.1 upgraded on the live PC by the upgrader (tested in a copy).
+
 ## 5.4.0 (2026-10-31)
 
 - SysPerf creates System Restore points itself (`restorepoint.py`,

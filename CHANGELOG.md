@@ -4,6 +4,30 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.4.1 — 2026-10-31
+
+### Fixed
+- **Components upgrade in hours, not days.** A self-evolution cycle that upgraded
+  a component now schedules the next after `cooldown_s` (30 min) instead of
+  `interval_s` (6 h), and component-upgrade cycles no longer count against
+  `max_per_day`. Seven outdated components had taken ~42 h to work through.
+- **The Components "Assessment" date follows the daily live version check**
+  instead of the catalog's hand-edit date (it read 2026-10-25 for days). The
+  catalog date is still shown as `catalog_date`.
+- **The WSL kernel waits for a WSL release instead of reading as an upgrade.**
+  A component that ships inside another (`upgrade.via: follows`) is not counted
+  while its carrier is current: kernel 6.18.58.1 is published, but the newest
+  WSL (3.0.3) still ships 6.18.54.1, so nothing could upgrade it. It now shows
+  *waiting for WSL release*.
+- The first Ubuntu test export no longer fails with WinError 3 on a missing
+  staging folder.
+
+### Changed
+- `tools/affected_tests.py` runs only the tests a change can affect; the full
+  suite runs in the `tools/hooks/pre-push` hook (`git config core.hooksPath
+  tools/hooks`). Linux and sandbox runs come from CI. `docs/LEARNINGS.md`
+  records the fast edit loop and the environment traps.
+
 ## 5.4.0 — 2026-10-30
 
 ### Added

@@ -5,7 +5,8 @@ one self-contained page (`src/sysperf/static/index.html`), PowerShell collector.
 The live install often runs from this checkout (editable install), so a change
 here is a change to the running app after a restart.
 
-Read only what the task needs:
+Start with `docs/LEARNINGS.md` (the fast edit loop, where each change goes,
+environment traps). Read only what the task needs:
 
 - Structure, data flow, trust boundaries: `docs/ARCHITECTURE.md`
 - Why things are the way they are: `docs/DECISIONS.md`
@@ -19,7 +20,8 @@ Read only what the task needs:
 ## Commands
 
 ```bash
-python -m pytest -rs            # full suite; Windows-only tests skip elsewhere
+python tools/affected_tests.py  # after each edit: only the tests the change can affect
+python -m pytest -rs            # full suite (pre-push hook); Windows-only tests skip elsewhere
 python -m ruff check src tests  # must be clean
 python tests/testrunner.py      # the eight in-app gates, incl. 100% line coverage
 ```
@@ -36,4 +38,6 @@ python tests/testrunner.py      # the eight in-app gates, incl. 100% line covera
 - Docs and the example config are checked against the code
   (`test_docs_truth.py`, `test_config_example.py`, `test_requirements_doc.py`).
   Update them in the same change.
+- Run the full suite, the gates and the other platforms only before a push or a
+  Store build, not after every edit; `tools/hooks/pre-push` enforces the full suite.
 - Do not claim a check passed without running it; say UNVERIFIED instead.

@@ -266,6 +266,10 @@ def test_scheduling_and_gates(tmp_path, repo):
     db.conn.commit()
     assert e.next_due() == clock[0] + e.settings["cooldown_s"]
     assert e.gate("event", "self_evolve") == "event trigger inside cooldown"
+    db.update_cycle("c1", state="completed", error=None)
+    assert e.next_due() == clock[0] + e.settings["interval_s"]
+    db.update_cycle("c1", provider="3pp")                  # a component upgrade: queue drains
+    assert e.next_due() == clock[0] + e.settings["cooldown_s"]
     e.llm = None
     assert "no LLM provider" in e.gate("manual", "self_evolve")
 

@@ -159,9 +159,15 @@ class EvoDB:
                 "SELECT * FROM cycles ORDER BY started DESC LIMIT ?", (limit,))]
 
     def cycles_since(self, ts: float) -> int:
+        """Code-lane cycles started since ts (what max_per_day limits).
+
+        Component upgrades (provider 3pp) use no model and are made once per
+        version, so they do not spend the daily allowance.
+        """
         with self._lock:
             return self.conn.execute("SELECT COUNT(*) FROM cycles WHERE started>=? AND "
-                                     "state!='skipped'", (ts,)).fetchone()[0]
+                                     "state!='skipped' AND IFNULL(provider,'')!='3pp'",
+                                     (ts,)).fetchone()[0]
 
     def recover(self) -> int:
         """Mark cycles a crash left mid-flight as interrupted."""
