@@ -52,6 +52,7 @@ leaves, `app` wires everything and owns no logic beyond request handling.
 | | `hardware.py`, `browser.py`, `netopt.py` | Device health, browser process ownership, Wi-Fi channel analysis |
 | Understand | `scoring.py`, `adaptive.py`, `machine_profile.py` | Criteria, personal-best scoring, per-machine baseline and targets |
 | | `trends.py`, `rca.py`, `cpuwatch.py`, `learning.py` | Long-term drift, root cause of shortfalls, CPU attribution, learning view |
+| | `explain.py` | Ranked recommendations: evidence, measured effect on this PC, risk class, reversibility, how success is measured |
 | | `target_review.py`, `components.py`, `version_check.py` | Unrealistic targets, component upgrade advice, latest versions |
 | Act | `fixes.py`, `optactions.py` | Reversible fixes; action registry and autonomy levels |
 | | `autoimprove.py`, `evolve.py` | The 5-minute loop; evolution of remediation candidates |

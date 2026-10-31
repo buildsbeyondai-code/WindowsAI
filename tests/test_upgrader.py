@@ -45,7 +45,8 @@ class Run:
     """Scripted host commands: the first rule whose text is in the argv wins."""
 
     def __init__(self, rules=None, default=(0, "")):
-        self.rules = list(rules or [])
+        # Downloads are genuine unless a test says otherwise (5.5 signature checks).
+        self.rules = [*(rules or []), ("Get-AuthenticodeSignature", (0, "signed"))]
         self.default = default
         self.calls = []
 
@@ -792,3 +793,32 @@ def test_a_failing_cleanup_is_recorded_not_raised(tmp_path):
     r = ug.run_upgrade(Messy(), {"key": "k", "from": "1", "to": "2"}, host(tmp_path),
                        log=steps.append)
     assert r["state"] == "applied" and any("cleanup after k failed: OSError" in s for s in steps)
+
+
+def test_downloads_must_be_signed_by_the_expected_publisher(tmp_path):
+    # 5.5: the upgrader ran downloaded installers checked only by HTTPS
+    files = {"nuget.org": zbytes(["tools/python.exe"]), "python-3.15.2-": b"new",
+             "python-3.15.1-": b"old"}
+    run = Run([("Get-AuthenticodeSignature", (0, "NotSigned "))])
+    h = host(tmp_path, run, files=files)
+    r = ug.run_upgrade(ug.PythonOrg(), {"key": "python", "from": "3.15.1", "to": "3.15.2"}, h)
+    assert r["state"] == "failed" and "not validly signed by Python Software Foundation" in r["reason"]
+    assert not run.ran("-m pytest")                        # nothing unverified was run
+    assert "'Python Software Foundation'" in next(c for c in run.calls if "Authenticode" in c)
+
+
+def test_a_github_asset_must_match_its_published_sha256(tmp_path):
+    import hashlib
+    rel = {"tag_name": "v1", "assets": [{"name": "tool.msi", "browser_download_url": "u/tool",
+                                         "digest": "sha256:" + hashlib.sha256(b"good").hexdigest()}]}
+    h = host(tmp_path, files={"releases/latest": rel, "u/tool": b"tampered"})
+    url, tag = h.github_asset("o/r", r"tool\.msi")
+    with pytest.raises(ValueError, match="sha256 does not match"):
+        h.download(url, "tool.msi")
+    h = host(tmp_path, files={"releases/latest": rel, "u/tool": b"good"})
+    url, _ = h.github_asset("o/r", r"tool\.msi")
+    assert h.download(url, "tool.msi").read_bytes() == b"good"
+    rel["assets"][0].pop("digest")                          # no digest published: HTTPS + signature
+    h = host(tmp_path, files={"releases/latest": rel, "u/tool": b"anything"})
+    url, _ = h.github_asset("o/r", r"tool\.msi")
+    assert h.download(url, "tool.msi").read_bytes() == b"anything" and h.digests == {}

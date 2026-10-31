@@ -98,6 +98,10 @@ def test_good_patch_is_retained_on_a_review_branch_never_main(tmp_path, repo):
 def test_winner_is_not_kept_when_auto_retain_is_off(tmp_path, repo):
     before = head(repo)
     eng, db = engine(tmp_path, repo, Fixed(GOOD), auto_retain=False)
+    # This is about the switch, not the benchmark: under load the benchmark could
+    # come out inconclusive and reject for another reason (flaky, 5.5 audit).
+    eng.compare = lambda base, cand, engine=False: {"accept": True, "reason": "1.5x faster",
+                                                    "rows": {}}
     res = eng.run_cycle("manual", "self_evolve")
     cand = db.candidates()[0]
     assert cand["decision"] == "rejected" and "switched off" in cand["reason"]

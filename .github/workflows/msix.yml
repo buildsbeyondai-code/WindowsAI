@@ -63,6 +63,17 @@ jobs:
           Get-ChildItem $out -Filter *.msix | ForEach-Object {
             "$($_.Name)  $([math]::Round($_.Length / 1MB, 1)) MB  $((Get-FileHash $_.FullName).Hash)" }
 
+      - name: The frozen ${{ matrix.arch }} app runs here (one real sample)
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:RUNNER_TEMP msix/layout/SysPerf/SysPerf.exe
+          $out = Join-Path $env:RUNNER_TEMP smoke.json
+          $p = Start-Process $exe -ArgumentList '--smoke', $out -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "SysPerf.exe --smoke exited $($p.ExitCode)" }
+          $j = Get-Content -Raw $out | ConvertFrom-Json
+          if ($null -eq $j.cpu_pct -or $null -eq $j.available_mb) { throw "no live sample: $(Get-Content -Raw $out)" }
+          "cpu $($j.cpu_pct)%  available $($j.available_mb) MB  processes $($j.processes)"
+
       - uses: actions/upload-artifact@v7
         with:
           name: msix-${{ matrix.arch }}

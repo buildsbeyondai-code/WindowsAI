@@ -2,6 +2,11 @@
 
 _Last updated: 2026-10-25, release 5.0.0._
 
+## 5.5.0 (2026-10-31)
+
+- Master audit, security hardening and final quality reports in docs/.
+- Signed-download enforcement, explained recommendations, user modes, ARM64 smoke run in CI.
+
 ## 5.4.9 (2026-10-31)
 
 - App updates: exact-package install fallback, publisher updaters (MiKTeX),

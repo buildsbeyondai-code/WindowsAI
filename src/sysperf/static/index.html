@@ -1233,9 +1233,12 @@
 </div>
 <div id="view-home" role="tabpanel" aria-labelledby="tab-home">
   <div class="summary-lead">The essentials: how this PC is doing, what to do next, and what SysPerf did for you
-    today. Turn on <b>Simple view</b> to hide the expert tabs.</div>
-  <div class="home-bar"><label class="toggle" title="Hide the expert tabs (Details, Live Architecture, Auto-Improve, App Control, AI Self-Evolution)">
-    <input type="checkbox" id="homeSimple"> Simple view</label></div>
+    today. Choose how much you want to see with <b>View</b>.</div>
+  <div class="home-bar"><label class="toggle" title="Beginner: health, next steps and plain explanations. Advanced: every tab. Expert: every tab, diagnostics and per-process detail open.">
+    View <select id="homeMode" aria-label="How much detail to show">
+      <option value="beginner">Beginner</option><option value="advanced">Advanced</option>
+      <option value="expert">Expert</option></select></label>
+    <span class="hint" id="homeModeHint"></span></div>
   <div class="card" style="margin-bottom:12px"><div class="home-hero">
     <div id="homeScore" class="home-ring-wrap"></div>
     <div style="flex:1;min-width:240px"><div id="homeStatus">Loading…</div></div>
@@ -1443,6 +1446,12 @@
        must run elevated. It is per-session, so after every reboot it needs
        relaunching — the exact command is shown here, with live online status. -->
   <div class="card" id="brokerCard" style="margin-bottom:14px;display:none"></div>
+
+  <!-- 5.5: each recommendation with its evidence, the measured effect of each fix
+       on this PC, the risk class, whether it reverses and how success is measured. -->
+  <div class="card" style="margin-bottom:14px"><h3>Recommendations
+      <span class="hint">ranked by how much of the gap each explains × confidence</span></h3>
+    <div id="autoWhy">Loading…</div></div>
 
   <!-- Strategy performance — displayed first. -->
   <details class="sect" id="sect-charts" data-sect="charts" open>
@@ -3663,7 +3672,7 @@ document.addEventListener("visibilitychange", () => {
         <input type="checkbox" value="${esc(f.id)}" ${f.executable ? "checked" : "disabled"}>
         <div class="meta">
           <div class="title">${esc(f.title)}
-            <span class="fix-risk ${riskCls(f.risk)}">${esc(f.risk)}</span>
+            <span class="fix-risk ${riskCls(f.risk)}" title="registry risk: ${esc(f.risk)}">${esc({safe: "Safe", caution: "Moderate", manual: "Advanced"}[f.risk] || f.risk)}</span>
             ${f.reversible ? "" : '<span class="fix-risk risk-caution">not reversible</span>'}
             ${f.session_killing ? '<span class="fix-risk risk-manual">session-killing</span>' : ""}
           </div>
@@ -3786,6 +3795,28 @@ document.addEventListener("visibilitychange", () => {
     return out;
   }
 
+  function whyList(recs) {
+    if (!recs.length) return `<div class="note keep">No recommendation: at the last scan
+      every metric was within its target.</div>`;
+    const RISK = {Safe: "tg", Moderate: "ta", Advanced: "tr", Experimental: "tb"};
+    return recs.slice(0, 5).map(r => {
+      const e = r.evidence || {};
+      const rows = (r.fixes || []).map(f => `<tr><td>${esc(f.title)}</td>
+          <td><span class="tag ${RISK[f.risk] || "ta"}">${esc(f.risk)}</span></td>
+          <td>${f.reversible ? "reversible" : "not reversible"}</td>
+          <td>${esc((f.expected || {}).text || "")}</td></tr>`).join("");
+      return `<div class="why" style="margin:0 0 14px">
+        <b>${esc(r.what)}</b>
+        <div class="note keep">Evidence: typical <b>${fmt(e.typical)}</b> vs target
+          <b>${fmt(e.target)}</b>${e.cause ? ` · cause ${esc(String(e.cause).replace(/_/g, " "))}` : ""}
+          · ${fmt(e.share_of_gap_pct, 1)}% of the gap · confidence ${Math.round((e.confidence || 0) * 100)}%</div>
+        ${rows ? `<table><thead><tr><th>Fix</th><th>Risk</th><th>Undo</th><th>Measured effect on this PC</th></tr></thead>
+          <tbody>${rows}</tbody></table>` : `<div class="note keep">No automatic fix for this; see the
+          explanation.</div>`}
+        <div class="note">How success is measured: ${esc(r.measure || "")}</div></div>`;
+    }).join("");
+  }
+
   function head(st, rep, tr) {
     const hasScore = !(rep.score === null || rep.score === undefined);
     const score = hasScore ? fmt(rep.score, 1) : "—";
@@ -3864,6 +3895,7 @@ document.addEventListener("visibilitychange", () => {
        </div>`,
     ];
     $("autoHead").innerHTML = `<div class="kpi-hero">${tiles.join("")}</div>`;
+    $("autoWhy").innerHTML = whyList(st.explained || []);
     if (lastMode !== st.mode) { $("autoMode").value = st.mode; lastMode = st.mode; }
   }
 
@@ -6136,15 +6168,34 @@ const api41 = (() => {
     try { render(await api41.get("api/home")); }
     catch (e) { $("homeStatus").innerHTML = `<span class="err">Home unavailable: ${esc(e.message)}</span>`; }
   }
-  function applySimple(on) {
-    document.body.classList.toggle("simple", on);
-    try { localStorage.setItem("perfdash_simple", on ? "1" : "0"); } catch (e) { /* private mode */ }
+  // 5.5: three views of one dashboard. Beginner hides the expert tabs and shows
+  // the plain-language descriptions; Advanced is every tab; Expert also opens the
+  // diagnostics and the per-process detail. A 5.4 "Simple view" maps to Beginner.
+  const MODE_HINT = {beginner: "health, next steps and plain explanations",
+                     advanced: "every tab", expert: "every tab, diagnostics and process detail open"};
+  function applyMode(mode) {
+    if (!MODE_HINT[mode]) mode = "advanced";
+    document.body.classList.toggle("simple", mode === "beginner");
+    document.body.classList.toggle("expert-mode", mode === "expert");
+    const desc = $("hideDesc");
+    if (desc && mode === "beginner" && desc.checked) desc.click();      // show explanations
+    if (mode === "expert") {
+      for (const id of ["sect-cputop"]) {
+        const el = $(id);
+        if (el && el.tagName === "DETAILS") el.open = true;
+      }
+    }
+    $("homeMode").value = mode;
+    $("homeModeHint").textContent = MODE_HINT[mode];
+    try { localStorage.setItem("perfdash_mode", mode); } catch (e) { /* private mode */ }
   }
   let stored = null;
-  try { stored = localStorage.getItem("perfdash_simple"); } catch (e) { stored = null; }
-  $("homeSimple").checked = stored === "1";
-  applySimple($("homeSimple").checked);
-  $("homeSimple").addEventListener("change", () => applySimple($("homeSimple").checked));
+  try {
+    stored = localStorage.getItem("perfdash_mode")
+      || (localStorage.getItem("perfdash_simple") === "1" ? "beginner" : null);
+  } catch (e) { stored = null; }
+  applyMode(stored || "advanced");
+  $("homeMode").addEventListener("change", () => applyMode($("homeMode").value));
   $("homeHistKey").addEventListener("change", chart);
   $("homeHistRange").addEventListener("change", chart);
   window.perfdashHome = {refresh, paint};
