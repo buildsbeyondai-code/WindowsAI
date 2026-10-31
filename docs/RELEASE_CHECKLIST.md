@@ -17,7 +17,7 @@ under *Known limitations* in the CHANGELOG.
 | Requirements | `python -m pytest tests/test_requirements_doc.py` | Every acceptance criterion cites an existing test | |
 | Real functionality | `python -m pytest tests/test_livestats_win.py` on Windows; spot-check `/api/live` against Task Manager | Values agree with an independent OS reading | |
 | Code quality | `python -m ruff check src tests`; `python -m compileall -q src tests tools`; review `git diff <last-tag>..` | Clean | |
-| Testing | `python -m pytest -rs` on this Windows PC (the pre-push hook runs it); Linux, the bubblewrap sandbox and the Python matrix come from the CI run on the release commit, not repeated by hand | 0 failed locally and a green CI run; every skip has a reason | |
+| Testing | `python -m pytest -rs` on this Windows PC and `python tools/sandbox_suite.py` (the evolution sandbox; the pre-push hook runs both); Linux and the Python matrix come from the CI run on the release commit | 0 failed locally, in the sandbox and in CI; every skip has a reason | |
 | E2E | `python -m pytest tests/test_e2e_ui.py tests/test_e2e_v41.py` with Playwright | 0 failed | |
 | Security | `python -m pytest tests/test_hostguard.py tests/test_security_doc.py`; `curl -H "Host: evil.example" http://127.0.0.1:5056/api/health` returns 403 | Guards hold on the running build | |
 | Supply chain | CI `supply-chain` job: lock check, `pip-audit`, SBOM artefact | No known vulnerability; SBOM attached | |

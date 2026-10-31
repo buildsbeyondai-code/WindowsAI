@@ -11,7 +11,8 @@ change does not pay for it again. Add a line when something surprises you.
 | Same, against a branch base | `python tools/affected_tests.py --base main` | before asking for review |
 | Full suite + lint | `python -m pytest -rs` and `python -m ruff check src tests` | the pre-push hook does it |
 | The eight gates (100% coverage) | `python tests/testrunner.py` | before a push / release |
-| Linux + sandbox suites | the CI matrix on push (ubuntu with bubblewrap, windows, py3.10+) | never by hand |
+| Suite inside the evolution sandbox | `python tools/sandbox_suite.py` (the pre-push hook runs it) | before a push |
+| Linux + Python matrix | the CI matrix on push (ubuntu, windows, py3.10+) | never by hand |
 | MSIX build and install | `docs/RELEASE_CHECKLIST.md` | Store submissions only |
 
 `affected_tests.py` selects by import, by file name (`test_<module>*.py`) and
@@ -61,6 +62,10 @@ rerun them, not that they passed.
   which the cycle lock blocks other cycles.
 - A `follows` row (the WSL kernel) is only an upgrade when its carrier (WSL)
   is outdated; otherwise it reads *waiting for WSL release*.
+- CI does not run the suite *inside* bubblewrap, and that is what every
+  evolution cycle's baseline is. Its `/tmp` is a small tmpfs: a test needing
+  real free disk passed on Windows, Linux and CI and still went red there,
+  stopping all cycles (5.4.2). Hence `tools/sandbox_suite.py` in pre-push.
 - Do not edit the live checkout while an upgrade cycle is testing: some
   upgraders (Python) run the suite in the checkout itself, and a mid-edit tree
   rejects a good upgrade. Check `GET /api/codevolve` `state` first. A

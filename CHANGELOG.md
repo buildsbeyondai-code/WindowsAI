@@ -4,6 +4,15 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.4.3 — 2026-10-31
+
+### Fixed
+- **The evolution sandbox baseline is green again.** A 5.4.1 test needed 20 GB
+  free in its temporary folder, which the sandbox's small `/tmp` does not have;
+  the red baseline stopped every cycle. The pre-push hook now also runs the
+  suite inside the sandbox (`tools/sandbox_suite.py`). Tests and tooling only;
+  the app is unchanged from 5.4.2, so there is no Store submission for it.
+
 ## 5.4.2 — 2026-10-31
 
 ### Fixed
