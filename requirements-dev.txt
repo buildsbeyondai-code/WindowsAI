@@ -1,5 +1,5 @@
 -r requirements.txt
-pytest==9.1.1
+pytest==9.2.0
 ruff==0.6.9
 # The resolver self-evolution relocks with, as CI checks the lock (5.4.4).
 uv==0.13.5
