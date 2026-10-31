@@ -206,6 +206,13 @@ def rotate_log(path: Path, max_bytes: int = 5_000_000, keep_bytes: int = 200_000
 class HealthMonitor:
     """Liveness of the service's workers and freshness of what they produce."""
 
+    # Checks run every minute. A longer gap means the PC slept: every worker's
+    # output is old through no fault of its own, and reporting it raised a false
+    # "SysPerf needs attention" after every resume (5.4.4 live). Staleness is
+    # not a problem until the workers have had RESUME_GRACE_S to catch up.
+    RESUME_GAP_S = 300.0
+    RESUME_GRACE_S = 600.0
+
     def __init__(self, errors: ErrorBuffer, clock: Callable[[], float] = time.time,
                  started_at: float | None = None):
         self.errors = errors
@@ -213,6 +220,8 @@ class HealthMonitor:
         self.started_at = started_at if started_at is not None else clock()
         self._threads: dict = {}
         self._probes: dict = {}
+        self._last_check: float | None = None
+        self._resumed_at: float | None = None
 
     def register_thread(self, name: str, thread: threading.Thread) -> threading.Thread:
         self._threads[name] = thread
@@ -225,6 +234,10 @@ class HealthMonitor:
 
     def check(self) -> dict:
         now = self.clock()
+        if self._last_check is not None and now - self._last_check > self.RESUME_GAP_S:
+            self._resumed_at = now
+        self._last_check = now
+        resuming = self._resumed_at is not None and now - self._resumed_at < self.RESUME_GRACE_S
         threads = [{"name": n, "alive": t.is_alive()} for n, t in self._threads.items()]
         probes, problems = [], []
         for name, (last_at, stale, label) in self._probes.items():
@@ -238,7 +251,7 @@ class HealthMonitor:
                 (age is None and now - self.started_at > stale)
             probes.append({"name": name, "label": label, "last_at": last,
                            "age_s": age, "stale_after_s": stale, "stale": stale_now})
-            if stale_now:
+            if stale_now and not resuming:
                 problems.append(f"{label}: no update for "
                                 + (f"{age // 60} min" if age is not None else "since start"))
         for t in threads:
@@ -247,6 +260,6 @@ class HealthMonitor:
         recent = self.errors.items(since=now - 3600)
         errors_1h = sum(r["count"] for r in recent if r["level"] in ("ERROR", "CRITICAL"))
         status = "error" if problems else ("degraded" if errors_1h else "ok")
-        return {"status": status, "problems": problems, "threads": threads,
+        return {"status": status, "problems": problems, "threads": threads, "resuming": resuming,
                 "probes": probes, "errors_1h": errors_1h,
                 "warnings_1h": sum(r["count"] for r in recent if r["level"] == "WARNING")}

@@ -92,8 +92,8 @@ class Supervisor:
         try:
             self.child.kill()
             self.child.wait(30)
-        except Exception:
-            pass
+        except Exception as exc:   # already gone, or would not die: say which
+            log.warning("supervisor: could not stop the service cleanly: %s", exc)
         self._record("killed", reason=why)
 
     def _record(self, event: str, **extra) -> None:

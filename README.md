@@ -551,7 +551,9 @@ let it. Its defences assume the attacker is another web page in your browser:
   POSTs from another origin, get 403. This blocks DNS rebinding.
 - **CSRF token on every change.** All 28 POST routes require a per-process token.
 - **Strict response headers.** `Content-Security-Policy` (this origin only),
-  `nosniff`, `X-Frame-Options: SAMEORIGIN`, `no-referrer`, `no-store`.
+  `nosniff`, `X-Frame-Options: SAMEORIGIN`, `no-referrer`, `no-store`,
+  `Permissions-Policy` (no camera, microphone, location or USB) and
+  `Cross-Origin-Opener-Policy: same-origin`.
 - **No shell from HTTP.** The collector path is fixed in code, and App Control
   accepts only allow-listed process names.
 - **System changes are listed and reversible.** Automatic fixes, the Explorer

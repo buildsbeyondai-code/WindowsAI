@@ -2,6 +2,14 @@
 
 _Last updated: 2026-10-25, release 5.0.0._
 
+## 5.4.5 (2026-10-31)
+
+- Audit of every category: `docs/AUDIT-2026-10-31.md` (41 issues, 22 fixed,
+  19 listed with the action each needs).
+- Python upgrades unblocked (helper health check), false post-sleep alerts and
+  per-minute alert repeats gone, inbox repeats merged, WSL probe off the
+  request path, security headers, PSScriptAnalyzer clean.
+
 ## 5.4.4 (2026-10-31)
 
 - Store app closes itself when Windows stages its update and reopens on the

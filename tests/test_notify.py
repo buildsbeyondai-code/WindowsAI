@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from sysperf import notify
-from sysperf.notify import KINDS, Notifier, send_toast, toast_argv
+from sysperf.notify import KINDS, Notifier, clip, send_toast, toast_argv
 
 
 def _n(tmp_path, clock, capable=True, **kw):
@@ -26,10 +26,11 @@ def test_notify_records_toasts_and_dedupes(tmp_path):
     assert sent == [("Score 60%", "below threshold", "http://127.0.0.1:5056/#home")]
     assert n.notify("score", "Score 59%", "again", key="score:breach") is None
     clock[0] += 1801
-    assert n.notify("score", "Score 58%", "later", key="score:breach")["id"] == 2
+    again = n.notify("score", "Score 58%", "later", key="score:breach")
+    assert again["id"] == 1 and again["count"] == 2 and again["body"] == "later"  # merged
     b = n.notify("action", "Quit X", "freed", link="javascript:alert(1)")
     assert b["link"] == "#home"                                  # only in-page links
-    assert n.items()["unread"] == 3 and n.items(limit=1)["items"][0]["id"] == 3
+    assert n.items()["unread"] == 2 and n.items(limit=1)["items"][0]["id"] == 2
     with pytest.raises(ValueError):
         n.notify("nope", "t", "b")
 
@@ -146,3 +147,26 @@ def test_send_toast_never_raises(caplog):
     assert send_toast("t", "b", "u", run=run) is False
     assert "toast failed" in caplog.text
     assert notify.send_toast.__defaults__[0] is notify.run_hidden
+
+
+def test_a_read_alert_that_recurs_is_a_new_entry(tmp_path):
+    # 5.4.4 live: 16 identical "SysPerf needs attention" entries; an unread one is
+    # updated in place, a read one is history and the repeat is news again
+    clock = [1_000_000.0]
+    n, _ = _n(tmp_path, clock)
+    n.notify("health", "SysPerf needs attention", "a", key="health:x")
+    n.mark_read(None)
+    clock[0] += 1801
+    assert n.notify("health", "SysPerf needs attention", "b", key="health:x")["id"] == 2
+    assert len(n.items()["items"]) == 2
+
+
+def test_clip_cuts_at_a_word_with_an_ellipsis():
+    assert clip("short", 20) == "short"
+    assert clip("  spaced   out \n text ", 40) == "spaced out text"
+    s = "the helper verifies it and reverts it if SysPerf does not come back healthy"
+    out = clip(s, 70)
+    assert out.endswith("\u2026") and len(out) <= 70 and "hea\u2026" not in out
+    assert out == "the helper verifies it and reverts it if SysPerf does not come back\u2026"
+    assert clip("x" * 50, 10) == "x" * 9 + "\u2026"                 # no space: hard cut
+    assert clip(None, 5) == ""

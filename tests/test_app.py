@@ -522,6 +522,8 @@ def test_hardening_headers(client):
     assert h["X-Content-Type-Options"] == "nosniff"
     assert h["X-Frame-Options"] == "SAMEORIGIN"
     assert h["Cache-Control"] == "no-store"
+    assert "camera=()" in h["Permissions-Policy"] and "geolocation=()" in h["Permissions-Policy"]
+    assert h["Cross-Origin-Opener-Policy"] == "same-origin"
 
 
 # ------------------------------------- continuous learning + test suite -------

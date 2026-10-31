@@ -90,6 +90,19 @@ rerun them, not that they passed.
 - Analytics API: `/v1.0/my/analytics/appacquisitions`, `funnel`; it rate-limits
   (429) at about one call per few seconds. Client: `%LOCALAPPDATA%\SysPerf\store-tools`.
 
+## Audit checklist (what found real bugs on 31 Oct)
+
+- Read the self-evolution audit for "rolled_back"/"rejected" and ask whether
+  the *check* or the *change* failed (the Python helper's health check could
+  never pass).
+- Group runtime-log warnings by message; a WARNING that repeats every hour has
+  a cause (the WSL probe on request threads).
+- Count identical notifications; a key that embeds a changing number never
+  deduplicates.
+- Sweep every tab in a browser for cut-off text and literal `null`.
+- Run ruff with `S,BLE,PERF,DTZ` and PSScriptAnalyzer, then read each hit:
+  most security hits here are false positives (`shell="pwsh"` is a field).
+
 ## Environment traps (WSL driving the Windows install)
 
 - The checkout is `C:\Users\<user>\AppData\Local\SysPerf\app`; the venv is the

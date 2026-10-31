@@ -438,11 +438,12 @@ def test_retained_hook_notifies_review(notes):
 def test_housekeeping_alerts_confirms_rotates_and_prunes(monkeypatch, notes, tmp_path, store):
     monkeypatch.setattr(app, "_health_state", {"problems": (), "confirmed": False,
                                                "pruned_day": None})
-    monkeypatch.setattr(app.health_monitor, "check",
-                        lambda: {"status": "error", "problems": ["Data collection: stale"]})
+    minutes = iter(range(66, 100))
+    monkeypatch.setattr(app.health_monitor, "check", lambda: {
+        "status": "error", "problems": [f"Data collection: no update for {next(minutes)} min"]})
     monkeypatch.setattr(app.collector, "last_ok_at", None)
     app._housekeeping_tick()
-    app._housekeeping_tick()                       # same problem: notified once
+    app._housekeeping_tick()   # same problem, a minute older: one alert, not one a minute
     assert [i["kind"] for i in notes.items()["items"]] == ["health"]
     confirmed = []
     monkeypatch.setattr(app.code_evolution, "confirm_apply",

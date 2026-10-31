@@ -4,6 +4,30 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.4.5 — 2026-10-31
+
+An audit of every category on the live install (`docs/AUDIT-2026-10-31.md`):
+41 issues found, 22 fixed here, the rest listed with what to do.
+
+### Fixed
+- **Python upgrades could never succeed.** The upgrade helper's health check
+  read `status` from `/api/health`, which answers `ok`, so every interpreter
+  upgrade was rolled back as "not healthy". A rolled-back upgrade is now also
+  retried after the next commit, and staging leftovers older than a day are
+  removed (219 MB after the rollback).
+- **No false alarms after sleep, and one alert per problem.** Stale-worker
+  alerts wait 10 minutes after a resume; a stall raised a new alert every
+  minute because the minute count was part of its key; an unread repeat now
+  updates its entry (×N) instead of adding another.
+- **Text is no longer cut mid-word** in notifications and the Home activity.
+- **Web requests never wait for the WSL version probe**: a stale cache is
+  served while one background thread refreshes it.
+- Six failure handlers that discarded errors now log them.
+- The API key field says it is DPAPI-encrypted on Windows; disabled buttons
+  are readable in the light theme; Settings explains the interval in hours.
+- `Permissions-Policy` and `Cross-Origin-Opener-Policy` headers.
+- PowerShell scripts pass PSScriptAnalyzer (no `Write-Host`).
+
 ## 5.4.4 — 2026-10-31
 
 ### Fixed

@@ -395,6 +395,10 @@ def harden(resp):
     resp.headers["X-Frame-Options"] = "SAMEORIGIN"
     resp.headers["Referrer-Policy"] = "no-referrer"
     resp.headers["Cache-Control"] = "no-store"
+    # The dashboard needs no device access and no window.opener relationship.
+    resp.headers["Permissions-Policy"] = ("camera=(), microphone=(), geolocation=(), usb=(), "
+                                          "payment=(), interest-cohort=()")
+    resp.headers["Cross-Origin-Opener-Policy"] = "same-origin"
     # The page is one self-contained file (inline script/style, data: icon) and
     # talks only to this origin; nothing else may load, frame or be posted to.
     resp.headers["Content-Security-Policy"] = CSP
@@ -1165,7 +1169,7 @@ def _save_llm_settings(changes: dict) -> None:
 
 @app.post("/api/llm/key")
 def api_llm_key():
-    """Store the API key (0600). The key is never echoed, logged or returned."""
+    """Store the API key (DPAPI on Windows, 0600 elsewhere). Never echoed, logged or returned."""
     body = request.get_json(silent=True) or {}
     if (bad := _csrf(body)):
         return bad
@@ -1385,7 +1389,7 @@ def _agent_today() -> list:
         if (c.get("started") or 0) >= since:
             out.append({"at": c["started"], "kind": "evolution",
                         "text": f"Self-evolution cycle {c.get('state')}: "
-                                f"{(c.get('explanation') or '')[:160]}"})
+                                f"{notify_mod.clip(c.get('explanation') or '', 200)}"})
     return sorted(out, key=lambda e: -e["at"])[:30]
 
 
@@ -1542,7 +1546,9 @@ settings_hub = settings_mod.SettingsHub([
         lambda: {"level": action_policy.level}, _autonomy_apply, {"level": "observe"}),
     settings_mod.Section("evolution", "AI self-evolution", [
         _F("enabled", "Evolution enabled", "bool"),
-        _F("interval_s", "Run a cycle every (seconds)", "int", min=300, max=604800),
+        _F("interval_s", "Run a cycle every (seconds)", "int", min=300, max=604800,
+           help="21600 = 6 hours, as the AI Self-Evolution tab shows it. After a "
+                "component upgrade the next one follows after 30 minutes."),
         _F("max_per_day", "At most cycles per day", "int", min=0, max=48),
         _F("auto_retain", "Keep winning patches for review", "bool"),
         _F("auto_upgrade_deps", "Auto-upgrade every outdated component", "bool",
@@ -1628,10 +1634,13 @@ def _housekeeping_tick() -> dict:
     """Once a minute: health alerts, apply confirmation, log rotation, pruning."""
     check = health_monitor.check()
     probs = tuple(check["problems"])
-    if probs and probs != _health_state["problems"]:
-        notifier.notify("health", "SysPerf needs attention", "; ".join(probs)[:280],
-                        key="health:" + "|".join(probs), link="#settings")
-    _health_state["problems"] = probs
+    # Keyed by what is wrong, not by how long: "no update for 66 min" then "67 min"
+    # was a new alert every minute (5.4.4 live).
+    what = tuple(p.split(":")[0] for p in probs)
+    if probs and what != _health_state["problems"]:
+        notifier.notify("health", "SysPerf needs attention", "; ".join(probs),
+                        key="health:" + "|".join(what), link="#settings")
+    _health_state["problems"] = what
     if not _health_state["confirmed"] and collector.last_ok_at and \
             collector.last_ok_at >= SERVICE_STARTED:
         _health_state["confirmed"] = True
