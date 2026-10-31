@@ -29,8 +29,8 @@ from pathlib import Path
 import pytest
 
 pytest.importorskip("playwright.sync_api", reason="playwright is not installed")
-from playwright.sync_api import Error as PWError  # noqa: E402
-from playwright.sync_api import sync_playwright  # noqa: E402
+from playwright.sync_api import Error as PWError
+from playwright.sync_api import sync_playwright
 
 _ROOT = Path(__file__).resolve().parent.parent
 STATIC = _ROOT / "src" / "sysperf" / "static"

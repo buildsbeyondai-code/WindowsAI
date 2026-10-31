@@ -54,8 +54,19 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
           bwrap --ro-bind / / --unshare-all --die-with-parent true && echo "bwrap OK"
 
+      # Every failing test is also published as an annotation: they are public,
+      # where the job log needs a signed-in account, so an intermittent failure
+      # can be identified from the run page or the API (5.5.1).
       - name: Test
-        run: python -m pytest -rs
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -rs -rf 2>&1 | tee pytest.log
+          rc=${PIPESTATUS[0]}
+          grep -E '^(FAILED|ERROR) ' pytest.log | head -10 | while read -r line; do
+            echo "::error title=Test failed (${{ matrix.os }}, py${{ matrix.python }})::$line"
+          done
+          exit $rc
 
       - name: Collector smoke test (Windows only)
         if: runner.os == 'Windows'

@@ -4,6 +4,26 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.5.1 — 2026-10-31
+
+### Changed
+- **ruff 0.17.1** (from 0.6.9): Dependabot's upgrade failed CI because the code
+  had 77 findings under the newer rules. All fixed (unused unpacked values,
+  format strings, explicit precedence, `round` without a redundant `int`); no
+  behaviour change.
+- **CI names failing tests publicly.** Each failing test is also published as
+  an annotation on the run, so an intermittent failure (one on main for 5.4.7,
+  one on a Dependabot branch) can be identified without a signed-in account.
+
+### Fixed
+- **The 5.5.0 release had no packages.** The new step that runs the frozen
+  `SysPerf.exe --smoke` failed on both architectures, so GitHub skipped the
+  release. The step now quotes the output path (a path with a space started
+  the normal window instead, found by reproducing locally), stops after five
+  minutes instead of waiting, and on failure publishes the exit code, the
+  output and the app's log as a public annotation. Locally the frozen build
+  passes it (exit 0, a full sample).
+
 ## 5.5.0 — 2026-10-31
 
 A master engineering pass: `docs/MASTER-ENGINEERING-AUDIT.md`,

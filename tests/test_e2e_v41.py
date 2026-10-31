@@ -20,7 +20,7 @@ import pytest
 
 pytest.importorskip("playwright.sync_api", reason="playwright is not installed")
 
-from tests import test_e2e_ui as ui  # noqa: E402 - after importorskip
+from tests import test_e2e_ui as ui
 
 STUBS, _open = ui.STUBS, ui._open
 browser, site = ui.browser, ui.site          # the shared module-scoped fixtures
@@ -371,7 +371,7 @@ def _feature(fid, on, where=None):
 def test_store_app_lists_optional_features_and_toggles_them(browser, site):
     opt = [_feature("tray_quit", False), _feature("explorer_watchdog", True),
            _feature("self_evolution", False, "#self-evolution")]
-    after = {"store_mode": True, "features": [_feature("tray_quit", True)] + opt[1:]}
+    after = {"store_mode": True, "features": [_feature("tray_quit", True), *opt[1:]]}
     page = _open(browser, site, overrides={"api/home": dict(STUBS["api/home"], optional=opt)},
                  posts={"api/store": after})
     page.wait_for_selector("#homeOptionalCard", state="visible")

@@ -168,8 +168,8 @@ class Supervisor:
         self.bad_checks += 1
         if self.bad_checks < self.fail_checks:
             return None
-        why = ("no sample for more than %d s" % self.stall_s) if stalled else \
-            "health check failed %d times" % self.bad_checks
+        why = (f"no sample for more than {self.stall_s:.0f} s" if stalled else
+               f"health check failed {self.bad_checks} times")
         self.kill_child(why)
         return 0.0
 

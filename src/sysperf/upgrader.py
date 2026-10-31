@@ -383,7 +383,7 @@ class Apt(_InCopy):
     label = "apt in WSL, tested in a throwaway copy of the distro"
 
     def policy(self, host: Host, pkg: str, distro: str = "") -> tuple:
-        rc, out = host.wsl(f"apt-get update -qq >/dev/null 2>&1; apt-cache policy {_sh(pkg)}",
+        _rc, out = host.wsl(f"apt-get update -qq >/dev/null 2>&1; apt-cache policy {_sh(pkg)}",
                            distro=distro, root=True, timeout=600)
         inst = re.search(r"Installed:\s*(\S+)", out)
         cand = re.search(r"Candidate:\s*(\S+)", out)
@@ -445,7 +445,7 @@ class UbuntuRelease(_InCopy):
         return None if rc == 0 else f"rebuilding the sandbox venv failed: {out[-300:]}"
 
     def check(self, up, host):
-        rc, out = host.wsl("grep '^VERSION=' /etc/os-release")
+        _rc, out = host.wsl("grep '^VERSION=' /etc/os-release")
         got = re.search(r"(\d+(?:\.\d+)+)", out)
         same = bool(got) and _key(got.group(1))[:2] == _key(up["to"])[:2]
         return None if same else f"the distro reports {out.strip()[:80]}, not {up['to']}"
@@ -464,7 +464,7 @@ class Claude(_InCopy):
         return None if rc == 0 and up["to"] in out else f"claude install failed: {out[-300:]}"
 
     def check(self, up, host):
-        rc, out = host.wsl("$HOME/.local/bin/claude --version")
+        _rc, out = host.wsl("$HOME/.local/bin/claude --version")
         return None if up["to"] in out else f"claude reports {out.strip()[:80]}"
 
     def rollback(self, up, bk, host):
@@ -544,7 +544,7 @@ class PlaywrightBrowser(Upgrader):
     def pending(self, row, host):
         if row.get("missing") or not host.sandbox_python:
             return None
-        rc, out = host.wsl(f"{_sh(host.sandbox_python)} -m playwright install --dry-run chromium")
+        _rc, out = host.wsl(f"{_sh(host.sandbox_python)} -m playwright install --dry-run chromium")
         want = re.search(r"chromium-(\d+)", out)
         have = _key(row.get("current") or "")
         if not want or (have and have[-1] == int(want.group(1))):
@@ -674,7 +674,7 @@ class Pwsh(Upgrader):
     def _probe(self, host, exe: str) -> str | None:
         from .collector import _parse_probe
         script = Path(__file__).with_name("collect_win.ps1")
-        rc, out = host.run([exe, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+        _rc, out = host.run([exe, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
                             str(script)], timeout=300)
         try:
             _parse_probe(out)
@@ -705,7 +705,7 @@ class Pwsh(Upgrader):
         return None if rc == 0 else f"Add-AppxPackage failed: {out[-300:]}"
 
     def verify(self, up, host):
-        rc, out = host.run(["pwsh.exe", "-NoProfile", "-Command",
+        _rc, out = host.run(["pwsh.exe", "-NoProfile", "-Command",
                             "$PSVersionTable.PSVersion.ToString()"], timeout=120)
         if up["to"] not in out:
             return f"pwsh reports {out.strip()[:60]}"
@@ -762,7 +762,7 @@ class Winget(Upgrader):
         return self._smoke(host, str(root / "cmd" / "git.exe"))
 
     def backup(self, up, host):
-        rc, out = host.run(["winget", "list", "--id", up["id"], "--exact",
+        _rc, out = host.run(["winget", "list", "--id", up["id"], "--exact",
                             "--accept-source-agreements", "--disable-interactivity"], timeout=300)
         m = re.search(re.escape(up["id"]) + r"\s+(\d+(?:\.\d+)+)", out)
         return {"version": m.group(1) if m else ""}
@@ -774,7 +774,7 @@ class Winget(Upgrader):
         return None if rc == 0 else f"winget upgrade failed (rc {rc}): {out[-300:]}"
 
     def verify(self, up, host):
-        rc, out = host.run(["git", "--version"], timeout=60)
+        _rc, out = host.run(["git", "--version"], timeout=60)
         return (None if git_windows_version(out) == up["to"] else
                 f"git reports {out.strip()[:60]}") or \
             self._smoke(host, "git")
@@ -816,14 +816,14 @@ class Wsl(Upgrader):
         return None if rc in (0, 3010) else f"msiexec exit {rc}: {out[-200:]}"
 
     def verify(self, up, host):
-        rc, out = host.run(["wsl.exe", "--version"], timeout=120)
+        _rc, out = host.run(["wsl.exe", "--version"], timeout=120)
         return (None if up["to"] in out.replace("\x00", "") else "wsl --version does not "
                 f"report {up['to']}") or host.suite_ok()
 
     def rollback(self, up, bk, host):
         old = self._msi(host, up["from"])
         host.elevated("msiexec.exe", f'/x "{up["_msi"]}" /quiet /norestart')
-        rc, out = host.elevated("msiexec.exe", f'/i "{old}" /quiet /norestart')
+        rc, _out = host.elevated("msiexec.exe", f'/i "{old}" /quiet /norestart')
         return None if rc in (0, 3010) else f"reinstalling WSL {up['from']} failed (rc {rc})"
 
 

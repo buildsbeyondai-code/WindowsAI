@@ -141,20 +141,20 @@ def test_undecided_app_waits_for_consent_and_asks_once(tmp_path):
 
 
 def test_allowed_app_is_quit_with_its_exe_recorded_and_reported(tmp_path):
-    t, api, clock, events = _tray(tmp_path, "allow")
+    t, api, _clock, events = _tray(tmp_path, "allow")
     ev = t.tick()
     assert ev[0]["exe"] == r"C:\Apps\ChatGPT.exe" and api.killed == [1]
     assert events[-1][0] == "quit"
 
 
 def test_never_means_never(tmp_path):
-    t, api, clock, events = _tray(tmp_path, "never")
+    t, api, _clock, _events = _tray(tmp_path, "never")
     assert t.tick() == [] and api.killed == []
     assert t.status()["apps_live"][0]["state"] == "kept (never quit)"
 
 
 def test_busy_app_is_left_alone_that_round(tmp_path):
-    t, api, clock, events = _tray(tmp_path, "allow")
+    t, api, clock, _events = _tray(tmp_path, "allow")
     api.cpu[1] = 30.0                        # 30 CPU-seconds in 61 s = ~49 % of a core
     assert t.tick() == [] and api.killed == []
     assert t.status()["apps_live"][0]["state"] == "busy"
@@ -163,13 +163,13 @@ def test_busy_app_is_left_alone_that_round(tmp_path):
 
 
 def test_unreadable_cpu_does_not_block(tmp_path):
-    t, api, clock, events = _tray(tmp_path, "allow")
+    t, api, _clock, _events = _tray(tmp_path, "allow")
     api.cpu[1] = None
     assert t.tick() and api.killed == [1]
 
 
 def test_reopen_launches_only_the_recorded_exe(tmp_path):
-    t, api, clock, events = _tray(tmp_path, "allow")
+    t, api, _clock, _events = _tray(tmp_path, "allow")
     t.tick()
     r = t.reopen("chatgpt")
     assert r == {"name": "ChatGPT", "reopened": True, "exe": r"C:\Apps\ChatGPT.exe"}
@@ -181,7 +181,7 @@ def test_reopen_launches_only_the_recorded_exe(tmp_path):
 
 
 def test_reopen_refuses_when_exe_unknown(tmp_path):
-    t, api, clock, events = _tray(tmp_path, "allow")
+    t, api, _clock, _events = _tray(tmp_path, "allow")
     api.exe = {}
     t.tick()
     with pytest.raises(ValueError, match="not recorded"):

@@ -202,7 +202,7 @@ def test_failed_upgrade_keeps_the_app_listed_and_one_job_at_a_time(tmp_path):
     assert m.start_upgrade("Git.Git", background=False)["state"] == "failed"
     assert "Git.Git" in m.upgradable()
     m.job["state"] = "running"
-    with pytest.raises(ValueError, match="already upgrading Git.Git"):
+    with pytest.raises(ValueError, match=r"already upgrading Git\.Git"):
         m.start_upgrade("Git.Git")
     m.job = None
     done = threading.Event()

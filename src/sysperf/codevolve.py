@@ -560,7 +560,7 @@ class CodeEvolution:
         for k, v in (changes or {}).items():
             if k not in self.EDITABLE:
                 raise ValueError(f"'{k}' is not an editable evolution setting")
-            if not isinstance(v, self.EDITABLE[k]) or isinstance(v, bool) and self.EDITABLE[k] in (int, (int, float)):
+            if not isinstance(v, self.EDITABLE[k]) or (isinstance(v, bool) and self.EDITABLE[k] in (int, (int, float))):
                 raise ValueError(f"'{k}' has the wrong type")
             clean[k] = v
         if "interval_s" in clean and not 300 <= clean["interval_s"] <= 7 * 86400:

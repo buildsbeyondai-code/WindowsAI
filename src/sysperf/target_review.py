@@ -71,7 +71,7 @@ def adjudicate(trend: dict) -> dict | None:
     # never met across a settled window -> genuinely unreachable
     if best is None:
         return None
-    honest = int(round(float(best)))
+    honest = round(float(best))
     return {
         "key": key, "label": label, "verdict": "unreachable",
         "target": target, "honest_target": honest,

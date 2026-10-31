@@ -578,13 +578,13 @@ def test_handoff_is_repeated_once_per_period(tmp_path, repo, probe):  # noqa: F8
 
 def test_a_broken_probe_does_not_stop_the_lane(tmp_path, repo, probe):  # noqa: F811
     probe(Probe(raises=OSError("wsl down")))
-    e, db = hostlane(tmp_path, repo, [row("tool", "1.0", "2.0", "probe")])
+    e, _db = hostlane(tmp_path, repo, [row("tool", "1.0", "2.0", "probe")])
     assert e._component_lane("x", repo, "HEAD", {}, repo) is None
 
 
 def test_no_model_still_runs_the_component_lane(tmp_path, repo, probe):  # noqa: F811
     probe(Probe())
-    e, db = eng(tmp_path, repo, provider=False, box=Box())
+    e, _db = eng(tmp_path, repo, provider=False, box=Box())
     assert "no LLM provider" in e.gate("manual", "self_evolve")
     e.components_fn = lambda: [row("tool", "1.0", "2.0", "probe")]
     e.run = Run()
@@ -685,7 +685,7 @@ def test_upgrade_pass_skips_what_it_cannot_run_and_survives_errors(tmp_path, rep
 
 
 def test_host_context_and_wsl_identity(tmp_path, repo, monkeypatch):  # noqa: F811
-    e, db = hostlane(tmp_path, repo, [])
+    e, _db = hostlane(tmp_path, repo, [])
     e.sandbox = cv.Sandbox(backend="none")
     monkeypatch.setattr(cv, "OS_NAME", "posix")
     assert e._wsl_identity() == ("", "")                 # not Windows
@@ -710,7 +710,7 @@ def test_sandbox_in_distro_targets_that_distro():
 
 
 def test_sandbox_pyver(tmp_path, repo):  # noqa: F811
-    e, db = hostlane(tmp_path, repo, [])
+    e, _db = hostlane(tmp_path, repo, [])
     assert e._sandbox_pyver() == "312"                  # Box answers no version
     e.sandbox.run = lambda wt, cmd, timeout_s=None: {"stdout": "PYV=313\n"}
     assert e._sandbox_pyver() == "313"
@@ -812,7 +812,7 @@ def test_a_github_asset_must_match_its_published_sha256(tmp_path):
     rel = {"tag_name": "v1", "assets": [{"name": "tool.msi", "browser_download_url": "u/tool",
                                          "digest": "sha256:" + hashlib.sha256(b"good").hexdigest()}]}
     h = host(tmp_path, files={"releases/latest": rel, "u/tool": b"tampered"})
-    url, tag = h.github_asset("o/r", r"tool\.msi")
+    url, _tag = h.github_asset("o/r", r"tool\.msi")
     with pytest.raises(ValueError, match="sha256 does not match"):
         h.download(url, "tool.msi")
     h = host(tmp_path, files={"releases/latest": rel, "u/tool": b"good"})

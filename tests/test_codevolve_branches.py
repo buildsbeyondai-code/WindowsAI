@@ -234,7 +234,7 @@ def test_static_findings_cover_syntax_and_bare_except(tmp_path, repo):
 
 
 def test_settings_load_validate_and_persist(tmp_path, repo):
-    e, db = eng(tmp_path, repo)
+    e, _db = eng(tmp_path, repo)
     (tmp_path / "settings.json").write_text("{broken")
     assert e._load_settings()["enabled"] is False            # defaults on corrupt file
     for bad in ({"interval_s": 10}, {"max_per_day": 99}, {"bench_reps": 1},
@@ -276,7 +276,7 @@ def test_scheduling_and_gates(tmp_path, repo):
 
 
 def test_notify_and_loop(tmp_path, repo):
-    e, db = eng(tmp_path, repo)
+    e, _db = eng(tmp_path, repo)
     runs, stop = [], threading.Event()
     e.gate = lambda trig, lvl: None
     e.run_cycle = lambda trig, lvl, detail=None: (runs.append((trig, detail)), stop.set())
@@ -303,32 +303,32 @@ def test_run_cycle_gate_lock_and_internal_error(tmp_path, repo):
 
 # ------------------------------------------------------------ the cycle --
 def test_no_eligible_files_is_skipped(tmp_path, repo):
-    e, db = eng(tmp_path, repo, eligible=["*.nothing"])
+    e, _db = eng(tmp_path, repo, eligible=["*.nothing"])
     assert e.run_cycle("manual", "self_evolve")["state"] == "skipped"
 
 
 def test_red_baseline_is_refused_and_names_the_failing_test(tmp_path, repo):
     out = "FAILED tests/test_x.py::test_slow - AssertionError: boom\n1 failed, 3 passed"
-    e, db = eng(tmp_path, repo, box=Box(tests=out, rc=1))
+    e, _db = eng(tmp_path, repo, box=Box(tests=out, rc=1))
     r = e.run_cycle("manual", "self_evolve")
     assert r["state"] == "skipped" and "refusing to evolve" in r["explanation"]
     assert "failing: tests/test_x.py::test_slow" in r["explanation"]
 
 
 def test_crashing_test_run_counts_as_an_error(tmp_path, repo):
-    e, db = eng(tmp_path, repo, box=Box(tests="", rc=2))
+    e, _db = eng(tmp_path, repo, box=Box(tests="", rc=2))
     r = e.run_cycle("manual", "self_evolve")
     assert "not green" in r["explanation"] and "err tail" in r["explanation"]
 
 
 def test_insufficient_evidence_is_skipped(tmp_path, repo):
-    e, db = eng(tmp_path, repo, box=Box(bench={}), min_evidence=50)
+    e, _db = eng(tmp_path, repo, box=Box(bench={}), min_evidence=50)
     assert "insufficient evidence" in e.run_cycle("manual", "self_evolve")["explanation"]
 
 
 def test_model_declines_is_completed(tmp_path, repo):
     p = Fixed({"title": "none", "rationale": "already fast", "edits": [], "no_change": True})
-    e, db = eng(tmp_path, repo, provider=p)
+    e, _db = eng(tmp_path, repo, provider=p)
     r = e.run_cycle("manual", "self_evolve")
     assert r["state"] == "completed" and "already fast" in r["explanation"]
 
@@ -336,9 +336,9 @@ def test_model_declines_is_completed(tmp_path, repo):
 def test_noop_patch_and_foreign_diff_are_rejected(tmp_path, repo, monkeypatch):
     same = {"title": "x", "rationale": "x", "edits": [
         {"path": "dedupe.py", "find": "    seen = []\n", "replace": "    seen = []\n"}]}
-    e, db = eng(tmp_path, repo, provider=Fixed(same))
+    e, _db = eng(tmp_path, repo, provider=Fixed(same))
     assert "no diff" in e.run_cycle("manual", "self_evolve")["explanation"]
-    e2, db2 = eng(tmp_path / "b" if (tmp_path / "b").mkdir() is None else tmp_path, repo)
+    e2, _db2 = eng(tmp_path / "b" if (tmp_path / "b").mkdir() is None else tmp_path, repo)
     real = cv._git
 
     def git(path, *args, **kw):
@@ -361,12 +361,12 @@ def test_edit_checks_and_security_counts():
 
 
 def test_candidate_test_regression_and_bench_failures(tmp_path, repo):
-    e, db = eng(tmp_path, repo, box=Box(tests=["4 passed", "3 passed, 1 failed"], rc=[0, 1]))
+    e, _db = eng(tmp_path, repo, box=Box(tests=["4 passed", "3 passed, 1 failed"], rc=[0, 1]))
     assert "tests:" in e.run_cycle("manual", "self_evolve")["explanation"]
     # candidate benchmark crashes mid A/B
     good = {"f": [0.02] * 5}
     box = Box(bench=[good, good, None])
-    e, db = eng(tmp_path / "c" if (tmp_path / "c").mkdir() is None else tmp_path, repo, box=box)
+    e, _db = eng(tmp_path / "c" if (tmp_path / "c").mkdir() is None else tmp_path, repo, box=box)
     assert "candidate benchmark failed" in e.run_cycle("manual", "self_evolve")["explanation"]
 
 
@@ -391,7 +391,7 @@ def test_compare_error_paths():
 
 
 def test_existing_worktree_is_replaced(tmp_path, repo):
-    e, db = eng(tmp_path, repo)
+    e, _db = eng(tmp_path, repo)
     sha = cv._git(repo, "rev-parse", "HEAD").strip()
     wt = e._worktree(repo, sha, "dup")
     (wt / "marker").write_text("x")
@@ -437,7 +437,7 @@ def test_noop_edit_on_a_crlf_checkout_leaves_no_diff(tmp_path, repo):
     _crlf_repo(repo)
     same = {"title": "x", "rationale": "x", "edits": [
         {"path": "dedupe.py", "find": "    seen = []\n", "replace": "    seen = []\n"}]}
-    e, db = eng(tmp_path, repo, provider=Fixed(same))
+    e, _db = eng(tmp_path, repo, provider=Fixed(same))
     assert "no diff" in e.run_cycle("manual", "self_evolve")["explanation"]
 
 

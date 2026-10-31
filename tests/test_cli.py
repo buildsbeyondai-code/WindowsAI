@@ -124,7 +124,7 @@ def test_the_default_mode_serves_and_announces_the_url():
 
 def test_open_triggers_the_opener_with_the_bound_url():
     opened = []
-    rc, out, _, served = _run(["--open"], opener=opened.append)
+    rc, _out, _, served = _run(["--open"], opener=opened.append)
     assert rc == 0 and served == [True]
     assert opened and opened[0].startswith("http://")
 

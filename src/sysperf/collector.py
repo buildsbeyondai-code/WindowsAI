@@ -120,14 +120,14 @@ def _with_wifi_typical(latest: dict, hist: list[dict]) -> dict:
     if plan:
         info["plan_mbps"] = plan
         info["score_basis"] = "plan"
-        info["score"] = int(round(max(0.0, min(100.0, usable / plan * 100.0))))
+        info["score"] = round(max(0.0, min(100.0, usable / plan * 100.0)))
     else:
         allr = rates(hist)
         if len(allr) >= WIFI_MIN_CAPABILITY_SAMPLES:
             cap = _pctl(allr, WIFI_CAPABILITY_PCTL)
             info["capability_mbps"] = round(cap, 1)
             info["score_basis"] = "capability"
-            info["score"] = (int(round(max(0.0, min(100.0, typical / cap * 100.0))))
+            info["score"] = (round(max(0.0, min(100.0, typical / cap * 100.0)))
                              if cap else None)
         else:
             info["score_basis"] = "calibrating"

@@ -11,7 +11,7 @@ import pytest
 
 pytest.importorskip("playwright.sync_api", reason="playwright is not installed")
 
-from tests import test_e2e_ui as ui  # noqa: E402 - after importorskip
+from tests import test_e2e_ui as ui
 
 STUBS, _open = ui.STUBS, ui._open
 browser, site = ui.browser, ui.site

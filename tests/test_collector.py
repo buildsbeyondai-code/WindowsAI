@@ -178,7 +178,7 @@ def test_sample_full_sweep_appends_flag(col, monkeypatch):
 
 
 def test_sample_carry_forward(col, monkeypatch):
-    c, sc = col
+    c, _sc = col
     c.latest = {"drv_total": 99, "vmmem_mb": 1}   # prior full-tier value
     c.sample_count = 1                            # -> not a full sweep
     payload = json.dumps({"vmmem_mb": 200})

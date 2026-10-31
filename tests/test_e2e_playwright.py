@@ -29,8 +29,8 @@ import pytest
 
 pytest.importorskip("playwright.sync_api",
                     reason="playwright is not installed")
-from playwright.sync_api import Error as PWError  # noqa: E402
-from playwright.sync_api import sync_playwright  # noqa: E402
+from playwright.sync_api import Error as PWError
+from playwright.sync_api import sync_playwright
 
 # Repo layout keeps the page at <root>/static; an exported distribution keeps it
 # at <root>/src/sysperf/static. One test file serves both.
