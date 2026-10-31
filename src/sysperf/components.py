@@ -18,6 +18,7 @@ import logging
 import os
 import re
 import shutil
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -86,10 +87,40 @@ def _months_old(datestr: str | None) -> float | None:
     return None
 
 
+_refresh_lock = threading.Lock()
+
+
 def _linux_versions() -> dict:
-    now = time.time()
-    if _cache["linux"] is not None and now - _cache["t"] < _CACHE_TTL:
+    """Installed versions; the cached ones while a stale cache refreshes.
+
+    The probe shells out to wsl.exe and can take tens of seconds when WSL is
+    busy. It used to run on whichever web request found the hourly cache
+    expired, and every request arriving meanwhile ran it again ("Task queue
+    depth" warnings, 5.4.4 live). Now only the first fill blocks; a stale
+    cache is served while one background thread refreshes it.
+    """
+    if _cache["linux"] is not None:
+        if time.time() - _cache["t"] >= _CACHE_TTL and _refresh_lock.acquire(blocking=False):
+            threading.Thread(target=_refresh_linux, name="components-refresh",
+                             daemon=True).start()
         return _cache["linux"]
+    with _refresh_lock:
+        if _cache["linux"] is None:
+            _probe_linux()
+    return _cache["linux"]
+
+
+def _refresh_linux() -> None:
+    try:
+        _probe_linux()
+    except Exception:
+        log.exception("component version refresh failed")
+    finally:
+        _refresh_lock.release()
+
+
+def _probe_linux() -> dict:
+    now = time.time()
     v: dict = {}
     if PLATFORM == "windows":
         # The Linux-side catalog rows (distro, kernel, apt packages) describe a

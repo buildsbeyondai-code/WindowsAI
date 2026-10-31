@@ -228,6 +228,29 @@ class Upgrader:
         pass
 
 
+def sweep_staging(staging: Path, max_age_s: float = 86400, clock=time.time) -> list:
+    """Remove staging leftovers older than ``max_age_s``; the names removed.
+
+    A deferred or rolled-back upgrade leaves installers, test venvs and copies
+    here (5.4.4 live: 219 MB after the Python rollback). Anything a running
+    upgrade uses is younger than a day.
+    """
+    removed = []
+    try:
+        entries = list(Path(staging).iterdir())
+    except OSError:
+        return removed
+    for p in entries:
+        try:
+            if clock() - p.stat().st_mtime < max_age_s:
+                continue
+            shutil.rmtree(p) if p.is_dir() else p.unlink()
+            removed.append(p.name)
+        except OSError:
+            continue
+    return removed
+
+
 def run_upgrade(u: Upgrader, up: dict, host: Host, log: Callable = lambda m: None) -> dict:
     """The pipeline. Returns {state, stage, reason, ...}; never raises."""
     out = {"key": up["key"], "from": up["from"], "to": up["to"], "via": u.via}
@@ -272,8 +295,8 @@ def run_upgrade(u: Upgrader, up: dict, host: Host, log: Callable = lambda m: Non
     finally:
         try:
             u.cleanup(up, bk, host)
-        except Exception:       # cleanup must never mask the result
-            pass
+        except Exception as exc:  # cleanup must never mask the result, but is recorded
+            log(f"cleanup after {up['key']} failed: {type(exc).__name__}: {exc}")
 
 
 # ============================================================= repository
@@ -576,7 +599,9 @@ function Done($state, $reason) {{
 function Healthy {{
   for ($i = 0; $i -lt 60; $i++) {{
     Start-Sleep 5
-    try {{ $h = Invoke-RestMethod http://127.0.0.1:5056/api/health -TimeoutSec 5; if ($h.status) {{ return $true }} }} catch {{}}
+    # /api/health answers {{ok: true, ...}}; there is no "status" field, so the old
+    # check never passed and every interpreter upgrade was rolled back (5.4.4 live).
+    try {{ $h = Invoke-RestMethod http://127.0.0.1:5056/api/health -TimeoutSec 5; if ($h.ok -eq $true) {{ return $true }} }} catch {{}}
   }}
   return $false
 }}

@@ -280,8 +280,7 @@ def test_wsl_probe_falls_back_to_the_mount_path(monkeypatch):
     monkeypatch.setattr(components.shutil, "which", lambda name: None)
     monkeypatch.setattr(components, "_run",
                         lambda argv, timeout=6: seen.append(argv) or "")
-    components._cache["t"] = 0
-    components._linux_versions()
+    components._probe_linux()
     assert ["/mnt/c/WINDOWS/System32/wsl.exe", "--version"] in seen
 
 
@@ -291,8 +290,7 @@ def test_wsl_probe_prefers_path(monkeypatch):
                         lambda name: "/usr/bin/wsl.exe" if name == "wsl.exe" else None)
     monkeypatch.setattr(components, "_run",
                         lambda argv, timeout=6: seen.append(argv) or "")
-    components._cache["t"] = 0
-    components._linux_versions()
+    components._probe_linux()
     assert ["/usr/bin/wsl.exe", "--version"] in seen
 
 
@@ -382,3 +380,35 @@ def test_a_package_the_resolver_added_becomes_a_component(tmp_path):
     assert config.lock_packages(lock) == ["colorama"]
     assert config.lock_packages(tmp_path / "none.lock") == []
     assert "flask" in config.lock_packages() and "flask" in version_check.SOURCES
+
+
+def test_a_stale_version_cache_is_served_while_one_thread_refreshes(monkeypatch):
+    # 5.4.4 live: the hourly wsl.exe probe ran on web requests ("Task queue depth")
+    import threading
+    calls = []
+    gate = threading.Event()
+
+    def probe():
+        calls.append(1)
+        gate.wait(5)
+        components._cache.update(linux={"python": "new"}, t=components.time.time())
+    monkeypatch.setattr(components, "_probe_linux", probe)
+    components._cache.update(linux={"python": "old"}, t=0.0)
+    assert components._linux_versions() == {"python": "old"}     # served at once
+    assert components._linux_versions() == {"python": "old"}     # no second refresh
+    gate.set()
+    for t in threading.enumerate():
+        if t.name == "components-refresh":
+            t.join(5)
+    assert calls == [1] and components._linux_versions() == {"python": "new"}
+
+    def boom():
+        raise OSError("wsl busy")
+    monkeypatch.setattr(components, "_probe_linux", boom)
+    components._cache["t"] = 0.0
+    components._linux_versions()
+    for t in threading.enumerate():
+        if t.name == "components-refresh":
+            t.join(5)
+    assert not components._refresh_lock.locked()                  # released after a failure
+    components._cache.update(linux=None, t=0.0)

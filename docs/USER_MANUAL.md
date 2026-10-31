@@ -1,6 +1,6 @@
 # SysPerf User Manual
 
-**System Performance Agent — version 5.4.4**
+**System Performance Agent — version 5.4.5**
 
 A self-improving performance dashboard for Windows 11. It measures the PC, explains
 what holds it back, and changes it only in ways it lists and you can undo.
@@ -1604,7 +1604,7 @@ therefore tags every action by where it applies — `client`, `router` or
 | Host / Origin | Requests must name SysPerf in `Host`, and POSTs from other origins are refused (DNS-rebinding protection). |
 | Changes over HTTP | All 28 POST routes require the per-process CSRF token. |
 | TLS | None, so loopback only. |
-| Response headers | `Content-Security-Policy` (self only), `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Cache-Control: no-store`. |
+| Response headers | `Content-Security-Policy` (self only), `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Cache-Control: no-store`, `Permissions-Policy` (no device access), `Cross-Origin-Opener-Policy: same-origin`. |
 | Third-party assets | None. No CDN and no external JavaScript or CSS; the dashboard works offline. |
 | Outbound traffic | The daily version check (public feeds, can be turned off), and the model provider if you enable AI self-evolution. No telemetry, no accounts. |
 | Secrets | The model API key is DPAPI-encrypted on Windows (`0600` elsewhere), and never logged or returned. |

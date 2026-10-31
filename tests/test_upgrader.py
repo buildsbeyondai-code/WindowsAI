@@ -394,6 +394,9 @@ def test_python_org_stages_then_hands_the_swap_to_a_helper(tmp_path):
     script = (tmp_path / "data" / "python_upgrade.ps1").read_text(encoding="utf-8")
     assert "Stop-ScheduledTask -TaskName 'SysPerf Dashboard'" in script
     assert "if ($false)" in script and "Healthy" in script
+    # 5.4.4 live: the helper checked $h.status, which /api/health never sends, so
+    # every interpreter upgrade was rolled back as "not healthy"
+    assert "$h.ok -eq $true" in script and "$h.status" not in script
     minor = dict(up, to="3.16.0")
     files["python-3.16.0-"] = b"newer"
     assert p.apply(minor, h) is None
@@ -655,7 +658,14 @@ def test_upgrade_pass_skips_what_it_cannot_run_and_survives_errors(tmp_path, rep
     rows = [row("tool", "1.0", "2.0", "probe"), dict(row("gone", "1", "2", "probe"), missing=True),
             row("flask", "1", "2", "pip-lock"), row("odd", "1", "2", "no-such-upgrader")]
     e.components_fn = lambda: rows
+    stale = e.workroot.parent / "upgrade-staging" / "python-old.exe"
+    stale.parent.mkdir(parents=True, exist_ok=True)
+    stale.write_bytes(b"x")
+    import os
+    os.utime(stale, (0, 0))
     assert e.upgrade_pass("observe", "manual")["reason"].startswith("every component")
+    assert not stale.exists()                                    # leftovers swept, audited
+    assert "upgrade.staging_swept" in [a["event"] for a in db.audit_tail(limit=20)]
     assert e.upgrade_gate("self_evolve").startswith("next upgrade check")  # any auto level
     e._lock.acquire()
     assert e.upgrade_pass("observe", "manual")["reason"] == "a cycle is already running"
@@ -741,3 +751,44 @@ def test_the_first_export_measures_a_staging_folder_that_does_not_exist_yet(tmp_
     h.free_gb = free_gb
     assert not h.staging.exists()
     assert h.export_distro().name == "Ubuntu-backup.tar"
+
+
+def test_staging_leftovers_older_than_a_day_are_swept(tmp_path):
+    # 5.4.4 live: a rolled-back Python upgrade left 219 MB of installers and venvs
+    import os
+    stg = tmp_path / "stg"
+    (stg / "old-venv").mkdir(parents=True)
+    (stg / "old-venv" / "f").write_text("x")
+    (stg / "old.exe").write_bytes(b"x")
+    (stg / "fresh.exe").write_bytes(b"x")
+    for n in ("old-venv", "old.exe"):
+        os.utime(stg / n, (0, 0))
+    assert sorted(ug.sweep_staging(stg, clock=lambda: 10 * 86400)) == ["old-venv", "old.exe"]
+    assert [p.name for p in stg.iterdir()] == ["fresh.exe"]
+    assert ug.sweep_staging(tmp_path / "missing") == []
+    (stg / "locked-venv").mkdir()                     # in use: left for the next sweep
+    os.utime(stg / "locked-venv", (0, 0))
+    def locked(path):
+        raise PermissionError("in use")
+    real = ug.shutil.rmtree
+    ug.shutil.rmtree = locked
+    try:
+        assert ug.sweep_staging(stg, clock=lambda: 10 * 86400) == []
+    finally:
+        ug.shutil.rmtree = real
+    assert (stg / "locked-venv").exists()
+
+
+def test_a_failing_cleanup_is_recorded_not_raised(tmp_path):
+    class Messy(ug.Upgrader):
+        via, label, windows_only = "messy", "test", False
+
+        def apply(self, up, host):
+            return None
+
+        def cleanup(self, up, bk, host):
+            raise OSError("in use")
+    steps = []
+    r = ug.run_upgrade(Messy(), {"key": "k", "from": "1", "to": "2"}, host(tmp_path),
+                       log=steps.append)
+    assert r["state"] == "applied" and any("cleanup after k failed: OSError" in s for s in steps)

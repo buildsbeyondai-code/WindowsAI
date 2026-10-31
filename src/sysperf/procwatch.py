@@ -36,6 +36,7 @@ Design (mirrors session_policy.py)
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tempfile
 import threading
@@ -44,6 +45,8 @@ from pathlib import Path
 from typing import Callable
 
 from . import cpuwatch
+
+log = logging.getLogger("perfdash")
 
 # The process this watchdog manages. Restarting the shell is safe; Windows
 # relaunches it. Force-stop is a no-op (rc 0) when it is already gone, and the
@@ -227,6 +230,6 @@ class ExplorerCpuWatchdog:
         while True:
             try:
                 self.tick()
-            except Exception:
-                pass
+            except Exception:       # keep watching, but say why a check failed
+                log.exception("Explorer watchdog check failed")
             time.sleep(interval)

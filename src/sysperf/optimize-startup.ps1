@@ -22,7 +22,7 @@
 param([switch]$WhatIfOnly)
 
 $ErrorActionPreference = 'SilentlyContinue'
-function Log($m) { Write-Host "[optimise] $m" }
+function Log($m) { Write-Information -InformationAction Continue "[optimise] $m" }
 
 # 1) Tuned .wslconfig - fast WSL start + memory reclaim (no elevation needed).
 $wslcfg = Join-Path $env:USERPROFILE '.wslconfig'

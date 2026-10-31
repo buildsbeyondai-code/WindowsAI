@@ -30,6 +30,22 @@ from .background_process import run_hidden
 
 log = logging.getLogger(__name__)
 
+def clip(text, limit: int) -> str:
+    """``text`` cut to ``limit`` characters at a word boundary, with an ellipsis.
+
+    A plain slice cut words in half on Home and in the inbox ("does not come
+    back hea", "of the g").
+    """
+    text = " ".join(str(text or "").split())
+    if len(text) <= limit:
+        return text
+    cut = text[:limit - 1]
+    space = cut.rfind(" ")
+    if space >= limit * 0.6:
+        cut = cut[:space]
+    return cut.rstrip(" ,;:-\u2014") + "\u2026"
+
+
 KINDS = {
     "score": "Score dropped below the threshold",
     "action": "SysPerf applied a fix or quit a tray app",
@@ -169,13 +185,23 @@ class Notifier:
             if last is not None and now - last < self.settings["min_interval_s"]:
                 return None
             self.last_sent[key] = now
-            self._seq += 1
-            item = {"id": self._seq, "at": now, "kind": kind, "title": title[:120],
-                    "body": body[:300], "link": link if link.startswith("#") else "#home",
-                    "read": False, "toast": False}
             want = (self.toast_capable and self.settings["toasts"]
                     and self.settings["kinds"].get(kind, True) and not self._quiet())
-            item["toast"] = want
+            # The same alert again while its last copy is still unread updates that
+            # copy instead of adding another (16 identical "SysPerf needs attention"
+            # entries filled the inbox, 5.4.4 live).
+            item = next((n for n in reversed(self.inbox)
+                         if n.get("key") == key and not n["read"]), None)
+            if item is not None:
+                self.inbox.remove(item)
+                item.update(at=now, body=clip(body, 300), toast=want,
+                            count=item.get("count", 1) + 1)
+            else:
+                self._seq += 1
+                item = {"id": self._seq, "at": now, "kind": kind, "key": key,
+                        "title": clip(title, 120), "body": clip(body, 300),
+                        "link": link if link.startswith("#") else "#home",
+                        "read": False, "toast": want}
             self.inbox.append(item)
             del self.inbox[:-self.capacity]
             self._save()

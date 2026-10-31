@@ -52,6 +52,7 @@ test asserting it:
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 from collections import Counter, defaultdict
@@ -855,7 +856,7 @@ class EvolutionEngine:
             try:
                 self.on_promote(self.promoted_fixes())
             except Exception:                            # pragma: no cover
-                pass
+                logging.getLogger("perfdash").exception("promote hook failed")
         return {"promoted": True, "recipe": record, "log": entry}
 
     def reject(self, candidate_id: str) -> dict:

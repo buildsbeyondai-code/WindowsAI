@@ -19,6 +19,7 @@ make the goal honest, not to flatter the score.
 from __future__ import annotations
 
 import json
+import logging
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -134,6 +135,7 @@ class AutoTargetStore:
                 try:
                     trend = trend_store.analyze(key)
                 except Exception:                        # pragma: no cover
+                    logging.getLogger("perfdash").exception("trend analysis of %s failed", key)
                     continue
                 verdict = adjudicate(trend)
                 if verdict is None:

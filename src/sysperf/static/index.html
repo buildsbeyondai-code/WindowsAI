@@ -5658,7 +5658,7 @@ document.addEventListener("visibilitychange", () => {
           `<option${p === s.llm.provider ? " selected" : ""}>${p}</option>`).join("")}</select></label>
         <label class="evo-f">Model <input id="sevModel" value="${esc(s.llm.model || "")}" list="sevModels" placeholder="choose from provider list"></label>
         <label class="evo-f">Daily token budget <input id="sevBudget" type="number" min="0" value="${(s.llm.usage_today || {}).daily_token_budget || 200000}"></label>
-        <label class="evo-f">API key <input id="sevKey" type="password" autocomplete="off" placeholder="stored 0600, never shown"></label>
+        <label class="evo-f">API key <input id="sevKey" type="password" autocomplete="off" placeholder="encrypted for your account (Windows DPAPI), never shown"></label>
         <datalist id="sevModels"></datalist>
       </div>
       <div class="evo-btns">
@@ -5926,7 +5926,7 @@ const api41 = (() => {
     const items = d.items || [];
     $("notifList").innerHTML = items.length ? items.map(n => `<button class="notif-item${n.read ? "" : " unread"}"
         data-notif="${Number(n.id)}" data-link="${esc(n.link || "#home")}">
-        <b>${KIND[n.kind] || "•"} ${esc(n.title)}</b><span>${esc(n.body)}</span>
+        <b>${KIND[n.kind] || "•"} ${esc(n.title)}${n.count > 1 ? ` <span class="tag">×${Number(n.count)}</span>` : ""}</b><span>${esc(n.body)}</span>
         <i>${esc(api41.when(n.at))}${n.toast ? " · shown on desktop" : ""}</i></button>`).join("")
       : `<div class="note keep" style="margin:6px">No notifications yet.</div>`;
   }
@@ -6024,7 +6024,7 @@ const api41 = (() => {
     const n = d.notifications || {};
     const items = n.items || [];
     $("homeNotes").innerHTML = items.length ? `<ul class="home-list">${items.map(x => li(x.read ? "•" : "🔔",
-      esc(x.title), esc(x.body))).join("")}</ul>` : `<div class="note keep">No notifications yet.</div>`;
+      esc(x.title) + (x.count > 1 ? ` ×${Number(x.count)}` : ""), esc(x.body))).join("")}</ul>` : `<div class="note keep">No notifications yet.</div>`;
     if (!keysLoaded && (d.history_keys || []).length) {
       keysLoaded = true;
       const sel = $("homeHistKey");
@@ -6326,6 +6326,10 @@ const api41 = (() => {
   body:not(.dark) table tbody tr:hover{background:rgba(37,99,235,.06)}
   body:not(.dark) td{border-bottom-color:rgba(30,50,110,.09)}
   body:not(.dark) code{background:#eef2ff;color:#3730a3;border-color:rgba(55,48,163,.15)}
+  /* Disabled buttons: a faded gradient left white text on pale blue (App Control,
+     "Stop OneDrive" while OneDrive is stopped). Neutral and readable instead. */
+  body:not(.dark) .fixbtn:disabled{background:#e4e8f2;color:#5b6680;box-shadow:none;opacity:1;filter:none}
+  body.dark .fixbtn:disabled{background:rgba(120,120,128,.24);color:rgba(235,235,245,.6);opacity:1}
 </style>
 </body>
 </html>

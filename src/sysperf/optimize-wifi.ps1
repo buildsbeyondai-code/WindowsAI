@@ -46,7 +46,7 @@ if (-not $admin) {
 # --- locate the wireless adapter ------------------------------------------
 $wnic = Get-NetAdapter -Physical | Where-Object { $_.PhysicalMediaType -match '802\.11' } | Select-Object -First 1
 if (-not $wnic) { Write-Warning "No 802.11 (Wi-Fi) adapter found."; exit 1 }
-Write-Host "Wi-Fi adapter: $($wnic.InterfaceDescription) [$($wnic.Name)]" -ForegroundColor Cyan
+Write-Information -InformationAction Continue "Wi-Fi adapter: $($wnic.InterfaceDescription) [$($wnic.Name)]"
 
 # 'Preferred Band' advanced property keyword (Intel drivers expose *BandPreference /
 # 'PreferredBand'); we discover the actual registry keyword rather than assume it.
@@ -58,20 +58,20 @@ function Get-BandProp {
 }
 
 if ($Revert) {
-    Write-Host "`n== REVERT ==" -ForegroundColor Yellow
+    Write-Information -InformationAction Continue "`n== REVERT =="
     $bp = Get-BandProp
     if ($bp) {
         # 0 / "No Preference" restores the driver default.
         Set-NetAdapterAdvancedProperty -Name $wnic.Name -RegistryKeyword $bp.RegistryKeyword -RegistryValue 0 -NoRestart
-        Write-Host "  Band preference reset to 'No Preference'."
+        Write-Information -InformationAction Continue "  Band preference reset to 'No Preference'."
     }
     Set-NetAdapterPowerManagement -Name $wnic.Name -AllowComputerToTurnOffDevice Enabled -ErrorAction SilentlyContinue
-    Write-Host "  Adapter power-saving re-enabled."
-    Write-Host "Done. A reconnect (or reboot) applies the revert." -ForegroundColor Green
+    Write-Information -InformationAction Continue "  Adapter power-saving re-enabled."
+    Write-Information -InformationAction Continue "Done. A reconnect (or reboot) applies the revert."
     exit 0
 }
 
-Write-Host "`n== OPTIMISE ==" -ForegroundColor Yellow
+Write-Information -InformationAction Continue "`n== OPTIMISE =="
 
 # 1) Prefer 5 GHz -----------------------------------------------------------
 $bp = Get-BandProp
@@ -84,16 +84,16 @@ if ($bp) {
         } else {
             Set-NetAdapterAdvancedProperty -Name $wnic.Name -RegistryKeyword $bp.RegistryKeyword -RegistryValue 2 -NoRestart
         }
-        Write-Host "  Preferred Band -> 5 GHz ($($bp.RegistryKeyword))."
+        Write-Information -InformationAction Continue "  Preferred Band -> 5 GHz ($($bp.RegistryKeyword))."
     }
 } else {
-    Write-Host "  (Adapter exposes no 'Preferred Band' property - skipping; steer via the router 5 GHz SSID.)" -ForegroundColor DarkYellow
+    Write-Information -InformationAction Continue "  (Adapter exposes no 'Preferred Band' property - skipping; steer via the router 5 GHz SSID.)"
 }
 
 # 2) Disable NIC power saving ----------------------------------------------
 if ($PSCmdlet.ShouldProcess($wnic.Name, "Disable power saving")) {
     Set-NetAdapterPowerManagement -Name $wnic.Name -AllowComputerToTurnOffDevice Disabled -ErrorAction SilentlyContinue
-    Write-Host "  Adapter power-saving disabled (prevents idle link downshift)."
+    Write-Information -InformationAction Continue "  Adapter power-saving disabled (prevents idle link downshift)."
 }
 
 # 3) Flush DNS + reset stack ------------------------------------------------
@@ -101,8 +101,8 @@ if ($PSCmdlet.ShouldProcess("network stack", "Flush DNS + reset Winsock/IP")) {
     ipconfig /flushdns | Out-Null
     netsh winsock reset  | Out-Null
     netsh int ip reset   | Out-Null
-    Write-Host "  DNS flushed; Winsock + IP stack reset (reboot to fully apply)."
+    Write-Information -InformationAction Continue "  DNS flushed; Winsock + IP stack reset (reboot to fully apply)."
 }
 
-Write-Host "`nClient-side optimisation applied. Router-side (channel/width/band-steering) must be" -ForegroundColor Green
-Write-Host "changed on your access point. Re-run with -Revert to undo. A reboot is recommended." -ForegroundColor Green
+Write-Information -InformationAction Continue "`nClient-side optimisation applied. Router-side (channel/width/band-steering) must be"
+Write-Information -InformationAction Continue "changed on your access point. Re-run with -Revert to undo. A reboot is recommended."

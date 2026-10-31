@@ -51,6 +51,7 @@ def test_monitor_verdicts():
     clock = [1000.0]
     buf = ErrorBuffer(clock=lambda: clock[0])
     mon = HealthMonitor(buf, clock=lambda: clock[0], started_at=1000.0)
+    mon.RESUME_GAP_S = float("inf")        # staleness only here; sleep/resume is tested below
     last = {"v": None}
     mon.add_probe("collector", lambda: last["v"], 600, "Data collection")
     mon.add_probe("broken", lambda: 1 / 0, 600, "Broken probe")
@@ -152,3 +153,21 @@ def test_repeat_filter_bounds_its_memory():
     for i in range(f.MAX_KEYS + 2):
         f.filter(_rec(msg=f"m{i}"))
     assert len(f._seen) <= f.MAX_KEYS + 1
+
+
+def test_no_stale_alarm_while_the_workers_catch_up_after_sleep():
+    # 5.4.4 live: "Data collection: no update for 278 min" after every resume
+    clock = [10_000.0]
+    mon = HealthMonitor(ErrorBuffer(clock=lambda: clock[0]), clock=lambda: clock[0],
+                        started_at=0.0)
+    last = {"v": 9_990.0}
+    mon.add_probe("collector", lambda: last["v"], 600, "Data collection")
+    assert mon.check()["problems"] == [] and not mon.check()["resuming"]
+    clock[0] += 5 * 3600                               # the PC slept: no check for 5 h
+    c = mon.check()
+    assert c["resuming"] and c["problems"] == [] and c["probes"][0]["stale"]
+    for _ in range(9):                                 # the minute-by-minute loop
+        clock[0] += 60
+        assert mon.check()["problems"] == []           # still catching up
+    clock[0] += 60                                     # grace over, still nothing new
+    assert "no update for" in mon.check()["problems"][0]

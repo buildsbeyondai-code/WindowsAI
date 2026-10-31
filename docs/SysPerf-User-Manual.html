@@ -143,7 +143,7 @@ footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
         third-party scripts. It works offline.</div>
     </div>
     <div class="meta">Version 2.0.0 &middot; Apache License 2.0 &middot;
-      Windows 11 &middot; Python 3.10+ &middot; built 2026-10-26</div>
+      Windows 11 &middot; Python 3.10+ &middot; built 2026-10-31</div>
   </div>
 </header>
 
@@ -184,6 +184,7 @@ footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
 <li class="lvl2"><a href="#510-wsl-2-and-kernel-pools">#5.10 WSL 2 and kernel pools</a></li>
 <li class="lvl2"><a href="#511-hardware-health">#5.11 Hardware health</a></li>
 <li class="lvl2"><a href="#512-drivers-health">#5.12 Drivers health</a></li>
+<li class="lvl2"><a href="#513-maintenance-check">#5.13 Maintenance check</a></li>
 <li class="lvl2"><a href="#56-auto-improve-tab">#5.6 Auto-Improve tab</a></li>
 <li class="lvl1"><a href="#6-how-scoring-works">#6. How scoring works</a></li>
 <li class="lvl2"><a href="#61-progress">#6.1 Progress</a></li>
@@ -262,7 +263,7 @@ footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
   <main>
     <div class="inner">
       <h1 id="sysperf-user-manual">SysPerf User Manual</h1>
-<p><strong>System Performance Agent — version 5.4.4</strong></p>
+<p><strong>System Performance Agent — version 5.4.5</strong></p>
 <p>A self-improving performance dashboard for Windows 11. It measures the PC, explains
 what holds it back, and changes it only in ways it lists and you can undo.</p>
 <hr>
@@ -274,10 +275,14 @@ to make it faster.</p>
 <p>It runs entirely on your machine as a small local web dashboard, plus a background
 sampler that reads Windows performance data every twenty seconds.</p>
 <h3 id="12-what-sysperf-is-not"><a class="anchor" href="#12-what-sysperf-is-not" aria-hidden="true">#</a>1.2 What SysPerf is not</h3>
-<p>It is <strong>not</strong> an optimiser that changes settings for you. SysPerf reads. It never
-writes to the registry, never disables a service, never deletes a file, never
-changes a power plan. When it finds something worth fixing it tells you what it
-measured, why that matters, and what to do — and then you decide.</p>
+<p>It is <strong>not</strong> an optimiser that changes settings for you behind your back.
+SysPerf reads. It changes something only when you press a fix, or turn on an
+automatic one, and every such change is registered, says how to undo it, and is
+logged: the registry fix, for example, exports each key to a <code>.reg</code> file before
+removing your entries for programs that are gone. It never disables a service,
+never deletes your files and never changes a power plan. When it finds something
+worth fixing it tells you what it measured, why that matters, and what to do —
+and then you decide.</p>
 <p>This is a deliberate design constraint rather than an unfinished feature. Tools
 that silently modify Windows are impossible to audit: when something breaks a week
 later, you cannot tell whether the tool did it. Because SysPerf only reads,
@@ -507,7 +512,13 @@ computation, so they never disagree.</p>
   listed last as <em>not installed</em>; it is never counted as an upgrade or in the
   total. <code>latest</code> is the vendor's newest public release, checked daily, with the
   reviewed catalog as the fallback — treat it as guidance, and confirm driver
-  and firmware versions with your OEM's support tool.</li>
+  and firmware versions with your OEM's support tool.
+  The Windows-side upgrades (Windows Update, Edge Update, PowerShell, winget,
+  WSL) need no AI model, WSL sandbox or source checkout. Every six hours from
+  the Safe-auto autonomy level, each outdated one is upgraded in turn (a
+  restore point first), or at once with <strong>Upgrade now</strong> on the AI
+  Self-Evolution tab's Component upgrades card at any level except Off. Rows that need the sandbox (SysPerf's pinned packages, the
+  WSL distro's tools) say so.</li>
 </ul>
 <h3 id="51-header"><a class="anchor" href="#51-header" aria-hidden="true">#</a>5.1 Header</h3>
 <p>Live machine facts — uptime, RAM, current CPU, process and service counts, samples
@@ -628,6 +639,55 @@ capacity, and input devices. Plus your <strong>known-issue watchlist</strong> �
 and driver-specific fault codes. Stale storage, chipset, graphics and network
 drivers are the ones that measurably affect performance; a stale driver for a
 printer you no longer own does not matter.</p>
+<h3 id="513-maintenance-check"><a class="anchor" href="#513-maintenance-check" aria-hidden="true">#</a>5.13 Maintenance check</h3>
+<p>Seven Details sections, filled by a read-only scan (<code>maintenance.py</code>,
+<code>maintenance.ps1</code>) that runs every <strong>6 hours</strong> in the background, or when you
+press <strong>Scan now</strong>; it takes about half a minute. These things change over days,
+so they are not checked on the 60-second sampler. What needs attention is listed
+first, worst first, each with the fix that acts on it.</p>
+<ul>
+<li><strong>Protection</strong> — <strong>automatic restore points</strong> and when Windows servicing
+  last ran. SysPerf creates a restore point itself before the registry fix, app
+  and component updates, and weekly, unless one from the last 24 hours exists.
+  Windows lets only an administrator do that, so the first time it is needed
+  SysPerf shows the UAC prompt once and sets up a small helper task (in
+  <code>C:\ProgramData\SysPerf\restore</code>, which only administrators can change);
+  if the prompt is declined it asks again at most once a day, and the change
+  goes ahead with its own backup. Turn it off, or create one now, on the card.
+  In the Store app it is opt-in (Home → Optional features). <code>DISM
+  /RestoreHealth</code> + <code>sfc /scannow</code> still need you, in an administrator
+  terminal; SysPerf suggests them after blue screens.</li>
+<li><strong>Cleanup</strong> — your TEMP folder, app crash dumps, the Edge, Chrome, Brave and
+  Firefox caches, and the Windows Update download cache, with their sizes; and
+  the ten largest files (500 MB or more) in Downloads, Desktop, Documents and
+  Videos. <strong>Clear browser caches</strong> empties the caches of browsers that are
+  closed (sign-ins, history and bookmarks are kept). Large files are listed
+  only; SysPerf never deletes your files.</li>
+<li><strong>Registry</strong> — start-up (Run/RunOnce) and uninstall entries whose program is
+  gone. <strong>Back up and remove yours</strong> exports each of your (HKCU) keys to
+  <code>data\registry-backups</code> and then removes the entries; undo with the <code>reg
+  import</code> command the result names. Machine-wide entries need an administrator
+  and are listed only. Nothing else in the registry is "cleaned": Microsoft does
+  not support registry cleaners, and what they free is negligible.</li>
+<li><strong>Security</strong> — Defender real-time protection, definition and scan age, other
+  antivirus products, and the firewall for each network profile; blue screens
+  (with stop codes) and unexpected shutdowns in 30 days, and app crashes in 7.</li>
+<li><strong>Services &amp; tasks</strong> — third-party services that start automatically, and
+  third-party scheduled tasks with their last result.</li>
+<li><strong>App updates</strong> — installed apps winget has a newer version of. From the
+  Safe-auto autonomy level they <strong>update themselves</strong> after each scan, one at
+  a time, after a restore point; <strong>Update</strong> does one now. Apps that Components
+  upgrades with its own tested upgrader (Python, PowerShell, Git, Edge, WSL)
+  are left to it, a version whose update failed is not retried until a newer
+  one appears, and each result shows the <code>winget install --version</code> command
+  that goes back. Apps installed for all users (tagged <strong>needs administrator</strong>)
+  are not updated unattended, because their installer asks for an
+  administrator; <strong>Update N machine-wide apps</strong> updates them all after one UAC
+  prompt. If an app was open, its update shows <strong>waiting for the app to
+  close</strong>: Windows applies it once the app is closed, and SysPerf tries again
+  after the next scan. A few publishers do not allow winget to update their
+  app (MiKTeX, for one); those are tagged <strong>use its own updater</strong>.</li>
+</ul>
 <hr>
 <h3 id="56-auto-improve-tab"><a class="anchor" href="#56-auto-improve-tab" aria-hidden="true">#</a>5.6 Auto-Improve tab</h3>
 <p>The fourth tab is the autonomous loop's own view. Six blocks, top to bottom:</p>
@@ -2250,7 +2310,7 @@ therefore tags every action by where it applies — <code>client</code>, <code>r
 </tr>
 <tr>
 <td>Response headers</td>
-<td><code>Content-Security-Policy</code> (self only), <code>X-Content-Type-Options</code>, <code>X-Frame-Options</code>, <code>Referrer-Policy</code>, <code>Cache-Control: no-store</code>.</td>
+<td><code>Content-Security-Policy</code> (self only), <code>X-Content-Type-Options</code>, <code>X-Frame-Options</code>, <code>Referrer-Policy</code>, <code>Cache-Control: no-store</code>, <code>Permissions-Policy</code> (no device access), <code>Cross-Origin-Opener-Policy: same-origin</code>.</td>
 </tr>
 <tr>
 <td>Third-party assets</td>
@@ -2330,7 +2390,7 @@ forward and <code>meta.error</code> reports the reason.</p>
 </ul>
       <footer>
         SysPerf 2.0.0 — System Performance Agent. Apache License 2.0.
-        Generated from <code>docs/USER_MANUAL.md</code> on 2026-10-26.
+        Generated from <code>docs/USER_MANUAL.md</code> on 2026-10-31.
         Edit the Markdown and re-run <code>python docs/build_manual.py</code>;
         do not edit this file directly.
       </footer>

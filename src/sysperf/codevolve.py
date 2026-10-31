@@ -677,6 +677,10 @@ class CodeEvolution:
         cid, done = None, []
         try:
             self._next_upgrade = self.clock() + self.UPGRADE_EVERY_S
+            gone = upgrader.sweep_staging(self.workroot.parent / "upgrade-staging",
+                                          clock=self.clock)
+            if gone:
+                self.db.audit("evolution", "upgrade.staging_swept", {"removed": gone})
             tried = self._tried()
             host = upgrader.Host(run=self.run, get=self.http_get,
                                  staging=self.workroot.parent / "upgrade-staging",
@@ -993,8 +997,12 @@ class CodeEvolution:
         except (RuntimeError, ValueError, TypeError, OSError):
             head_at = 0.0
         return {c["title"] for c in self.db.candidates(limit=1000)
-                if not (c["decision"] == "rejected" and not c["tests_ok"]
-                        and c["created"] < head_at)}
+                if not (c["created"] < head_at and (
+                    (c["decision"] == "rejected" and not c["tests_ok"])
+                    # Rolled back after applying: the check that failed may have
+                    # been SysPerf's own (5.4.4: the interpreter helper's health
+                    # check could never pass), so a new commit earns one more try.
+                    or c["review_state"] == "rolled_back"))}
 
     def _upgrade_title(self, u, up: dict) -> str:
         t = upgrader.title(up)

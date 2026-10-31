@@ -421,7 +421,7 @@ class AutoImprover:
                         p for p in self.state["proposals"]
                         if p.get("key") not in decided]
                 except Exception:                        # pragma: no cover
-                    pass
+                    log.exception("reading the proposal decisions failed")
             self._merge_proposals(new_proposals)
 
             if not eligible:
@@ -445,7 +445,7 @@ class AutoImprover:
                 try:
                     self.action_hook(ids, results, snap)
                 except Exception:          # pragma: no cover - history must not break the loop
-                    pass
+                    log.exception("recording the executed actions failed")
             record["executed"] = results
             now = self.now()
             for fid in ids:

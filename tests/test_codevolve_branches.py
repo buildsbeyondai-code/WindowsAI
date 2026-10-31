@@ -468,9 +468,11 @@ def test_an_upgrade_the_suite_rejected_is_retried_after_a_new_commit(tmp_path, r
             ("c-5", "3PP upgrade: pytest 0 → 1", 0.0, "rejected", None),  # refused untested
             ("c-2", "3PP upgrade: pytest 1 → 2", future, "rejected", 0),  # after HEAD: wait
             ("c-3", "3PP upgrade: git 1 → 2", 0.0, "rejected", 1),        # apply failed: keep
-            ("c-4", "3PP upgrade: edge 1 → 2", 0.0, "retained", 1)):
+            ("c-4", "3PP upgrade: edge 1 → 2", 0.0, "retained", 1),
+            ("c-6", "3PP upgrade: python 2 → 3", 0.0, "retained", 1)):    # rolled back: retry
         db.add_candidate({**base, "id": cid, "title": title, "created": created,
-                          "decision": decision, "tests_ok": tests_ok, "review_state": "none"})
+                          "decision": decision, "tests_ok": tests_ok,
+                          "review_state": "rolled_back" if cid == "c-6" else "none"})
     assert e._tried() == {"3PP upgrade: pytest 1 → 2", "3PP upgrade: git 1 → 2",
                           "3PP upgrade: edge 1 → 2"}
     e.settings["repo"] = str(tmp_path / "not-a-repo")                  # no HEAD: retry nothing

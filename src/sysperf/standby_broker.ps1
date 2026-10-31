@@ -96,10 +96,10 @@ if (-not $tool) {
 }
 
 $hb = Join-Path $ExchangeDir "broker.alive"
-Write-Host "standby_broker online"
-Write-Host "  exchange : $ExchangeDir"
-Write-Host "  tool     : $tool"
-Write-Host "  heartbeat: every $HeartbeatEverySec s   (Ctrl+C to stop)"
+Write-Information -InformationAction Continue "standby_broker online"
+Write-Information -InformationAction Continue "  exchange : $ExchangeDir"
+Write-Information -InformationAction Continue "  tool     : $tool"
+Write-Information -InformationAction Continue "  heartbeat: every $HeartbeatEverySec s   (Ctrl+C to stop)"
 Set-Content -LiteralPath $hb -Value (Get-Date -Format o) -Encoding ASCII
 
 # --- launch-time publisher ----------------------------------------------------
@@ -177,7 +177,7 @@ function Watch-Launch {
             $secs = [math]::Round(((Get-Date) - $script:pending[$p.Id].start).TotalSeconds, 1)
             $script:activeLaunch[$script:pending[$p.Id].key] = $secs
             $script:pending.Remove($p.Id)
-            Write-Host ("[{0}] measured {1} = {2}s" -f (Get-Date -Format o),
+            Write-Information -InformationAction Continue ("[{0}] measured {1} = {2}s" -f (Get-Date -Format o),
                         $key, $secs)
             $new = $true
         }
@@ -210,14 +210,14 @@ while ($true) {
             $stamp = Get-Date -Format o
             if ($out.ok) {
                 Set-Content -LiteralPath $res -Value "OK $($out.detail) $stamp" -Encoding ASCII
-                Write-Host "[$stamp] cleared standby list ($($out.detail))"
+                Write-Information -InformationAction Continue "[$stamp] cleared standby list ($($out.detail))"
             } else {
                 Set-Content -LiteralPath $res -Value "ERR $($out.detail) $stamp" -Encoding ASCII
-                Write-Host "[$stamp] clear FAILED ($($out.detail))"
+                Write-Information -InformationAction Continue "[$stamp] clear FAILED ($($out.detail))"
             }
         } catch {
             Set-Content -LiteralPath $res -Value "ERR $($_.Exception.Message)" -Encoding ASCII
-            Write-Host "clear FAILED: $($_.Exception.Message)"
+            Write-Information -InformationAction Continue "clear FAILED: $($_.Exception.Message)"
         } finally {
             Remove-Item -LiteralPath $r.FullName -Force -ErrorAction SilentlyContinue
         }
