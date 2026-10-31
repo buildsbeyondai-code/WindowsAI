@@ -45,6 +45,7 @@ leaves, `app` wires everything and owns no logic beyond request handling.
 | | `app.py` | Flask routes, CSRF, security headers, worker start-up, waitress |
 | | `hostguard.py` | Refuses foreign `Host`, and cross-origin POSTs (DNS rebinding) |
 | | `desktop.py` | MSIX/desktop entry: starts the service, opens a WebView2 window |
+| | `selfupdate.py` | Store app: closes itself when Windows stages its update, reopens on the new version |
 | Measure | `collector.py` | Background sampler, rolling history, snapshot assembly |
 | | `pwsh_session.py` | One warm PowerShell process running `collect_win.ps1`; one-shot fallback |
 | | `livestats.py` | Real-time headline values straight from Win32 APIs |
@@ -83,6 +84,33 @@ remediation helpers.
 5. **Evolve (opt-in).** `codevolve` asks the model for a patch, tests and
    benchmarks it in a sandbox, and keeps a winner on a review branch. Only an
    explicit Apply fast-forwards the checkout and restarts the service.
+6. **Upgrade components and their dependencies.** Each cycle first takes one
+   outdated Components row (`upgrader.REGISTRY` by its `upgrade.via`).
+   SysPerf's own Python packages go through `depupgrade`:
+
+   ```
+   newer release on PyPI ──► pin moves (requirements.txt / -dev / pyproject)
+        │                        │
+        │                        ▼
+        │        uv pip compile, as CI checks the lock  ──► requirements.lock
+        │        (new or newer dependencies come in          (every package hashed)
+        │         with their hashes)
+        ▼
+   uv resolves the same set for the sandbox's Linux Python ──► every wheel
+   unpacked into the worktree ──► full suite in the sandbox ──► retained
+        │
+        ▼
+   apply: pip install --require-hashes (lock) + dev requirements, into
+   SysPerf's venv and the sandbox venv ──► restart ──► verify, else roll back
+   ```
+
+   A package the resolver adds to the lock becomes a Components row with a live
+   PyPI feed (`components.catalog`, `version_check.SOURCES`), so it is tracked
+   and upgraded like the rest. Software outside the pins (Python, Ubuntu, WSL,
+   Edge, drivers) uses its own upgrader, tested in isolation and rolled back on
+   failure. A component bundled in another (the WSL kernel) waits for its
+   carrier. An upgrade rejected before its tests passed is retried after the
+   next commit; one that failed after applying waits for a newer release.
 
 ## Trust boundaries
 

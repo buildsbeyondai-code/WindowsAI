@@ -23,6 +23,8 @@ import time
 import urllib.request
 from pathlib import Path
 
+from .config import lock_packages
+
 log = logging.getLogger("perfdash")
 
 REFRESH_S = 24 * 3600
@@ -123,6 +125,9 @@ SOURCES = {
     "edge": edge_stable,
     "webview2": winget("m/Microsoft/EdgeWebView2Runtime"),
 }
+# A dependency an upgrade added to the lock gets its live feed too (5.4.4).
+for _p in lock_packages():
+    SOURCES.setdefault(_p, pypi(_p))
 
 
 class LatestVersions:

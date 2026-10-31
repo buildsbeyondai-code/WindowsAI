@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json as _json
 import os as _os
+import re as _re
 import shutil as _shutil
 import sys as _sys
 from pathlib import Path
@@ -28,8 +29,24 @@ from .platform_paths import detect_platform, resolve_data_dir, resolve_powershel
 
 # Where the code lives. Read-only: nothing is ever written here.
 BASE = Path(__file__).resolve().parent
+
+
+def lock_packages(lock: Path | None = None) -> list:
+    """Every package in requirements.lock, lower-case; [] where none ships (MSIX).
+
+    Components rows, live version feeds and installed versions follow the lock,
+    so a dependency an upgrade brings in is tracked and upgraded like the rest.
+    """
+    lock = lock or BASE.parents[1] / "requirements.lock"
+    try:
+        text = lock.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    return sorted({n.lower() for n in _re.findall(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==", text, _re.M)})
+
+
 # Shown in the dashboard header and /api/health; stamped by scripts/build_release.py.
-APP_VERSION = "5.4.3"
+APP_VERSION = "5.4.4"
 
 PLATFORM = detect_platform()
 # Microsoft Store mode (store_mode.py): the frozen SysPerf.exe of the MSIX build,

@@ -70,9 +70,25 @@ rerun them, not that they passed.
   upgraders (Python) run the suite in the checkout itself, and a mid-edit tree
   rejects a good upgrade. Check `GET /api/codevolve` `state` first. A
   suite-rejected upgrade is retried after the next commit (5.4.2).
+- A rule written for one kind of package must check that it applies: the
+  hash-lock dependency check also ran for dev tools and refused every pytest
+  upgrade (fixed in 5.4.4). If an upgrade keeps getting rejected with the same
+  reason, test the rule, not just the package.
 - Nothing runs while the PC sleeps (a 2.5-day gap on 28–30 Oct 2026 was sleep).
 - The Components "Assessment" date is the latest live version check (daily);
   `catalog_date` is when the hand-reviewed fallbacks were last edited.
+
+## Microsoft Store
+
+- Every update failed once with 0x80073D02 while the window was open: Windows
+  will not swap a running package, and the Store's first try does not force it.
+  `selfupdate.py` closes the window on the *staging* event (~10 s before the
+  swap) and relaunches through WMI, which runs outside the package. A process
+  started by the app itself (cmd, powershell) belongs to the package and would
+  block the swap again.
+- The fix only helps updates *from* a version that has it.
+- Analytics API: `/v1.0/my/analytics/appacquisitions`, `funnel`; it rate-limits
+  (429) at about one call per few seconds. Client: `%LOCALAPPDATA%\SysPerf\store-tools`.
 
 ## Environment traps (WSL driving the Windows install)
 
@@ -84,6 +100,13 @@ rerun them, not that they passed.
   POSTs need the token from `GET /api/fixes` and Host `127.0.0.1`.
 - `%TEMP%\pytest-of-<user>` can have an unreadable ACL: pass `--basetemp`
   (`affected_tests.py` adds `%LOCALAPPDATA%\SysPerf\pt-tmp` on Windows).
+- Source files here are CRLF. `sed 's/...$/.../'` silently matches nothing
+  (the `$` sits before `\r`); a missed import then broke /api/home live. Edit
+  with Python or the Edit tool, and run the affected tests *before* restarting
+  the live service, never after.
+- If `/api/restart` cannot be reached (a broken build answers 500 on
+  /api/fixes), restart with `Stop-ScheduledTask` / `Start-ScheduledTask
+  'SysPerf Dashboard'`.
 - PowerShell from bash: put the script in a `.ps1` file and run it with
   `-File`; backticks and `$env:` inside `-Command` strings get mangled by bash.
 - `sysperf.db` cannot be opened from WSL while the service runs (disk I/O

@@ -15,7 +15,9 @@ pywebview) onto that page rather than a second UI. Start-up order:
    holds it, and the window opens once ``/api/health`` answers.
 
 Closing the window ends an in-process dashboard with it; an attached one keeps
-running, because this window did not start it.
+running, because this window did not start it. When Windows stages an update of
+the package, the window closes itself and reopens on the new version
+(``selfupdate.py``), so the update does not fail with "apps need to be closed".
 
 The WebView2 profile lives under the per-user data directory: a packaged app's
 install folder (WindowsApps) is read-only, and WebView2 refuses to start when
@@ -136,7 +138,7 @@ def wait_released(port: int, free=port_free, clock=time.monotonic, sleep=time.sl
 
 def main(argv=None, env=None, webview=None, probe=is_sysperf, free=port_free,
          pick=free_port, server=start_server, ready=wait_ready,
-         released=wait_released) -> int:
+         released=wait_released, watch_update=None) -> int:
     """Open the SysPerf window. Collaborators are injectable for testing."""
     env = os.environ if env is None else env
     if webview is None:                                 # pragma: no cover - real import
@@ -150,9 +152,13 @@ def main(argv=None, env=None, webview=None, probe=is_sysperf, free=port_free,
         server(port, env)
     kw = {"width": 1400, "height": 900, "min_size": (960, 640)}
     if attach or ready(port, probe):
-        webview.create_window(TITLE, f"http://127.0.0.1:{port}/#home", **kw)
+        window = webview.create_window(TITLE, f"http://127.0.0.1:{port}/#home", **kw)
     else:
-        webview.create_window(TITLE, html=error_page(port), **kw)
+        window = webview.create_window(TITLE, html=error_page(port), **kw)
+    if watch_update is None:                            # pragma: no cover - real import
+        from .selfupdate import watch as watch_update
+    # Close before Windows swaps in a new version (else 0x80073D02), reopen after.
+    watch_update(window.destroy)
     path = profile_dir(env)
     os.makedirs(path, exist_ok=True)
     webview.start(private_mode=False, storage_path=path)

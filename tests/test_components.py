@@ -123,6 +123,7 @@ def test_build_components_full(tmp_path, monkeypatch):
     monkeypatch.setattr(components, "COMPONENTS_FILE", f)
     monkeypatch.setattr(components, "_linux_versions",
                         lambda: {"node": "20.0.0", "git": "2.40.0"})
+    monkeypatch.setattr(components, "lock_packages", lambda: [])   # this catalog only
     latest = {"gpu_driver": "31.0", "gpu_driver_date": "2020-01-01"}
     out = build_components(latest)
     by = {r["key"]: r for r in out["rows"]}
@@ -252,7 +253,8 @@ def test_every_sbom_package_is_a_component_with_a_live_feed(monkeypatch):
     lock = (components.BASE.parents[1] / "requirements.lock").read_text(encoding="utf-8")
     sbom = set(re.findall(r"^([a-z0-9][a-z0-9._-]*)==", lock, re.M)) | {"pip"}
     assert {"flask", "waitress", "werkzeug"} <= sbom
-    keys = {c["key"] for c in json.loads(components.COMPONENTS_FILE.read_text())["catalog"]}
+    keys = {c["key"] for c in components.catalog(json.loads(
+        components.COMPONENTS_FILE.read_text()))}
     assert sbom <= keys, sbom - keys
     assert sbom <= set(version_check.SOURCES), sbom - set(version_check.SOURCES)
     monkeypatch.setattr(components, "_run", lambda cmd, timeout=6.0: "")   # metadata only
@@ -366,3 +368,17 @@ def test_a_component_that_ships_in_a_current_carrier_waits_for_it(tmp_path, monk
                         lambda: {"kernel": "6.18.54.1", "wsl": "3.0.2"})
     out = build_components({})
     assert out["upgrades"] == 2 and "waiting_on" not in out["rows"][0]
+
+
+def test_a_package_the_resolver_added_becomes_a_component(tmp_path):
+    # 5.4.4: an upgrade can bring a new dependency into the lock; it is tracked
+    # and upgraded like the rest instead of failing the SBOM check
+    rows = components.catalog({"catalog": [{"key": "flask"}]}, lock=["colorama", "flask"])
+    assert [r["key"] for r in rows] == ["flask", "colorama"]
+    assert rows[1]["upgrade"] == {"via": "pip-lock"} and rows[1]["compare"] == "version"
+    from sysperf import config, version_check
+    lock = tmp_path / "requirements.lock"
+    lock.write_text("# h\nColorama==0.4.6 ; sys_platform == 'win32' \\\n    --hash=sha256:x\n")
+    assert config.lock_packages(lock) == ["colorama"]
+    assert config.lock_packages(tmp_path / "none.lock") == []
+    assert "flask" in config.lock_packages() and "flask" in version_check.SOURCES
