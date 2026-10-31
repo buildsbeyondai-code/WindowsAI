@@ -46,7 +46,7 @@ def lock_packages(lock: Path | None = None) -> list:
 
 
 # Shown in the dashboard header and /api/health; stamped by scripts/build_release.py.
-APP_VERSION = "5.4.5"
+APP_VERSION = "5.4.6"
 
 PLATFORM = detect_platform()
 # Microsoft Store mode (store_mode.py): the frozen SysPerf.exe of the MSIX build,

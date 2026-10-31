@@ -1898,7 +1898,7 @@
     @media(max-width:620px){#view-evo .evo-f.wide{grid-column:auto}#view-evo .evo-grid{grid-template-columns:repeat(2,1fr)}}
   </style>
   <div class="evo-lead">The agent proposes source-code improvements with an AI model, tests and benchmarks them in a
-    sandbox, and keeps winners as review branches — <b>nothing is deployed without your approval</b>. Every figure below
+    sandbox, and keeps winners as review branches — <b id="sevApplyMode">nothing is deployed without your approval</b>. Every figure below
     is a recorded measurement.</div>
   <div id="sevStatus" aria-live="polite"><div class="evo-empty">Loading…</div></div>
   <div class="card evo-card"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Autonomy and controls</h3><div id="sevControls"></div></div>
@@ -2714,7 +2714,8 @@ function render(d) {
   const CP = d.components || {};
   // Where each target came from: the vendor's release feed (checked daily), or the
   // installed build when it is newer than any public release (preview/Insider).
-  const SRC = {live: "newest public release", installed: "installed build is newer than any public release"};
+  const SRC = {live: "newest public release", installed: "installed build is newer than any public release",
+    "windows-update": "what Windows Update offers this PC"};
   const cprows = (CP.rows || []).map(c => {
     const pcls = c.perf >= 20 ? "b-g" : c.perf >= 10 ? "b-a" : "b-r";
     const pbar = `<div class="bar ${pcls}"><i style="width:${Math.max(4, Math.min(100, c.perf))}%"></i>
@@ -2752,7 +2753,7 @@ function render(d) {
         <div class="note keep">Dated <b>${esc(CP.assessment_date || "—")}</b>${CP.catalog_date && CP.catalog_date !== CP.assessment_date ? ` (catalog fallbacks reviewed ${esc(CP.catalog_date)})` : ""}.<br>
           Current versions are measured live. "Latest" is each vendor's newest public release,
           checked daily${CP.latest_checked_at ? ` (last ${esc(localTime(CP.latest_checked_at))})` : ""}; rows without a public feed use the reviewed catalog.
-          Driver freshness is judged by age (recommend at ≥9 months).</div></div>
+          Drivers: an upgrade only when Windows Update offers a newer one for the device (checked daily); otherwise by age (≥9 months).</div></div>
     </div>
     <div class="card">
       <table><thead><tr>
@@ -5563,6 +5564,10 @@ document.addEventListener("visibilitychange", () => {
   function renderStatus(s) {
     const c = s.candidates || {}, l = s.llm || {}, u = l.usage_today || {}, h = l.last_24h || {}, st = s.settings || {};
     const last = s.last_attempt;
+    const mode = $("sevApplyMode");
+    if (mode) mode.textContent = st.auto_apply
+      ? "winners are deployed automatically, verified, and rolled back if SysPerf is not healthy"
+      : "nothing is deployed without your approval";
     const cost = h.cost_usd == null ? (h.calls ? "unknown" : "$0") : "$" + h.cost_usd.toFixed(4);
     // Readiness: every precondition the engine checks before a cycle may start
     // (codevolve.gate), plus the sandbox it needs to execute generated code.
@@ -5648,6 +5653,7 @@ document.addEventListener("visibilitychange", () => {
       <div class="evo-sub">Evolution engine</div>
       <div class="evo-form">
         <label class="evo-f chk"><input type="checkbox" id="sevEnabled"${st.enabled ? " checked" : ""}> Evolution enabled</label>
+        <label class="evo-f chk"><input type="checkbox" id="sevAutoApply"${st.auto_apply ? " checked" : ""}> Apply winners automatically</label>
         <label class="evo-f wide">Repository (git checkout) <input id="sevRepo" value="${esc(st.repo || "")}" placeholder="C:\\path\\to\\sysperf"></label>
         <label class="evo-f">Every (hours) <input id="sevInterval" type="number" min="0.1" step="0.5" value="${(st.interval_s / 3600).toFixed(1)}"></label>
         <label class="evo-f">Max cycles / day <input id="sevMax" type="number" min="0" max="48" value="${st.max_per_day}"></label>
@@ -5679,7 +5685,8 @@ document.addEventListener("visibilitychange", () => {
       await post("api/codevolve/settings", {
         evolution: {enabled: $("sevEnabled").checked, repo: $("sevRepo").value.trim() || null,
                     interval_s: Math.round(parseFloat($("sevInterval").value) * 3600),
-                    max_per_day: parseInt($("sevMax").value, 10)},
+                    max_per_day: parseInt($("sevMax").value, 10),
+                    auto_apply: $("sevAutoApply").checked},
         llm: {provider: $("sevProvider").value, model: $("sevModel").value.trim() || null,
               daily_token_budget: parseInt($("sevBudget").value, 10)}});
     });

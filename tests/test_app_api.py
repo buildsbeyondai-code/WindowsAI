@@ -588,3 +588,9 @@ def test_only_an_upgraded_install_carries_its_auto_mode_into_autonomy():
     assert app._carried_mode(True, False, Imp()) == "auto"
     assert app._carried_mode(False, False, Imp()) is None
     assert app._carried_mode(True, True, Imp()) is None
+
+
+def test_no_review_notification_when_winners_apply_automatically(notes, monkeypatch):
+    monkeypatch.setitem(app.code_evolution.settings, "auto_apply", True)
+    app._on_retained({"id": "c-10", "title": "faster", "reason": "20% faster"})
+    assert notes.items()["items"] == []

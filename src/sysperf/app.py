@@ -283,6 +283,8 @@ notifier = notify_mod.Notifier(NOTIFY_STATE_FILE, f"http://127.0.0.1:{PORT}/",
 
 
 def _on_retained(cand: dict) -> None:
+    if code_evolution.settings.get("auto_apply"):
+        return              # deployed automatically; "AI patch deployed" follows
     notifier.notify("review", "AI patch ready for review",
                     f"{cand.get('title')} — {cand.get('reason')}",
                     key=f"review:{cand.get('id')}", link="#self-evolution")
@@ -335,7 +337,8 @@ tray_quitter = trayquit_mod.TrayQuitter(TRAYQUIT_STATE_FILE, TRAYQUIT_LOG_FILE,
 # Newest public version of each component, so the Components view's targets
 # never fall behind what is installed (components.py reads the file it writes).
 latest_versions = version_check_mod.LatestVersions(
-    DATA_DIR / "components_latest.json", enabled=VERSION_CHECK)
+    DATA_DIR / "components_latest.json", enabled=VERSION_CHECK,
+    drivers=version_check_mod.offered_drivers)
 # 5.1.1: every Components row is upgraded through self-evolution (upgrader.py).
 # Not in the Store build: its packages are frozen into the signed package.
 _component_rows = {"t": 0.0, "rows": []}
@@ -1474,7 +1477,8 @@ def _autonomy_apply(diff: dict) -> None:
     improver.set_mode(action_policy.improver_mode())
 
 
-_EVO_KEYS = ("enabled", "interval_s", "max_per_day", "auto_retain", "auto_upgrade_deps")
+_EVO_KEYS = ("enabled", "interval_s", "max_per_day", "auto_retain", "auto_apply",
+             "auto_upgrade_deps")
 
 
 def _notify_get() -> dict:
@@ -1551,6 +1555,10 @@ settings_hub = settings_mod.SettingsHub([
                 "component upgrade the next one follows after 30 minutes."),
         _F("max_per_day", "At most cycles per day", "int", min=0, max=48),
         _F("auto_retain", "Keep winning patches for review", "bool"),
+        _F("auto_apply", "Apply winning patches automatically", "bool",
+           help="No review step: a patch that passed the sandboxed tests and the "
+                "benchmark is deployed at once, verified on the running service and "
+                "rolled back automatically if SysPerf is not healthy afterwards."),
         _F("auto_upgrade_deps", "Auto-upgrade every outdated component", "bool",
            help="Each outdated row of Components is tested in isolation first (the "
                 "sandbox, a staging venv or a throwaway copy of the WSL distro), then "
@@ -1558,7 +1566,7 @@ settings_hub = settings_mod.SettingsHub([
         lambda: {k: code_evolution.settings[k] for k in _EVO_KEYS},
         lambda diff: code_evolution.update_settings(diff),
         {"enabled": False, "interval_s": 21600, "max_per_day": 4, "auto_retain": True,
-         "auto_upgrade_deps": True}),
+         "auto_apply": False, "auto_upgrade_deps": True}),
     settings_mod.Section("notifications", "Notifications", [
         _F("toasts", "Show Windows notifications", "bool"),
         _F("min_interval_s", "Repeat the same alert at most every (seconds)", "int",

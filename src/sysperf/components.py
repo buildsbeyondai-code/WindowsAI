@@ -237,6 +237,22 @@ def effective_latest(catalog: str, live: str, current: str) -> tuple[str, str]:
     return target, source
 
 
+DRIVER_CLASS = {"net-driver": "net", "gpu-driver": "display"}
+
+
+def _offered_for(device: str, offered: list, cls: str = "") -> dict | None:
+    """The offered driver update for ``device``: same class, matching model words."""
+    words = {w for w in re.findall(r"[a-z0-9-]{4,}", (device or "").lower())
+             if w not in ("driver", "adapter", "network", "graphics", "wireless")}
+    for d in offered:
+        if cls and (d.get("cls") or "").lower() not in ("", cls):
+            continue
+        text = f"{d.get('model') or ''} {d.get('title') or ''}".lower()
+        if len(words) and sum(w in text for w in words) >= min(2, len(words)):
+            return d
+    return None
+
+
 def catalog(cat: dict, lock=None) -> list:
     """The reviewed catalog, plus a row for every locked package it lacks.
 
@@ -309,6 +325,18 @@ def build_components(latest: dict) -> dict:
             row["current_date"] = dt
             row["months_old"] = mo
             row["outdated"] = (mo is not None and mo >= c.get("stale_months", 9))
+            drv = live.get("drivers")
+            if c.get("date_key", "").endswith("driver_date") and isinstance(drv, dict):
+                # An old driver is only an upgrade when a newer one is offered
+                # for this device; "upgrade" with nothing to install misled
+                # (5.4.5 live: the Realtek driver was the newest HP and Windows
+                # Update had).
+                hit = _offered_for(row["name"], drv.get("offered") or [],
+                                   DRIVER_CLASS.get(key, ""))
+                row["outdated"] = hit is not None
+                row["latest"] = (hit.get("title") or "newer driver") if hit else "newest offered"
+                row["latest_source"] = "windows-update"
+                row["checked_at"] = drv.get("checked_at")
         else:
             cur = cur_map.get(key, "")
             row["current"] = cur or "—"

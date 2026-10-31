@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
+import subprocess
 import threading
 import time
 import urllib.request
@@ -130,16 +132,48 @@ for _p in lock_packages():
     SOURCES.setdefault(_p, pypi(_p))
 
 
+# Driver updates Windows Update offers this PC (optional ones included). Read-only:
+# it searches, never downloads or installs. A standard user may search.
+WU_DRIVER_SEARCH = r"""
+$s = New-Object -ComObject Microsoft.Update.Session
+$q = $s.CreateUpdateSearcher(); $q.ServerSelection = 3
+$q.ServiceID = '7971f918-a847-4430-9279-4a52d1efe18d'
+$r = $q.Search("IsInstalled=0 and Type='Driver'")
+ConvertTo-Json -Compress -InputObject @($r.Updates | ForEach-Object {
+  @{ title = $_.Title; manufacturer = $_.DriverManufacturer; model = $_.DriverModel;
+     cls = $_.DriverClass; date = if ($_.DriverVerDate) { $_.DriverVerDate.ToString('yyyy-MM-dd') } } })
+"""
+
+
+def offered_drivers(run=subprocess.run) -> list | None:
+    """Driver updates Windows Update offers; None when it cannot be asked."""
+    if os.name != "nt":
+        return None
+    try:
+        r = run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", WU_DRIVER_SEARCH],
+                capture_output=True, text=True, timeout=600, creationflags=0x08000000)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if r.returncode != 0:
+        return None
+    try:
+        got = json.loads(r.stdout.strip() or "[]")
+    except ValueError:
+        return None
+    return [d for d in (got if isinstance(got, list) else [got]) if isinstance(d, dict)]
+
+
 class LatestVersions:
     """The newest public version of each component, refreshed once a day."""
 
     def __init__(self, state_file: Path, *, enabled: bool = True, get=None,
-                 clock=time.time, sources: dict | None = None) -> None:
+                 clock=time.time, sources: dict | None = None, drivers=None) -> None:
         self.file = Path(state_file)
         self.enabled = enabled
         self.get = get or http_get
         self.clock = clock
         self.sources = SOURCES if sources is None else sources
+        self.drivers = drivers
         self._lock = threading.Lock()
 
     def load(self) -> dict:
@@ -168,6 +202,11 @@ class LatestVersions:
                 except Exception as exc:                # one feed down: keep the rest
                     errors[key] = f"{type(exc).__name__}: {exc}"[:200]
             data = {"checked_at": self.clock(), "latest": latest, "errors": errors}
+            # Drivers have no public "latest" feed; what Windows Update offers this
+            # PC is the honest target (5.4.6). Unreachable: keep the last answer.
+            offered = self.drivers() if self.drivers else None
+            data["drivers"] = ({"checked_at": self.clock(), "offered": offered}
+                               if offered is not None else self.load().get("drivers"))
             self.file.parent.mkdir(parents=True, exist_ok=True)
             tmp = self.file.with_suffix(".tmp")
             tmp.write_text(json.dumps(data, indent=1), encoding="utf-8")

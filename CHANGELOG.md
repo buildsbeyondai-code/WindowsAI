@@ -4,6 +4,26 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.4.6 — 2026-10-31
+
+### Fixed
+- **A driver reads "upgrade" only when there is one to install.** Drivers have
+  no public release feed, so a driver older than 9 months was always flagged,
+  even when it was the newest the PC maker and Windows Update had (the Realtek
+  Wi-Fi driver after an HP Support Assistant update). The daily version check
+  now asks Windows Update which driver updates it offers this PC (search only,
+  nothing is downloaded); a driver row is an upgrade when one is offered for
+  that device and class, and otherwise shows "newest offered" with the check
+  time. Without that check (offline, or not Windows) the age rule still applies.
+
+### Added
+- **Apply winners automatically** (`evolution.auto_apply`, off by default). A
+  patch that passed the sandboxed tests and the benchmark is deployed at once
+  through the same Apply path: fast-forward, restart, health check, automatic
+  rollback if SysPerf is not healthy. No "ready for review" notification is
+  sent; "AI patch deployed" follows. The AI Self-Evolution tab says which mode
+  is on.
+
 ## 5.4.5 — 2026-10-31
 
 An audit of every category on the live install (`docs/AUDIT-2026-10-31.md`):
