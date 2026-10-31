@@ -4,6 +4,14 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.4.8 — 2026-10-31
+
+### Fixed
+- A pending winner that reached main by hand (`git cherry-pick -x`) now counts
+  as applied; auto-apply would otherwise have replayed it onto a main that
+  already had it and rejected it.
+- "Evolution enabled" off now also stops auto-apply.
+
 ## 5.4.7 — 2026-10-31
 
 ### Fixed

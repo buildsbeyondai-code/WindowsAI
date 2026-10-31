@@ -1471,8 +1471,9 @@ class CodeEvolution:
         one built on an older main is replayed onto today's main and must pass
         the full suite in the sandbox first, else it is rejected with the reason.
         """
-        if not self.settings.get("auto_apply") or self.pending_apply():
-            return None
+        if not (self.settings["enabled"] and self.settings.get("auto_apply")) \
+                or self.pending_apply():
+            return None                       # "evolution disabled" stops this too
         self.reconcile_shipped()
         waiting = [c for c in self.db.candidates(limit=500)
                    if c["decision"] == "retained" and c.get("branch")
@@ -1623,7 +1624,10 @@ class CodeEvolution:
         marked = []
         for c in self.db.candidates(limit=500):
             sha = c.get("commit_sha")
-            if c["review_state"] != "approved" or not sha or c["id"] == verifying:
+            # A pending winner someone cherry-picked by hand has shipped too; left
+            # pending, auto-apply would replay it onto a main that already has it.
+            if c["review_state"] not in ("approved", "pending") or not sha \
+                    or c["id"] == verifying:
                 continue
             try:
                 _git(Path(repo), "merge-base", "--is-ancestor", sha, "HEAD")
