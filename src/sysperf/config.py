@@ -46,7 +46,7 @@ def lock_packages(lock: Path | None = None) -> list:
 
 
 # Shown in the dashboard header and /api/health; stamped by scripts/build_release.py.
-APP_VERSION = "5.4.6"
+APP_VERSION = "5.4.7"
 
 PLATFORM = detect_platform()
 # Microsoft Store mode (store_mode.py): the frozen SysPerf.exe of the MSIX build,
@@ -620,7 +620,7 @@ SERIES_KEYS = [
     "browser_procs", "edge_procs", "wv2_procs", "pool_paged_mb",
     "pool_nonpaged_mb", "cpu_pct", "processes", "c_free_gb",
     "net_remote", "net_loopback", "net_established", "net_listen", "startup_apps",
-    "wifi_signal",
+    "wifi_signal", "wifi_rx_mbps", "wifi_tx_mbps",
     "boot_time_s", "wsl_start_s", "explorer_launch_s", "outlook_launch_s",
     "word_launch_s",
     "cpu_queue", "disk_active_pct", "cpu_temp_c", "battery_wear_pct",

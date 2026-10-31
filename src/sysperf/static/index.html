@@ -2081,7 +2081,9 @@ function lineChart(cfg) {
       paths += `<circle cx="${px(lastI).toFixed(1)}" cy="${py(lv).toFixed(1)}" r="3.2"
         fill="${s.color}"/>`;
   });
-  const tf = (ts) => ts ? localTime(ts, {timeOnly: true}) : "";
+  const tf = (ts) => !ts ? "" : cfg.secs
+    ? new Date(ts * 1000).toLocaleTimeString(undefined, {hour: "2-digit", minute: "2-digit", second: "2-digit"})
+    : localTime(ts, {timeOnly: true});
   const xl = `<text x="${L}" y="${H - 6}" fill="#7d89a0" style="font-size:10px">${tf(t[0])}</text>
     <text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle" fill="#7d89a0"
       style="font-size:10px">${tf((t0 + t1) / 2)}</text>
@@ -2536,14 +2538,32 @@ function render(d) {
           <div class="note">Signal %, band, channel and Rx/Tx rates need Windows <b>Location</b>
             permission for the WLAN service (Privacy &amp; security → Location) — currently off, so
             only adapter-level link speed is shown. Enable it to chart live signal strength.</div></div>`
-      : `<div class="card"><h3>Link rates <span class="hint">negotiated PHY</span></h3>
-          ${hbars([
-            {name:"Receive (Rx)", value:WF.rx_mbps ?? 0, cls:"b-g", unit:" Mbps", max:rateMax},
-            {name:"Transmit (Tx)", value:WF.tx_mbps ?? 0, cls:"b-a", unit:" Mbps", max:rateMax}
-          ])}
-          ${sparkline(ser.wifi_signal || [], sigColor(WF.signal), 70)}
-          <div class="note">Signal-strength trend (dashed line = 70% "good" threshold). Higher
-            Rx/Tx = a faster negotiated link; both fall as signal weakens.</div></div>`;
+      : `<div class="card"><h3>Link rates <span class="hint">negotiated PHY</span>
+            <span class="tag tg" id="wfLiveTag">live</span></h3>
+          <table><tbody>
+            <tr><td>Receive (Rx)</td><td style="width:52%"><div class="bar b-g"><i id="wfRxBar"
+              style="width:${Math.min(100, (WF.rx_mbps ?? 0) / rateMax * 100).toFixed(1)}%"></i></div></td>
+              <td class="num"><span id="wfRx">${fmt(WF.rx_mbps)}</span> Mbps</td></tr>
+            <tr><td>Transmit (Tx)</td><td style="width:52%"><div class="bar b-a"><i id="wfTxBar"
+              style="width:${Math.min(100, (WF.tx_mbps ?? 0) / rateMax * 100).toFixed(1)}%"></i></div></td>
+              <td class="num"><span id="wfTx">${fmt(WF.tx_mbps)}</span> Mbps</td></tr>
+            <tr><td>Traffic now</td><td colspan="2" class="num">↓ <b id="wfDown">—</b> · ↑ <b id="wfUp">—</b> Mbps
+              <span class="hint" id="wfUpd"></span></td></tr>
+          </tbody></table>
+          <div class="note">Rx/Tx is the speed the adapter negotiated with the router; it falls as
+            the signal weakens. Traffic is what actually moved in the last ${LIVE_MS / 1000} s.</div></div>`;
+    // Speed and signal over time, with axes, values, times and a legend (5.4.7):
+    // the old sparkline had no reference points, so no change could be read off it.
+    const hist = limited ? "" : `<div class="card" style="grid-column:1/-1"><h3>Wi-Fi speed
+          <span class="hint">live, every ${LIVE_MS / 1000} s while this page is open</span></h3>
+          <div id="wfLive"></div>
+          <div class="grid g-2" style="margin-top:10px">
+            <div><h4>Link rate, last ${fmt((ser.t || []).length)} samples</h4>${lineChart({t: ser.t || [], unit: "Mbps",
+              series: [{name: "Rx link", color: "#4dd08a", data: ser.wifi_rx_mbps || []},
+                       {name: "Tx link", color: "#ff9f2e", data: ser.wifi_tx_mbps || []}]})}</div>
+            <div><h4>Signal</h4>${lineChart({t: ser.t || [], unit: "%", target: 70, targetLabel: "good",
+              series: [{name: "Signal", color: sigColor(WF.signal), data: ser.wifi_signal || []}]})}</div>
+          </div></div>`;
     const detail = `<div class="card"><h3>Connection detail</h3>
         <div class="note keep">
           State ${stTag}<br>
@@ -2553,7 +2573,8 @@ function render(d) {
           Radio <b>${esc(WF.radio || WF.adapter || "—")}</b><br>
           ${WF.bssid ? `BSSID <code>${esc(WF.bssid)}</code><br>` : ""}
           Category <b>${esc(WF.category || "—")}</b> · IPv4 <b>${esc(WF.ipv4 || "—")}</b></div></div>`;
-    $("wifi").innerHTML = primary + rates + detail;
+    $("wifi").innerHTML = primary + rates + detail + hist;
+    renderWifiLive();
   } else {
     $("wifi").innerHTML = `<div class="card"><h3>Wi-Fi <span class="tag ta">not connected</span></h3>
       <div class="note keep">No wireless interface is associated — the machine is on Ethernet or
@@ -3537,6 +3558,36 @@ async function tick(force) {
 /* Real-time chips: /api/live reads CPU/RAM/commit/process count in-process
    (no PowerShell spawn), so these update every LIVE_MS while the full
    snapshot (charts, scorecard) refreshes every REFRESH_MS. */
+// Wi-Fi speed while the page is open: the 3-second live feed, last ~10 minutes.
+const WIFI_LIVE = {t: [], down: [], up: [], rx: [], tx: [], max: 200};
+function renderWifiLive() {
+  const el = $("wfLive");
+  if (!el) return;
+  const W = WIFI_LIVE;
+  el.innerHTML = W.t.length < 2
+    ? `<div class="note keep">Measuring — a point is added every ${LIVE_MS / 1000} s…</div>`
+    : lineChart({t: W.t, unit: "Mbps", secs: true, series: [
+        {name: "Download", color: "#4dd08a", data: W.down},
+        {name: "Upload", color: "#4da3ff", data: W.up}]});
+}
+function wifiLive(w, at) {
+  if (!w || w.rx_mbps == null) return;
+  const W = WIFI_LIVE;
+  W.t.push(at); W.rx.push(w.rx_mbps); W.tx.push(w.tx_mbps);
+  W.down.push(w.down_mbps ?? null); W.up.push(w.up_mbps ?? null);
+  if (W.t.length > W.max) for (const k of ["t", "down", "up", "rx", "tx"]) W[k].shift();
+  const set = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
+  set("wfRx", fmt(w.rx_mbps)); set("wfTx", fmt(w.tx_mbps));
+  if (w.down_mbps != null) { set("wfDown", fmt(w.down_mbps, 2)); set("wfUp", fmt(w.up_mbps, 2)); }
+  set("wfUpd", "· " + new Date(at * 1000).toLocaleTimeString());
+  const top = Math.max(100, ...W.rx, ...W.tx);
+  for (const [id, v] of [["wfRxBar", w.rx_mbps], ["wfTxBar", w.tx_mbps]]) {
+    const el = $(id);
+    if (el) el.style.width = Math.min(100, v / top * 100).toFixed(1) + "%";
+  }
+  renderWifiLive();
+}
+
 let liveBusy = false;
 async function liveTick() {
   if (liveBusy || document.hidden) return;
@@ -3550,6 +3601,7 @@ async function liveTick() {
     if (v.committed_mb != null) set("lv-commit", fmt(v.committed_mb) + " MB");
     if (v.processes != null) set("lv-procs", fmt(v.processes));
     if (v.uptime_h != null) set("lv-uptime", fmt(v.uptime_h, 1) + " h");
+    wifiLive(v.wifi, v.t || Date.now() / 1000);
   } catch (e) { /* the main poll reports connection state */ }
   finally { liveBusy = false; }
 }

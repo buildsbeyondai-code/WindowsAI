@@ -410,3 +410,49 @@ def test_a_winner_is_applied_without_review_when_auto_apply_is_on(tmp_path, repo
     c = db.candidates()[0]
     assert res["state"] == "completed" and "applying automatically" in res["explanation"]
     assert c["decision"] == "retained" and applied == [(c["id"], "evolution")]
+
+
+def _commit(repo, name, text):
+    (repo / name).write_text(text)
+    for a in (["add", "-A"], ["-c", "user.name=t", "-c", "user.email=t@x", "commit", "-q", "-m", name]):
+        subprocess.run(["git", "-C", str(repo), *a], check=True)
+    return head(repo)
+
+
+@needs_sandbox
+def test_a_winner_left_waiting_is_rechecked_on_the_new_main_and_applied(tmp_path, repo):
+    # 5.4.6 live: with auto_apply on, a winner kept earlier still said "waiting for
+    # your approval", and Apply refused because main had moved since
+    eng, db, cand = _retained(tmp_path, repo)
+    assert eng.auto_apply_pending() is None                      # off: it waits for review
+    moved = _commit(repo, "NOTES.txt", "unrelated change on main\n")
+    eng.settings["auto_apply"] = True
+    assert eng.auto_apply_pending() == {"applied": True, "id": cand["id"]}
+    c = db.candidate(cand["id"])
+    assert c["branch"].endswith(moved[:8]) and head(repo) == c["commit_sha"]
+    assert "seen = set()" in (repo / "dedupe.py").read_text()
+    assert (repo / "NOTES.txt").exists()                          # main's change kept
+    assert "candidate.reverified" in [a["event"] for a in db.audit_tail(limit=30)]
+    assert eng.auto_apply_pending() is None                      # being verified now
+
+
+@needs_sandbox
+def test_a_waiting_winner_that_no_longer_fits_main_is_rejected(tmp_path, repo):
+    eng, db, cand = _retained(tmp_path, repo)
+    eng.settings["auto_apply"] = True
+    _commit(repo, "dedupe.py", "def unique_in_order(xs):\n    return list(dict.fromkeys(xs))\n")
+    out = eng.auto_apply_pending()
+    c = db.candidate(cand["id"])
+    assert out["applied"] is False and "no longer applies" in out["reason"]
+    assert c["decision"] == "rejected" and c["reason"].startswith("re-checked on the current main")
+    assert eng.auto_apply_pending() is None                      # nothing left waiting
+
+
+@needs_sandbox
+def test_a_waiting_winner_whose_tests_fail_on_the_new_main_is_rejected(tmp_path, repo):
+    eng, db, cand = _retained(tmp_path, repo)
+    eng.settings["auto_apply"] = True
+    _commit(repo, "NOTES.txt", "unrelated\n")
+    eng._tests = lambda wt, **kw: {"rc": 1, "failed": 1, "errors": 0, "summary": "1 failed"}
+    assert eng.auto_apply_pending()["reason"] == "tests: 1 failed"
+    assert db.candidate(cand["id"])["decision"] == "rejected"

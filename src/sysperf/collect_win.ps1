@@ -314,6 +314,9 @@ try {
 $out.wifi = $wifi
 # Flat key for the signal-strength trend series (nested objects are not charted).
 if ($wifi.present -and $null -ne $wifi.signal) { $out.wifi_signal = $wifi.signal }
+# Negotiated link rates per sample, so the Wi-Fi chart shows speed over time (5.4.7).
+if ($wifi.present -and $null -ne $wifi.rx_mbps) { $out.wifi_rx_mbps = $wifi.rx_mbps }
+if ($wifi.present -and $null -ne $wifi.tx_mbps) { $out.wifi_tx_mbps = $wifi.tx_mbps }
 
 if ($Full) {
     # PowerShell 7: the network block must WAIT 8 s (two TCP snapshots, to detect

@@ -455,3 +455,26 @@ def test_times_are_shown_in_the_viewers_zone(browser, site):
     assert page.evaluate("[localTime(null), localTime(''), localTime('not a date')]") == [
         "—", "—", "not a date"]
     page.close()
+
+
+def test_wifi_speed_is_live_and_charted_with_reference_points(browser, site):
+    # 5.4.7: "Wi-Fi speeds are not live; no reference points on the chart"
+    import copy
+    m = copy.deepcopy(STUBS["api/metrics"])
+    m["latest"]["wifi"].update(signal=82, rx_mbps=433.3, tx_mbps=433.3, band="5 GHz",
+                               channel=161, radio="802.11ac")
+    n = len(m["series"]["t"])
+    m["series"]["wifi_rx_mbps"] = [433.3] * n
+    m["series"]["wifi_tx_mbps"] = [390.0] * n
+    m["series"]["wifi_signal"] = [82] * n
+    live = {"cpu_pct": 10.0, "wifi": {"rx_mbps": 520.0, "tx_mbps": 480.0, "signal": 80,
+                                      "down_mbps": 12.5, "up_mbps": 1.25}}
+    page = _open(browser, site, hash_="#details/wifi",
+                 overrides={"api/metrics": m, "api/live": live})
+    page.wait_for_function("() => (document.getElementById('wfRx') || {}).textContent === '520'")
+    assert page.inner_text("#wfDown") == "12.50" and page.inner_text("#wfUp") == "1.25"
+    page.wait_for_function("() => document.querySelector('#wfLive svg')")    # 2+ live points
+    live_chart = page.inner_html("#wfLive")
+    assert "Download" in live_chart and "Upload" in live_chart and "<text" in live_chart
+    assert "Rx link" in page.inner_text("#wifi") and "good 70" in page.inner_html("#wifi")
+    page.close()
