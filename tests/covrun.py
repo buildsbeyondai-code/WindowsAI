@@ -36,7 +36,7 @@ TARGETS = [
     "llm.py", "evodb.py", "optactions.py", "codevolve.py",  # 4.0
     "trayquit.py", "machine_profile.py", "livestats.py", "background_process.py",
     "pwsh_session.py", "historydb.py", "health.py", "notify.py",  # 4.1
-    "settings_hub.py", "supervisor.py", "desktop.py", "selfupdate.py", "store_mode.py",
+    "settings_hub.py", "supervisor.py", "desktop.py", "selfupdate.py", "explain.py", "store_mode.py",
     "version_check.py", "depupgrade.py", "upgrader.py",
     "hostguard.py",                                       # 5.0.0
     "maintenance.py",                                     # 5.3.0

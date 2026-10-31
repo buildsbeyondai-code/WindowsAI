@@ -38,6 +38,7 @@ from . import codevolve as codevolve_mod
 from . import components as components_mod
 from . import cpuwatch, hostguard
 from . import evodb as evodb_mod
+from . import explain as explain_mod
 from . import fixes as fixes_mod
 from . import health as health_mod
 from . import historydb as historydb_mod
@@ -171,6 +172,8 @@ history_store = historydb_mod.open_store(
 _shell = pwsh_mod.PwshSession(PS_EXE) if PERSISTENT_SHELL and CAN_COLLECT else None
 collector = Collector(scorer, store=history_store, shell=_shell)
 fix_engine = FixEngine()
+# Fixes the code ships; anything registered later is a promoted evolution recipe.
+_BUILTIN_FIXES = frozenset(f.id for f in fix_engine.registry)
 # 5.3: slow read-only maintenance checks, scanned every 6 h into a cached report.
 maintenance = maintenance_mod.Maintenance(MAINTENANCE_FILE, PS_EXE if CAN_COLLECT else None,
                                           backup_dir=MAINTENANCE_BACKUP_DIR)
@@ -828,7 +831,14 @@ def api_autoimprove():
             "Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; "
             f"cd '{STANDBY_BROKER_SCRIPT_DIR}'; .\\standby_broker.ps1"),
     }
-    return jsonify({**improver.status(), "recent": improver.recent(limit),
+    st = improver.status()
+    info = {f.id: {"title": f.title, "risk": f.risk, "reversible": f.reversible,
+                   "evolved": f.id not in _BUILTIN_FIXES} for f in fix_engine.registry}
+    # 5.5: each finding as a ranked recommendation with its evidence, the measured
+    # effect of each fix on this PC, its risk class and how success is measured.
+    explained = explain_mod.explain((st.get("last") or {}).get("findings") or [], info,
+                                    st.get("ledger") or {}, st.get("settle_s") or 0)
+    return jsonify({**st, "recent": improver.recent(limit), "explained": explained,
                     "cpu_consumers": cpu, "onedrive": od, "broker": broker,
                     "auto_decisions": auto_target_store.decisions()})
 

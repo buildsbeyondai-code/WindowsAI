@@ -4,6 +4,34 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.5.0 — 2026-10-31
+
+A master engineering pass: `docs/MASTER-ENGINEERING-AUDIT.md`,
+`docs/SECURITY-HARDENING-REPORT.md`, `docs/FINAL-QUALITY-AUDIT.md` (honest
+scores: 8.7/10 overall; the gaps to the 9.6 target are listed).
+
+### Security
+- **Only signed downloads run.** Every program the upgrader downloads must have
+  a valid Authenticode signature from its publisher before it runs: Python
+  installers and the NuGet interpreter (Python Software Foundation), PowerShell
+  (Microsoft), PortableGit (Johannes Schindelin), the WSL MSI (Microsoft). GitHub
+  assets must also match the SHA-256 GitHub publishes. Before, six of the seven
+  relied on HTTPS alone.
+
+### Added
+- **Explained recommendations** (Auto-Improve): each finding with its evidence,
+  every fix with its risk class (Safe / Moderate / Advanced / Experimental),
+  whether it reverses, its measured effect on this PC (or "not measured yet"),
+  and how success is measured; ranked by share of the gap × confidence.
+- **Beginner / Advanced / Expert** views on Home (a 5.4 "Simple view" becomes
+  Beginner).
+- The release workflow runs the frozen `SysPerf.exe --smoke` (one real sample)
+  on both the x64 and the Windows-on-ARM runner.
+
+### Fixed
+- Tray auto-quit consents are saved atomically (a crash mid-write reset them).
+- A test that depended on a benchmark win failed under load; it no longer does.
+
 ## 5.4.9 — 2026-10-31
 
 ### Fixed

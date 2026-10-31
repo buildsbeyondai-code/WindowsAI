@@ -266,9 +266,12 @@ class TrayQuitter:
             pass
 
     def _save(self) -> None:
+        # Temp file + replace: a crash mid-write must not wipe the per-app consents
+        # (it was the one state file written in place; 5.5 audit).
         try:
-            self.state_file.write_text(json.dumps({**self.settings, "recent": self.recent[-50:]},
-                                                  indent=2))
+            tmp = self.state_file.with_suffix(".tmp")
+            tmp.write_text(json.dumps({**self.settings, "recent": self.recent[-50:]}, indent=2))
+            tmp.replace(self.state_file)
         except OSError as exc:
             log.warning("trayquit: could not save state: %s", exc)
 

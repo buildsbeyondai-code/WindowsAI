@@ -235,3 +235,13 @@ def test_store_install_starts_with_auto_quit_off(tmp_path):
     assert t.settings["enabled"] is False
     t.configure(enabled=True)
     assert make(tmp_path, FakeApi(), [0.0], default_enabled=False).settings["enabled"] is True
+
+
+def test_state_is_saved_atomically(tmp_path):
+    # 5.5: a crash mid-write must not wipe the per-app consents
+    import json
+    q = make(tmp_path, FakeApi(), [0.0])
+    q.state_file = tmp_path / "tq.json"
+    q._save()
+    assert json.loads((tmp_path / "tq.json").read_text())["recent"] == []
+    assert not (tmp_path / "tq.tmp").exists()                 # replaced, not left behind

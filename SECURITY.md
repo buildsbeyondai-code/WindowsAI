@@ -103,11 +103,12 @@ masked in that response.
 
 | Version | Supported |
 |---|---|
-| 5.4.x | Yes |
-| 5.3.x | No. Upgrade to 5.4 (a drop-in upgrade). |
-| 5.2.x | No. Upgrade to 5.4 (a drop-in upgrade). |
-| 5.1.x | No. Upgrade to 5.4 (a drop-in upgrade). |
-| 5.0.x | No. Upgrade to 5.4 (a drop-in upgrade). |
+| 5.5.x | Yes |
+| 5.4.x | No. Upgrade to 5.5 (a drop-in upgrade; 5.5 runs only signed downloads). |
+| 5.3.x | No. Upgrade to 5.5 (a drop-in upgrade). |
+| 5.2.x | No. Upgrade to 5.5 (a drop-in upgrade). |
+| 5.1.x | No. Upgrade to 5.5 (a drop-in upgrade). |
+| 5.0.x | No. Upgrade to 5.5 (a drop-in upgrade). |
 | 4.1.x and older | No. Upgrade to 5.0 (4.1 is exposed to DNS rebinding). |
 
 ## Mutating surface

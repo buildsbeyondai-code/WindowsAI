@@ -207,6 +207,7 @@ def test_trends_route_is_memoised(client):
 def test_autoimprove_status_route(client):
     j = client.get("/api/autoimprove?limit=3").get_json()
     assert j["mode"] == "auto" and j["recent"][0]["limit"] == 3
+    assert isinstance(j["explained"], list)                 # 5.5: ranked recommendations
     # limit is clamped into 1..50
     assert client.get("/api/autoimprove?limit=999").get_json()["recent"][0]["limit"] == 50
 

@@ -337,7 +337,7 @@
     "preconditions": "DNS failures or stale entries",
     "reversible": true,
     "risk": "low",
-    "rollback": "none needed \u2014 the cache rebuilds itself",
+    "rollback": "none needed — the cache rebuilds itself",
     "validation": "DNS latency on next samples"
    },
    {
@@ -353,7 +353,7 @@
     "preconditions": "committed memory above target",
     "reversible": true,
     "risk": "low",
-    "rollback": "none needed \u2014 pages fault back in on demand",
+    "rollback": "none needed — pages fault back in on demand",
     "validation": "available_mb over the next samples"
    },
    {
@@ -369,7 +369,7 @@
     "preconditions": "low available memory, broker online",
     "reversible": true,
     "risk": "low",
-    "rollback": "none needed \u2014 the cache refills from disk",
+    "rollback": "none needed — the cache refills from disk",
     "validation": "available_mb over the next samples"
    },
    {
@@ -401,7 +401,7 @@
     "preconditions": "low free disk space",
     "reversible": false,
     "risk": "medium",
-    "rollback": "irreversible \u2014 deleted files are not recoverable",
+    "rollback": "irreversible — deleted files are not recoverable",
     "validation": "c_free_gb"
    },
    {
@@ -417,7 +417,7 @@
     "preconditions": "low free disk space",
     "reversible": false,
     "risk": "high",
-    "rollback": "irreversible \u2014 permanently deletes the user's deleted files",
+    "rollback": "irreversible — permanently deletes the user's deleted files",
     "validation": "c_free_gb"
    },
    {
@@ -555,7 +555,7 @@
     "command": "",
     "effort": "5 min, one-off download",
     "evidence": "Active app commit contributes 12.4% of the gap (long_term_regression)",
-    "expected": "Standby (cached) pages are released back to the free list. The effect is immediate but temporary \u2014 Windows refills the cache as you work, which is normal.",
+    "expected": "Standby (cached) pages are released back to the free list. The effect is immediate but temporary — Windows refills the cache as you work, which is normal.",
     "gap_share_pct": 11.5,
     "has_recipe": true,
     "id": "clear_standby",
@@ -573,16 +573,16 @@
     "reversible": true,
     "status": "open",
     "steps": [
-     "Download Sysinternals RAMMap from https://learn.microsoft.com/sysinternals/downloads/rammap and unblock the zip (Properties \u2192 Unblock) before extracting.",
-     "Open Windows PowerShell as Administrator (Win+X \u2192 'Terminal (Admin)' / 'PowerShell (Admin)').",
+     "Download Sysinternals RAMMap from https://learn.microsoft.com/sysinternals/downloads/rammap and unblock the zip (Properties → Unblock) before extracting.",
+     "Open Windows PowerShell as Administrator (Win+X → 'Terminal (Admin)' / 'PowerShell (Admin)').",
      "Run: RAMMap.exe -Et",
-     "The window does not need to stay open \u2014 '-Et' empties the standby list and exits."
+     "The window does not need to stay open — '-Et' empties the standby list and exits."
     ],
     "title": "Clear standby (cached) memory list",
     "verify": "Watch 'Available physical' and 'Memory Compression' on the Details tab. The next sample (within 20 s) should show available memory up and the compressed set down.",
     "where": "Windows PowerShell, opened as Administrator",
     "why_code": "needs_elevation",
-    "why_detail": "The dashboard service runs unprivileged on purpose \u2014 a telemetry process that can elevate is a far larger risk than the problem it fixes. There is no way for it to acquire admin rights without a UAC prompt only you can answer.",
+    "why_detail": "The dashboard service runs unprivileged on purpose — a telemetry process that can elevate is a far larger risk than the problem it fixes. There is no way for it to acquire admin rights without a UAC prompt only you can answer.",
     "why_headline": "Needs administrator rights"
    },
    {
@@ -594,7 +594,7 @@
     "command": "",
     "effort": "5 min, one-off download",
     "evidence": "Active app commit contributes 12.4% of the gap (long_term_regression)",
-    "expected": "Standby (cached) pages are released back to the free list. The effect is immediate but temporary \u2014 Windows refills the cache as you work, which is normal.",
+    "expected": "Standby (cached) pages are released back to the free list. The effect is immediate but temporary — Windows refills the cache as you work, which is normal.",
     "gap_share_pct": null,
     "has_recipe": true,
     "id": "decision_handles",
@@ -612,23 +612,23 @@
     "reversible": true,
     "status": "closed",
     "steps": [
-     "Download Sysinternals RAMMap from https://learn.microsoft.com/sysinternals/downloads/rammap and unblock the zip (Properties \u2192 Unblock) before extracting.",
-     "Open Windows PowerShell as Administrator (Win+X \u2192 'Terminal (Admin)' / 'PowerShell (Admin)').",
+     "Download Sysinternals RAMMap from https://learn.microsoft.com/sysinternals/downloads/rammap and unblock the zip (Properties → Unblock) before extracting.",
+     "Open Windows PowerShell as Administrator (Win+X → 'Terminal (Admin)' / 'PowerShell (Admin)').",
      "Run: RAMMap.exe -Et",
-     "The window does not need to stay open \u2014 '-Et' empties the standby list and exits."
+     "The window does not need to stay open — '-Et' empties the standby list and exits."
     ],
     "title": "Decide what to do about handles",
     "verify": "Watch 'Available physical' and 'Memory Compression' on the Details tab. The next sample (within 20 s) should show available memory up and the compressed set down.",
     "where": "Windows PowerShell, opened as Administrator",
     "why_code": "chronic_unreachable",
-    "why_detail": "Every remediation available has been measured and none closes the gap: the target sits at or under this hardware's floor for your workload. The only real options are to revise the target, change the workload, or change the hardware \u2014 all decisions, not actions.",
+    "why_detail": "Every remediation available has been measured and none closes the gap: the target sits at or under this hardware's floor for your workload. The only real options are to revise the target, change the workload, or change the hardware — all decisions, not actions.",
     "why_headline": "The target is below what this machine can deliver"
    }
   ],
   "open": 1,
   "reasons": {
    "chronic_unreachable": {
-    "detail": "Every remediation available has been measured and none closes the gap: the target sits at or under this hardware's floor for your workload. The only real options are to revise the target, change the workload, or change the hardware \u2014 all decisions, not actions.",
+    "detail": "Every remediation available has been measured and none closes the gap: the target sits at or under this hardware's floor for your workload. The only real options are to revise the target, change the workload, or change the hardware — all decisions, not actions.",
     "headline": "The target is below what this machine can deliver"
    },
    "grant_capability": {
@@ -640,7 +640,7 @@
     "headline": "No safe scriptable equivalent"
    },
    "needs_elevation": {
-    "detail": "The dashboard service runs unprivileged on purpose \u2014 a telemetry process that can elevate is a far larger risk than the problem it fixes. There is no way for it to acquire admin rights without a UAC prompt only you can answer.",
+    "detail": "The dashboard service runs unprivileged on purpose — a telemetry process that can elevate is a far larger risk than the problem it fixes. There is no way for it to acquire admin rights without a UAC prompt only you can answer.",
     "headline": "Needs administrator rights"
    },
    "needs_judgement": {
@@ -801,7 +801,7 @@
      "cause": "transient_spike",
      "confidence": 0.7,
      "contribution_pct": 18.5,
-     "explanation": "current sustained value 72 is >15% worse than this metric's own recent daily typical (39.1) while the long-term trend is stable \u2014 a burst, not a regression",
+     "explanation": "current sustained value 72 is >15% worse than this metric's own recent daily typical (39.1) while the long-term trend is stable — a burst, not a regression",
      "key": "net_remote",
      "label": "Network - remote TCP conns",
      "remediations": [
@@ -814,7 +814,7 @@
      "cause": "transient_spike",
      "confidence": 0.7,
      "contribution_pct": 18.5,
-     "explanation": "current sustained value 98.9 is >15% worse than this metric's own recent daily typical (39.6) while the long-term trend is improving \u2014 a burst, not a regression",
+     "explanation": "current sustained value 98.9 is >15% worse than this metric's own recent daily typical (39.6) while the long-term trend is improving — a burst, not a regression",
      "key": "cpu_pct",
      "label": "CPU utilisation",
      "remediations": [
@@ -1092,7 +1092,7 @@
       "cause": "transient_spike",
       "confidence": 0.7,
       "contribution_pct": 18.5,
-      "explanation": "current sustained value 72 is >15% worse than this metric's own recent daily typical (39.1) while the long-term trend is stable \u2014 a burst, not a regression",
+      "explanation": "current sustained value 72 is >15% worse than this metric's own recent daily typical (39.1) while the long-term trend is stable — a burst, not a regression",
       "key": "net_remote",
       "label": "Network - remote TCP conns",
       "remediations": [
@@ -1105,7 +1105,7 @@
       "cause": "transient_spike",
       "confidence": 0.7,
       "contribution_pct": 18.5,
-      "explanation": "current sustained value 98.9 is >15% worse than this metric's own recent daily typical (39.6) while the long-term trend is improving \u2014 a burst, not a regression",
+      "explanation": "current sustained value 98.9 is >15% worse than this metric's own recent daily typical (39.6) while the long-term trend is improving — a burst, not a regression",
       "key": "cpu_pct",
       "label": "CPU utilisation",
       "remediations": [
@@ -1229,7 +1229,7 @@
       "cause": "transient_spike",
       "confidence": 0.7,
       "contribution_pct": 18.5,
-      "explanation": "current sustained value 72 is >15% worse than this metric's own recent daily typical (38.8) while the long-term trend is stable \u2014 a burst, not a regression",
+      "explanation": "current sustained value 72 is >15% worse than this metric's own recent daily typical (38.8) while the long-term trend is stable — a burst, not a regression",
       "key": "net_remote",
       "label": "Network - remote TCP conns",
       "remediations": [
@@ -1242,7 +1242,7 @@
       "cause": "transient_spike",
       "confidence": 0.7,
       "contribution_pct": 18.5,
-      "explanation": "current sustained value 98.9 is >15% worse than this metric's own recent daily typical (39.1) while the long-term trend is improving \u2014 a burst, not a regression",
+      "explanation": "current sustained value 98.9 is >15% worse than this metric's own recent daily typical (39.1) while the long-term trend is improving — a burst, not a regression",
       "key": "cpu_pct",
       "label": "CPU utilisation",
       "remediations": [
@@ -1406,7 +1406,7 @@
       "cause": "transient_spike",
       "confidence": 0.7,
       "contribution_pct": 18.4,
-      "explanation": "current sustained value 72.0 is >15% worse than this metric's own recent daily typical (38.4) while the long-term trend is stable \u2014 a burst, not a regression",
+      "explanation": "current sustained value 72.0 is >15% worse than this metric's own recent daily typical (38.4) while the long-term trend is stable — a burst, not a regression",
       "key": "net_remote",
       "label": "Network - remote TCP conns",
       "remediations": [
@@ -1419,7 +1419,7 @@
       "cause": "transient_spike",
       "confidence": 0.7,
       "contribution_pct": 18.4,
-      "explanation": "current sustained value 62.5 is >15% worse than this metric's own recent daily typical (38.5) while the long-term trend is improving \u2014 a burst, not a regression",
+      "explanation": "current sustained value 62.5 is >15% worse than this metric's own recent daily typical (38.5) while the long-term trend is improving — a burst, not a regression",
       "key": "cpu_pct",
       "label": "CPU utilisation",
       "remediations": [
@@ -1552,7 +1552,102 @@
    }
   ],
   "settle_s": 120.0,
-  "threshold": 80.0
+  "threshold": 80.0,
+  "explained": [
+   {
+    "key": "cpu_queue",
+    "what": "CPU run-queue depth: daily typical is trending the wrong way; at +17.37%/day it has been drifting away for 11 days",
+    "evidence": {
+     "typical": 16.0,
+     "target": 1,
+     "cause": "long_term_regression",
+     "share_of_gap_pct": 18.5,
+     "confidence": 0.85
+    },
+    "fixes": [
+     {
+      "id": "background_cpu_hog",
+      "title": "background_cpu_hog",
+      "risk": "Advanced",
+      "reversible": false,
+      "expected": {
+       "measured": false,
+       "text": "not measured on this PC yet"
+      }
+     }
+    ],
+    "measure": "CPU run-queue depth is re-measured about 2 min after a fix and compared with the value before it; the result is kept and used for the next recommendation",
+    "priority": 15.72
+   },
+   {
+    "key": "net_remote",
+    "what": "Network - remote TCP conns: current sustained value 72 is >15% worse than this metric's own recent daily typical (39.1) while the long-term trend is stable — a burst, not a regression",
+    "evidence": {
+     "typical": 72,
+     "target": 40,
+     "cause": "transient_spike",
+     "share_of_gap_pct": 18.5,
+     "confidence": 0.7
+    },
+    "fixes": [
+     {
+      "id": "flush_dns",
+      "title": "Flush DNS resolver cache",
+      "risk": "Safe",
+      "reversible": true,
+      "expected": {
+       "measured": true,
+       "runs": 3,
+       "avg_change_pct": -0.0,
+       "wins": 0,
+       "losses": 0,
+       "text": "no measurable change over 3 run(s)"
+      }
+     }
+    ],
+    "measure": "Network - remote TCP conns is re-measured about 2 min after a fix and compared with the value before it; the result is kept and used for the next recommendation",
+    "priority": 12.95
+   },
+   {
+    "key": "cpu_pct",
+    "what": "CPU utilisation: current sustained value 98.9 is >15% worse than this metric's own recent daily typical (39.6) while the long-term trend is improving — a burst, not a regression",
+    "evidence": {
+     "typical": 98.9,
+     "target": 25,
+     "cause": "transient_spike",
+     "share_of_gap_pct": 18.5,
+     "confidence": 0.7
+    },
+    "fixes": [
+     {
+      "id": "background_cpu_hog",
+      "title": "background_cpu_hog",
+      "risk": "Advanced",
+      "reversible": false,
+      "expected": {
+       "measured": true,
+       "runs": 2,
+       "avg_change_pct": 17.0,
+       "wins": 1,
+       "losses": 1,
+       "text": "17.0% better on average over 2 measured run(s)"
+      }
+     },
+     {
+      "id": "evolved_cap_cpu_offenders_cpu_pct",
+      "title": "evolved_cap_cpu_offenders_cpu_pct",
+      "risk": "Advanced",
+      "reversible": false,
+      "expected": {
+       "measured": false,
+       "text": "not measured on this PC yet"
+      }
+     }
+    ],
+    "measure": "CPU utilisation is re-measured about 2 min after a fix and compared with the value before it; the result is kept and used for the next recommendation",
+    "priority": 12.95
+   }
+  ]
  },
  "api/evolution": {
   "by_kind": {
@@ -1648,7 +1743,7 @@
      "recipes/evolved_cap_cpu_offenders_cpu_pct"
     ],
     "reversible": true,
-    "summary": "human promoted 'Lower the priority of a sustained CPU consumer' for CPU utilisation \u2014 surfaced to RCA as a manual recommendation with the exact command"
+    "summary": "human promoted 'Lower the priority of a sustained CPU consumer' for CPU utilisation — surfaced to RCA as a manual recommendation with the exact command"
    },
    {
     "at": "2026-09-29T04:51:46+00:00",
@@ -1661,7 +1756,7 @@
      "shards/startup_apps"
     ],
     "reversible": true,
-    "summary": "Startup programs (enabled) accumulated 483 shortfalls with no rules \u2014 generated startup_apps-rules.md"
+    "summary": "Startup programs (enabled) accumulated 483 shortfalls with no rules — generated startup_apps-rules.md"
    },
    {
     "at": "2026-09-29T04:51:46+00:00",
@@ -1672,7 +1767,7 @@
      "recipes/evolved_throttle_disk_indexer_disk_active_pct"
     ],
     "reversible": true,
-    "summary": "Disk active time fell short 34x with no remediation mapped \u2014 proposing the vetted 'Throttle the search indexer while disk is saturated' recipe as a candidate for review"
+    "summary": "Disk active time fell short 34x with no remediation mapped — proposing the vetted 'Throttle the search indexer while disk is saturated' recipe as a candidate for review"
    }
   ],
   "mappings": {
@@ -2533,7 +2628,7 @@
     "SearchHost": 6
    },
    "mandatory_total": 30,
-   "note": "Target history: Rev 1 <45 (impossible \u2014 below the non-closable base), Rev 2.1 <66, then <72 (2026-09-04). 37 WebView2 processes belong to GlobalProtect, OneDrive and SearchHost (not closable) and 14 to Teams/Outlook (in use), so the floor with Edge fully closed is 51 and the realistic floor with a minimal Edge open is ~71. Baseline is the true pre-optimization level (105), not the mid-optimization 82.",
+   "note": "Target history: Rev 1 <45 (impossible — below the non-closable base), Rev 2.1 <66, then <72 (2026-09-04). 37 WebView2 processes belong to GlobalProtect, OneDrive and SearchHost (not closable) and 14 to Teams/Outlook (in use), so the floor with Edge fully closed is 51 and the realistic floor with a minimal Edge open is ~71. Baseline is the true pre-optimization level (105), not the mid-optimization 82.",
    "other": {
     "SelfService": 7,
     "orphan": 5
@@ -2732,7 +2827,7 @@
      "issue": "Left/right click button not registering reliably",
      "last_action": "Started Synaptics SynTPEnhService (was stopped) and set it to Automatic startup; re-initialized the HID-compliant touch pad device.",
      "last_action_date": "2026-08-28",
-     "note": "Root cause: SynTPEnhService \u2014 which handles physical button clicks and tap zones \u2014 was stopped, so clicks registered unreliably. It is now Running and set to auto-start on boot, and the touchpad device was re-initialized. Please test the buttons: if reliable, set status to \"resolved\". If it recurs, update/reinstall the Synaptics driver (current v19.6.1.26) via HP Support Assistant.",
+     "note": "Root cause: SynTPEnhService — which handles physical button clicks and tap zones — was stopped, so clicks registered unreliably. It is now Running and set to auto-start on boot, and the touchpad device was re-initialized. Please test the buttons: if reliable, set status to \"resolved\". If it recurs, update/reinstall the Synaptics driver (current v19.6.1.26) via HP Support Assistant.",
      "reported": "2026-08-28",
      "severity": "minor",
      "status": "monitoring"
@@ -3013,17 +3108,17 @@
    {
     "sev": "warn",
     "side": "client",
-    "t": "Negotiated link is only 130.0 Mbps \u2014 improve signal (move closer / reposition AP), prefer 5/6 GHz, and disable adapter power-saving (optimize-wifi.ps1)."
+    "t": "Negotiated link is only 130.0 Mbps — improve signal (move closer / reposition AP), prefer 5/6 GHz, and disable adapter power-saving (optimize-wifi.ps1)."
    },
    {
     "sev": "warn",
     "side": "os",
-    "t": "Enable Windows Location (Settings \u2192 Privacy & security \u2192 Location) so the WLAN service can scan neighbours \u2014 required for live band/channel overlap analysis."
+    "t": "Enable Windows Location (Settings → Privacy & security → Location) so the WLAN service can scan neighbours — required for live band/channel overlap analysis."
    },
    {
     "sev": "warn",
     "side": "router",
-    "t": "On the router: set 2.4 GHz to a fixed non-overlapping channel (1, 6 or 11) at 20 MHz width, and put 5 GHz on an 80 MHz clear channel \u2014 this removes 2.4 GHz overlap."
+    "t": "On the router: set 2.4 GHz to a fixed non-overlapping channel (1, 6 or 11) at 20 MHz width, and put 5 GHz on an 80 MHz clear channel — this removes 2.4 GHz overlap."
    },
    {
     "sev": "warn",
@@ -3227,8 +3322,8 @@
      "change_pct": null,
      "current": "none on last 3 boots (Rev 2.1)",
      "key": "intel_boot",
-     "label": "Boot \u2014 Intel graphics 7009",
-     "note": "Informational only \u2014 not live-measured (boot events need elevation); excluded from the overall score.",
+     "label": "Boot — Intel graphics 7009",
+     "note": "Informational only — not live-measured (boot events need elevation); excluded from the overall score.",
      "progress": null,
      "room": null,
      "status": "info",
@@ -3541,7 +3636,7 @@
       "what": "established conns"
      }
     ],
-    "explanation": "current sustained value 72 is >15% worse than this metric's own recent daily typical (39.1) while the long-term trend is stable \u2014 a burst, not a regression",
+    "explanation": "current sustained value 72 is >15% worse than this metric's own recent daily typical (39.1) while the long-term trend is stable — a burst, not a regression",
     "key": "net_remote",
     "label": "Network - remote TCP conns",
     "long_term": {
@@ -3595,7 +3690,7 @@
       "what": "running processes"
      }
     ],
-    "explanation": "current sustained value 100.0 is >15% worse than this metric's own recent daily typical (39.6) while the long-term trend is improving \u2014 a burst, not a regression",
+    "explanation": "current sustained value 100.0 is >15% worse than this metric's own recent daily typical (39.6) while the long-term trend is improving — a burst, not a regression",
     "key": "cpu_pct",
     "label": "CPU utilisation",
     "long_term": {
@@ -3793,7 +3888,7 @@
    },
    {
     "description": "the page renders and responds in a real browser",
-    "detail": "44 passed in 128.24s (0:02:08)  \u00b7  UI coverage 100.0%",
+    "detail": "44 passed in 128.24s (0:02:08)  ·  UI coverage 100.0%",
     "findings": [],
     "name": "browser",
     "skip_reason": "",
@@ -4205,7 +4300,7 @@
    "items": [
     {
      "at": 1792883569.0198212,
-     "body": "Faster scorecard \u2014 scoring.build_scorecard 18% faster",
+     "body": "Faster scorecard — scoring.build_scorecard 18% faster",
      "id": 3,
      "kind": "review",
      "link": "#self-evolution",
@@ -4252,7 +4347,7 @@
    {
     "at": 1792879968.9819105,
     "kind": "evolution",
-    "text": "Self-evolution cycle completed: candidate rejected \u2014 no statistically clear win"
+    "text": "Self-evolution cycle completed: candidate rejected — no statistically clear win"
    }
   ],
   "todo": [
@@ -4299,7 +4394,7 @@
        "safe_auto",
        "self_evolve"
       ],
-      "help": "off: nothing autonomous \u00b7 observe: recommend only \u00b7 safe_auto: run enabled low-risk actions \u00b7 self_evolve: also improve its own code",
+      "help": "off: nothing autonomous · observe: recommend only · safe_auto: run enabled low-risk actions · self_evolve: also improve its own code",
       "key": "level",
       "label": "Autonomy level",
       "max": null,
@@ -4785,7 +4880,7 @@
   "items": [
    {
     "at": 1792883569.0198212,
-    "body": "Faster scorecard \u2014 scoring.build_scorecard 18% faster",
+    "body": "Faster scorecard — scoring.build_scorecard 18% faster",
     "id": 3,
     "kind": "review",
     "link": "#self-evolution",

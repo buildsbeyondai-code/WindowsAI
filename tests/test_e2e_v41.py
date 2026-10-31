@@ -77,16 +77,29 @@ def test_history_chart_handles_too_little_data(browser, site):
     page.close()
 
 
-def test_simple_view_hides_expert_tabs_and_is_remembered(browser, site):
+def test_beginner_advanced_and_expert_views_are_remembered(browser, site):
+    # 5.5: three user modes replace the single "Simple view" switch
     page = _open(browser, site)
-    page.check("#homeSimple")
+    assert page.input_value("#homeMode") == "advanced" and page.is_visible("#tab-details")
+    page.select_option("#homeMode", "beginner")
     assert page.is_hidden("#tab-auto") and page.is_hidden("#tab-evo")
     assert page.is_visible("#tab-home") and page.is_visible("#tab-settings")
+    assert not page.is_checked("#hideDesc")                  # beginners get the explanations
     page.reload()
     page.wait_for_selector("#homeStatus")
-    assert page.is_checked("#homeSimple") and page.is_hidden("#tab-details")
-    page.uncheck("#homeSimple")
-    assert page.is_visible("#tab-details")
+    assert page.input_value("#homeMode") == "beginner" and page.is_hidden("#tab-details")
+    page.select_option("#homeMode", "expert")
+    assert page.is_visible("#tab-details") and "process detail" in page.inner_text("#homeModeHint")
+    assert page.evaluate("document.getElementById('sect-cputop').open")
+    page.close()
+
+
+def test_a_54_simple_view_setting_becomes_beginner(browser, site):
+    page = _open(browser, site)
+    page.evaluate("localStorage.removeItem('perfdash_mode'); localStorage.setItem('perfdash_simple', '1')")
+    page.reload()
+    page.wait_for_selector("#homeStatus")
+    assert page.input_value("#homeMode") == "beginner"
     page.close()
 
 
@@ -477,4 +490,17 @@ def test_wifi_speed_is_live_and_charted_with_reference_points(browser, site):
     live_chart = page.inner_html("#wfLive")
     assert "Download" in live_chart and "Upload" in live_chart and "<text" in live_chart
     assert "Rx link" in page.inner_text("#wifi") and "good 70" in page.inner_html("#wifi")
+    page.close()
+
+
+def test_recommendations_explain_evidence_risk_effect_and_measurement(browser, site):
+    # 5.5: each recommendation answers what, evidence, fix, measured effect, risk,
+    # reversibility and how success is measured, from recorded data only
+    page = _open(browser, site, hash_="#auto-improve")
+    page.wait_for_selector("#autoWhy table")
+    text = page.text_content("#autoWhy")        # headers are upper-cased by CSS
+    assert "Evidence: typical" in text and "confidence" in text
+    assert "Measured effect on this PC" in text and "How success is measured" in text
+    assert any(c in text for c in ("Safe", "Moderate", "Advanced", "Experimental"))
+    assert "reversible" in text
     page.close()

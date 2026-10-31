@@ -107,6 +107,7 @@ class Host:
     free_gb: Callable = lambda path: shutil.disk_usage(path).free / 1e9
     clock: Callable = time.time
     sleep: Callable = time.sleep
+    digests: dict = field(default_factory=dict)   # url -> published sha256 (GitHub)
 
     # ------------------------------------------------------------ helpers
     def ps(self, script: str, timeout: float = 900):
@@ -126,6 +127,7 @@ class Host:
 
     def download(self, url: str, name: str, sha256: str | None = None) -> Path:
         data = self.get(url)
+        sha256 = sha256 or self.digests.get(url)
         if sha256 and hashlib.sha256(data).hexdigest() != sha256.lower():
             raise ValueError(f"{name}: sha256 does not match the published one")
         self.staging.mkdir(parents=True, exist_ok=True)
@@ -134,13 +136,35 @@ class Host:
         return p
 
     def github_asset(self, repo: str, pattern: str, tag: str | None = None) -> tuple:
-        """(url, release tag) of the asset matching ``pattern`` in a release."""
+        """(url, release tag) of the asset matching ``pattern`` in a release.
+
+        The asset's published SHA-256 (GitHub's ``digest``) is remembered for
+        ``download``, which then refuses a file that does not match it.
+        """
         path = f"tags/{tag}" if tag else "latest"
         rel = json.loads(self.get(f"https://api.github.com/repos/{repo}/releases/{path}"))
         for a in rel.get("assets") or []:
             if re.fullmatch(pattern, a.get("name", "")):
+                digest = str(a.get("digest") or "")
+                if digest.startswith("sha256:"):
+                    self.digests[a["browser_download_url"]] = digest[7:]
                 return a["browser_download_url"], rel.get("tag_name", "")
         raise ValueError(f"no release asset of {repo} matches {pattern}")
+
+    def verify_signed(self, path, publisher: str) -> None:
+        """Refuse an executable without a valid Authenticode signature by ``publisher``.
+
+        5.5: every program the upgrader downloads and then runs is checked
+        (installers, MSIs, MSIX, the interpreter in the NuGet package); HTTPS
+        alone was the only protection before. Raises ValueError otherwise.
+        """
+        rc, out = self.ps(f"$s = Get-AuthenticodeSignature {_q(path)}; "
+                          "if ($s.Status -eq 'Valid' -and $s.SignerCertificate.Subject -match "
+                          f"{_q(publisher)}) {{ 'signed' }} else {{ \"$($s.Status) "
+                          "$($s.SignerCertificate.Subject)\" }")
+        if rc != 0 or "signed" not in out.split():
+            raise ValueError(f"{Path(path).name} is not validly signed by {publisher} "
+                             f"({out.strip()[:80]})")
 
     def suite_ok(self, distro: str = "") -> str | None:
         """None when SysPerf's suite passes as fully as the baseline did."""
@@ -551,6 +575,7 @@ class PythonOrg(Upgrader):
         shutil.rmtree(root, ignore_errors=True)
         with zipfile.ZipFile(z) as f:
             f.extractall(root)
+        host.verify_signed(root / "tools" / "python.exe", "Python Software Foundation")
         venv = host.staging / "pyvenv-test"
         steps = [[str(root / "tools" / "python.exe"), "-m", "venv", "--clear", str(venv)],
                  [str(venv / "Scripts" / "python.exe"), "-m", "pip", "install", "-q",
@@ -574,6 +599,8 @@ class PythonOrg(Upgrader):
                             f"python-{up['to']}-{a}.exe", f"python-{up['to']}-{a}.exe")
         old = host.download(f"https://www.python.org/ftp/python/{up['from']}/"
                             f"python-{up['from']}-{a}.exe", f"python-{up['from']}-{a}.exe")
+        for exe in (new, old):                    # both run elevated-free, but they run
+            host.verify_signed(exe, "Python Software Foundation")
         result = host.data_dir / "upgrade_result.json"
         result.unlink(missing_ok=True)
         script = host.data_dir / "python_upgrade.ps1"
@@ -656,9 +683,11 @@ class Pwsh(Upgrader):
         return None
 
     def _msix(self, host, ver):
-        return host.download(f"https://github.com/PowerShell/PowerShell/releases/download/"
-                             f"v{ver}/PowerShell-{ver}-win-{arch()}.msix",
-                             f"PowerShell-{ver}.msix")
+        p = host.download(f"https://github.com/PowerShell/PowerShell/releases/download/"
+                          f"v{ver}/PowerShell-{ver}-win-{arch()}.msix",
+                          f"PowerShell-{ver}.msix")
+        host.verify_signed(p, "Microsoft Corporation")
+        return p
 
     def test(self, up, host):
         z = host.download(f"https://github.com/PowerShell/PowerShell/releases/download/"
@@ -668,6 +697,7 @@ class Pwsh(Upgrader):
         shutil.rmtree(root, ignore_errors=True)
         with zipfile.ZipFile(z) as f:
             f.extractall(root)
+        host.verify_signed(root / "pwsh.exe", "Microsoft Corporation")
         return self._probe(host, str(root / "pwsh.exe"))
 
     def apply(self, up, host):
@@ -722,7 +752,8 @@ class Winget(Upgrader):
         url, tag = host.github_asset("git-for-windows/git", r"PortableGit-[\d.]+-64-bit\.7z\.exe")
         if git_windows_version(tag) != up["to"]:
             return f"the newest Git for Windows release is {tag}, not {up['to']}"
-        exe = host.download(url, "PortableGit.7z.exe")
+        exe = host.download(url, "PortableGit.7z.exe")   # checked against GitHub's sha256
+        host.verify_signed(exe, "Johannes Schindelin")
         root = host.staging / "PortableGit"
         shutil.rmtree(root, ignore_errors=True)
         rc, out = host.run([str(exe), f"-o{root}", "-y"], timeout=1200)
@@ -771,11 +802,7 @@ class Wsl(Upgrader):
         url, _ = host.github_asset("microsoft/WSL", rf"wsl\.{re.escape(ver)}(\.0)?\.{arch()}\.msi",
                                    tag=ver)
         p = host.download(url, f"wsl-{ver}.msi")
-        rc, out = host.ps(f"$s = Get-AuthenticodeSignature {_q(p)}; "
-                          "if ($s.Status -eq 'Valid' -and $s.SignerCertificate.Subject -match "
-                          "'Microsoft Corporation') { 'signed' } else { $s.Status }")
-        if "signed" not in out:
-            raise ValueError(f"{p.name} is not validly signed by Microsoft ({out.strip()[:60]})")
+        host.verify_signed(p, "Microsoft Corporation")
         return p
 
     def test(self, up, host):
