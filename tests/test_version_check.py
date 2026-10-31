@@ -108,3 +108,12 @@ def test_offered_drivers_asks_windows_update_read_only(monkeypatch):
     def boom(argv, **kw):
         raise OSError("no powershell")
     assert vc.offered_drivers(boom) is None
+
+
+def test_git_for_windows_keeps_its_revision():
+    # 5.4.8 live: 2.56.0.windows.3 read as "2.56.0", equal to .windows.4: never updated
+    assert vc.git_windows_version("v2.56.0.windows.4") == "2.56.0.4"
+    assert vc.git_windows_version("git version 2.56.0.windows.3\n") == "2.56.0.3"
+    assert vc.git_windows_version("git version 2.47.1") == "2.47.1"
+    feed = vc.SOURCES["git-windows"]
+    assert feed(lambda url: '{"tag_name": "v2.56.0.windows.4"}') == "2.56.0.4"

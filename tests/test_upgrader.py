@@ -433,12 +433,12 @@ def test_winget_git(tmp_path):
     run = Run([("winget list", (0, "Git  Git.Git  2.56.0.3  2.57.0 winget")),
                ("--version", (0, "git version 2.57.0.windows.1"))])
     h = host(tmp_path, run, files=files)
-    up = {"key": "git-windows", "id": "Git.Git", "from": "2.56.0", "to": "2.57.0"}
+    up = {"key": "git-windows", "id": "Git.Git", "from": "2.56.0.3", "to": "2.57.0.1"}
     assert ug.run_upgrade(g, dict(up), h)["state"] == "applied"
     assert run.ran("worktree add") and run.ran("reset -q --keep") and run.ran("winget upgrade")
     assert g.backup(up, h) == {"version": "2.56.0.3"}
     assert g.backup(up, host(tmp_path)) == {"version": ""}
-    assert "newest Git for Windows release" in g.test(dict(up, to="2.58.0"), h)
+    assert "newest Git for Windows release" in g.test(dict(up, to="2.58.0.1"), h)
     h = host(tmp_path, Run([("-y", (2, "corrupt"))]), files=files)
     assert "did not unpack" in g.test(up, h)
     h = host(tmp_path, Run([("init -q", (1, "no"))]), files=files)

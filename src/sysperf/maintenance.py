@@ -18,7 +18,9 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import os
 import re
+import shutil
 import threading
 import time
 from pathlib import Path
@@ -34,6 +36,18 @@ SCAN_TIMEOUT_S = 300.0
 UPGRADE_TIMEOUT_S = 1800.0
 DECLINED = 1223                # ERROR_CANCELLED: the UAC prompt was declined
 PUBLISHER_ONLY = -1978334956   # 0x8A150114: the manifest denies winget upgrades
+NO_NEWER = -1978335189         # 0x8A15002B: "no newer package versions are available"
+# Apps whose winget package refuses upgrades but which have their own updater
+# (5.4.8 live: MiKTeX 23.4 stayed behind 25.12). argv lists, run in order.
+PUBLISHER_UPDATERS = {
+    "MiKTeX.MiKTeX": lambda: [[_miktex(), "packages", "update-package-database"],
+                              [_miktex(), "packages", "update"]],
+}
+
+
+def _miktex() -> str:
+    return shutil.which("miktex") or str(Path(os.environ.get("LOCALAPPDATA", "")) / "Programs"
+                                         / "MiKTeX" / "miktex" / "bin" / "x64" / "miktex.exe")
 WINGET_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$")
 # Apps Components upgrades with its own tested upgrader (upgrader.py). winget is
 # not allowed to swap them underneath SysPerf: a new Python, say, would leave
@@ -331,9 +345,19 @@ class Maintenance:
     def _upgrade(self, app_id: str) -> dict:
         if self.before_change:
             self.job["restore_point"] = self.before_change(f"updating {self.job['name']}")
-        rc, out = self.run(["winget", "upgrade", "--id", app_id, "--exact", "--silent",
-                            "--accept-package-agreements", "--accept-source-agreements",
-                            "--disable-interactivity"], UPGRADE_TIMEOUT_S)
+        if app_id in PUBLISHER_UPDATERS:
+            return self._publisher_update(app_id)
+        flags = ["--exact", "--silent", "--accept-package-agreements",
+                 "--accept-source-agreements", "--disable-interactivity"]
+        rc, out = self.run(["winget", "upgrade", "--id", app_id, *flags], UPGRADE_TIMEOUT_S)
+        if rc == NO_NEWER or "No newer package versions are available" in out:
+            # winget lists the update, then cannot match the installed copy to its
+            # package (5.4.8 live: Zoom 7.2.1 -> 7.2.5). Installing the exact
+            # package over it works; the scope stays where the app is.
+            scope = (self.upgradable().get(app_id) or {}).get("scope")
+            rc, out = self.run(["winget", "install", "--id", app_id, "--force", *flags,
+                                *(["--scope", scope] if scope in ("user", "machine") else [])],
+                               UPGRADE_TIMEOUT_S)
         state = "done" if rc == 0 else "failed"
         if rc != 0 and (rc == PUBLISHER_ONLY or "cannot be upgraded using WinGet" in out):
             # The manifest denies winget upgrades: the app updates itself.
@@ -349,6 +373,22 @@ class Maintenance:
                         finished=self.clock())
         if state == "done":
             self._drop(app_id)
+        return dict(self.job)
+
+    def _publisher_update(self, app_id: str) -> dict:
+        """Run the app's own updater (its winget package refuses upgrades)."""
+        rc, out = 0, ""
+        for argv in PUBLISHER_UPDATERS[app_id]():
+            rc, o = self.run(argv, UPGRADE_TIMEOUT_S)
+            out += o
+            if rc != 0:
+                break
+        state = "done" if rc == 0 else "failed"
+        self.job.update(state=state, returncode=rc, output=out.strip()[-600:],
+                        finished=self.clock(), via="publisher updater")
+        if state == "done":
+            self._drop(app_id)
+            self.publisher_only.discard(app_id)
         return dict(self.job)
 
     def _drop(self, app_id: str) -> None:

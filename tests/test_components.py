@@ -176,7 +176,7 @@ def test_windows_skips_apt_probes_but_reads_the_toolchain(monkeypatch):
     calls = []
     monkeypatch.setattr(components, "_run", _windows_run(calls))
     v = components._linux_versions()
-    assert v["wsl"] == "2.6.2.0" and v["git-windows"] == "2.47.1" and v["flask"] == "3.0.3"
+    assert v["wsl"] == "2.6.2.0" and v["git-windows"] == "2.47.1.1" and v["flask"] == "3.0.3"
     assert v["bubblewrap"] == "0.9.0" and v["claude-code"] == "2.1.3"
     assert v["ubuntu"] == "24.04.3" and v["chromium"] == "build 1248"
     assert "playwright" not in v and "python" in v
@@ -196,7 +196,7 @@ def test_windows_without_wsl_still_reports_local_tools(monkeypatch):
     components._cache["t"] = 0.0
     monkeypatch.setattr(components, "_run", _windows_run([]))
     v = components._linux_versions()
-    assert v["git-windows"] == "2.47.1" and "claude-code" not in v
+    assert v["git-windows"] == "2.47.1.1" and "claude-code" not in v
     components._cache["linux"] = None
 
 

@@ -335,11 +335,44 @@ def test_the_batch_script_is_one_encoded_command(tmp_path):
 
 def test_an_app_whose_publisher_denies_winget_is_not_called_failed(tmp_path):
     rep = report(app_updates={"available": True, "apps": [
-        {"id": "MiKTeX.MiKTeX", "name": "MiKTeX", "current": "23.4", "available": "25.12", "scope": "user"},
+        {"id": "Some.Publisher", "name": "Pub", "current": "23.4", "available": "25.12", "scope": "user"},
         {"id": "Other.App", "name": "Other", "current": "1", "available": "2", "scope": "user"}]})
     run = Run((1, "The package cannot be upgraded using WinGet."), (mt.PUBLISHER_ONLY, ""))
     m = make(tmp_path, run, data=rep)
     out = m.auto_update()
     assert [j["state"] for j in out] == ["publisher", "publisher"]
-    assert "own updater" in out[0]["output"] and m.report()["publisher_only"] == ["MiKTeX.MiKTeX", "Other.App"]
+    assert "own updater" in out[0]["output"] and m.report()["publisher_only"] == ["Other.App", "Some.Publisher"]
     assert m.auto_update() == []                  # not retried
+
+
+def test_no_newer_package_falls_back_to_installing_the_exact_package(tmp_path):
+    # 5.4.8 live: winget listed Zoom 7.2.5 but "upgrade" found no newer package
+    rep = report(app_updates={"available": True, "apps": [
+        {"id": "Zoom.Zoom.EXE", "name": "Zoom", "current": "7.2.1", "available": "7.2.5",
+         "scope": "user"}]})
+    run = Run((mt.NO_NEWER, "No newer package versions are available"), (0, "Successfully installed"))
+    m = make(tmp_path, run, data=rep)
+    assert m.start_upgrade("Zoom.Zoom.EXE", background=False)["state"] == "done"
+    assert run.calls[1][:4] == ["winget", "install", "--id", "Zoom.Zoom.EXE"]
+    assert "--force" in run.calls[1] and run.calls[1][-2:] == ["--scope", "user"]
+
+
+def test_miktex_is_updated_with_its_own_package_manager(tmp_path, monkeypatch):
+    # 5.4.8 live: MiKTeX's winget package refuses upgrades, so it stayed on 23.4
+    monkeypatch.setattr(mt.shutil, "which", lambda name: "C:/mik/miktex.exe")
+    rep = report(app_updates={"available": True, "apps": [
+        {"id": "MiKTeX.MiKTeX", "name": "MiKTeX", "current": "23.4", "available": "25.12",
+         "scope": "user"}]})
+    run = Run((0, "db updated"), (0, "Installing package xcolor..."))
+    m = make(tmp_path, run, data=rep)
+    job = m.start_upgrade("MiKTeX.MiKTeX", background=False)
+    assert job["state"] == "done" and job["via"] == "publisher updater"
+    assert run.calls == [["C:/mik/miktex.exe", "packages", "update-package-database"],
+                         ["C:/mik/miktex.exe", "packages", "update"]]
+    assert m.upgradable() == {}
+    run = Run((3, "no network"))
+    m = make(tmp_path / "b", run, data=rep)
+    assert m.start_upgrade("MiKTeX.MiKTeX", background=False)["state"] == "failed"
+    assert len(run.calls) == 1                                   # stops at the first failure
+    monkeypatch.setattr(mt.shutil, "which", lambda name: None)
+    assert mt._miktex().endswith("miktex.exe")                   # the per-user install path

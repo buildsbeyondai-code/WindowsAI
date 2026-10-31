@@ -38,6 +38,17 @@ def _ver(s) -> str:
     return m.group(1) if m else ""
 
 
+def git_windows_version(s) -> str:
+    """"2.56.0.windows.4" (a tag or `git --version`) -> "2.56.0.4".
+
+    Git for Windows ships revisions of one Git release (.windows.1, .2, ...);
+    keeping only "2.56.0" made 2.56.0.windows.3 look current next to .4, so
+    Git was never updated (5.4.8 live).
+    """
+    m = re.search(r"(\d+\.\d+\.\d+)\.windows\.(\d+)", str(s or ""))
+    return f"{m.group(1)}.{m.group(2)}" if m else _ver(s)
+
+
 def _key(v: str) -> tuple:
     return tuple(int(x) for x in re.findall(r"\d+", v or ""))
 
@@ -113,7 +124,8 @@ SOURCES = {
     "wsl": github("microsoft/WSL"),
     "kernel": github("microsoft/WSL2-Linux-Kernel"),
     "powershell": github("PowerShell/PowerShell"),
-    "git-windows": github("git-for-windows/git"),
+    "git-windows": lambda get: git_windows_version(json.loads(get(
+        "https://api.github.com/repos/git-for-windows/git/releases/latest")).get("tag_name")),
     "flask": pypi("flask"),
     "waitress": pypi("waitress"),
     # The rest of the CI SBOM: Flask's locked dependencies and pip.
