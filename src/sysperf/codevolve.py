@@ -505,6 +505,7 @@ class CodeEvolution:
         self.on_retained = None          # called with the candidate dict when one is kept
         self.on_applied = None           # called after an automatic apply (restart)
         self.components_fn = None        # Components rows; None turns the upgrade lane off
+        self.before_change = None        # before_change(reason) -> dict: a restore point
         self.http_get = depupgrade.http_get_bytes
         self.run = run_text
         self._apply_after: str | None = None
@@ -640,13 +641,10 @@ class CodeEvolution:
     # need no model, no source checkout and no sandbox. Tying them to the full
     # cycle meant a PC without AI or WSL never upgraded anything, so they also
     # run on their own: unattended from Safe-auto, or on request from Observe.
+    # 5.4: they always run here, every outdated one in turn, rather than one per
+    # evolution cycle, so a PC reaches the latest versions within one pass.
     UPGRADE_EVERY_S = 6 * 3600
     _next_upgrade = 0.0
-
-    def _cycle_covers_upgrades(self, level: str) -> bool:
-        """True when the self-evolution cycle runs these upgrades itself."""
-        return (level == "self_evolve" and bool(self.settings["enabled"])
-                and bool(self.settings.get("repo")) and self.sandbox.backend != "none")
 
     def upgrade_gate(self, level: str, manual: bool = False) -> str | None:
         """Why an upgrade pass may not start now (None = go)."""
@@ -659,20 +657,18 @@ class CodeEvolution:
         if level not in ("safe_auto", "self_evolve"):
             return (f"autonomy level is '{level}': upgrades run on their own from "
                     "Safe-auto, or press Upgrade now")
-        if self._cycle_covers_upgrades(level):
-            return "the self-evolution cycle runs the upgrades"
         if self.clock() < self._next_upgrade:
             return f"next upgrade check in {int(self._next_upgrade - self.clock())} s"
         return None
 
     def upgrade_pass(self, level: str, trigger: str = "schedule") -> dict:
-        """Upgrade the first outdated standalone component not yet tried."""
+        """Upgrade every outdated standalone component not yet tried, in turn."""
         why = self.upgrade_gate(level, manual=trigger == "manual")
         if why:
             return {"started": False, "reason": why}
         if not self._lock.acquire(blocking=False):
             return {"started": False, "reason": "a cycle is already running"}
-        cid = None
+        cid, done = None, []
         try:
             self._next_upgrade = self.clock() + self.UPGRADE_EVERY_S
             tried = {c["title"] for c in self.db.candidates(limit=1000)}
@@ -698,7 +694,13 @@ class CodeEvolution:
                 out = self._host_upgrade(cid, u, up, host)
                 self.db.audit("evolution", "cycle.end", {"id": cid, "state": out["state"],
                                                          "explanation": out["explanation"]})
-                return {"started": True, "cycle": cid, **out}
+                done.append({"cycle": cid, **out})
+                tried.add(self._upgrade_title(u, up))
+                if self._restart_after:       # SysPerf must reload first; the rest next pass
+                    break
+            if done:
+                return {"started": True, "cycle": done[-1]["cycle"], "state": done[-1]["state"],
+                        "explanation": done[-1]["explanation"], "upgrades": done}
             return {"started": False, "reason": "every component is current or already tried"}
         except Exception as exc:
             log.exception("upgrade pass failed")
@@ -952,8 +954,8 @@ class CodeEvolution:
         host = None
         for row in self.components_fn() or []:
             u = upgrader.REGISTRY.get((row.get("upgrade") or {}).get("via"))
-            if u is None or row.get("missing"):
-                continue
+            if u is None or row.get("missing") or u.standalone:
+                continue                      # standalone ones run in upgrade_pass
             if u.repo:
                 name = depupgrade.norm(row["key"])
                 up = {"name": name, "current": pins.get(name, ""), "latest": row.get("latest", "")}
@@ -1013,6 +1015,10 @@ class CodeEvolution:
                 "files": "[]", "static_ok": 1, "security_ok": 1}
         self._set(cid, "testing", provider="3pp", problem=json.dumps(
             [{"kind": "3pp_outdated", **{k: up.get(k) for k in ("key", "from", "to", "via")}}]))
+        if self.before_change is not None:
+            rp = self.before_change(f"upgrading {up['name']}")
+            self.db.audit("evolution", "upgrade.restore_point",
+                          {"id": cand["id"], **{k: rp.get(k) for k in ("state", "message")}})
         res = upgrader.run_upgrade(u, up, host, log=lambda m: self.db.audit(
             "evolution", "upgrade.step", {"id": cand["id"], "step": m}))
         if res["state"] == "failed" and res.get("retryable"):
@@ -1563,8 +1569,7 @@ class CodeEvolution:
             "audit": self.db.verify_audit(), "recovered_interrupted": self.recovered,
             "components": self.component_overview(cands),
             "upgrades": {"gate": self.upgrade_gate(level),
-                         "manual": self.upgrade_gate(level, manual=True),
-                         "by_cycle": self._cycle_covers_upgrades(level)},
+                         "manual": self.upgrade_gate(level, manual=True)},
             "deploy": {"pending": self.pending_apply(),
                        "history": list(reversed(read_apply_log(self.state_dir, 10)))},
         }

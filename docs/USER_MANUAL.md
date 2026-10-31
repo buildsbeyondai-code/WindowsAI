@@ -1,6 +1,6 @@
 # SysPerf User Manual
 
-**System Performance Agent — version 5.3.0**
+**System Performance Agent — version 5.4.0**
 
 A self-improving performance dashboard for Windows 11. It measures the PC, explains
 what holds it back, and changes it only in ways it lists and you can undo.
@@ -284,10 +284,10 @@ computation, so they never disagree.
   reviewed catalog as the fallback — treat it as guidance, and confirm driver
   and firmware versions with your OEM's support tool.
   The Windows-side upgrades (Windows Update, Edge Update, PowerShell, winget,
-  WSL) need no AI model, WSL sandbox or source checkout. They run on their own
-  every six hours from the Safe-auto autonomy level, or one at a time with
-  **Upgrade now** on the AI Self-Evolution tab's Component upgrades card at any
-  level except Off. Rows that need the sandbox (SysPerf's pinned packages, the
+  WSL) need no AI model, WSL sandbox or source checkout. Every six hours from
+  the Safe-auto autonomy level, each outdated one is upgraded in turn (a
+  restore point first), or at once with **Upgrade now** on the AI
+  Self-Evolution tab's Component upgrades card at any level except Off. Rows that need the sandbox (SysPerf's pinned packages, the
   WSL distro's tools) say so.
 
 ### 5.1 Header
@@ -422,10 +422,17 @@ press **Scan now**; it takes about half a minute. These things change over days,
 so they are not checked on the 60-second sampler. What needs attention is listed
 first, worst first, each with the fix that acts on it.
 
-- **Protection** — the newest restore point (from the event System Restore
-  writes; none recorded is reported as such) and when Windows servicing last
-  ran. Creating a restore point and running `DISM /RestoreHealth` + `sfc
-  /scannow` need an administrator, so SysPerf gives the exact commands.
+- **Protection** — **automatic restore points** and when Windows servicing
+  last ran. SysPerf creates a restore point itself before the registry fix, app
+  and component updates, and weekly, unless one from the last 24 hours exists.
+  Windows lets only an administrator do that, so the first time it is needed
+  SysPerf shows the UAC prompt once and sets up a small helper task (in
+  `C:\ProgramData\SysPerf\restore`, which only administrators can change);
+  if the prompt is declined it asks again at most once a day, and the change
+  goes ahead with its own backup. Turn it off, or create one now, on the card.
+  In the Store app it is opt-in (Home → Optional features). `DISM
+  /RestoreHealth` + `sfc /scannow` still need you, in an administrator
+  terminal; SysPerf suggests them after blue screens.
 - **Cleanup** — your TEMP folder, app crash dumps, the Edge, Chrome, Brave and
   Firefox caches, and the Windows Update download cache, with their sizes; and
   the ten largest files (500 MB or more) in Downloads, Desktop, Documents and
@@ -443,9 +450,19 @@ first, worst first, each with the fix that acts on it.
   (with stop codes) and unexpected shutdowns in 30 days, and app crashes in 7.
 - **Services & tasks** — third-party services that start automatically, and
   third-party scheduled tasks with their last result.
-- **App updates** — installed apps winget has a newer version of. **Update**
-  upgrades one app at a time; the result shows the `winget install --version`
-  command that goes back.
+- **App updates** — installed apps winget has a newer version of. From the
+  Safe-auto autonomy level they **update themselves** after each scan, one at
+  a time, after a restore point; **Update** does one now. Apps that Components
+  upgrades with its own tested upgrader (Python, PowerShell, Git, Edge, WSL)
+  are left to it, a version whose update failed is not retried until a newer
+  one appears, and each result shows the `winget install --version` command
+  that goes back. Apps installed for all users (tagged **needs administrator**)
+  are not updated unattended, because their installer asks for an
+  administrator; **Update N machine-wide apps** updates them all after one UAC
+  prompt. If an app was open, its update shows **waiting for the app to
+  close**: Windows applies it once the app is closed, and SysPerf tries again
+  after the next scan. A few publishers do not allow winget to update their
+  app (MiKTeX, for one); those are tagged **use its own updater**.
 
 ---
 

@@ -103,6 +103,8 @@ class Fix:
     # now*. Used by clear_standby: it is a runnable "caution" fix only while its
     # elevated helper is online; otherwise it degrades to a manual action.
     runtime_gate: Callable[[], bool] | None = None
+    # 5.4: ask for a System Restore point first (FixEngine.before_change).
+    restore_point: bool = False
 
     @property
     def executable(self) -> bool:
@@ -436,7 +438,7 @@ def build_registry() -> list:
             title="Back up and remove your start-up and uninstall entries for missing programs",
             category="registry", risk="caution", reversible=True, shell="pwsh",
             command=script_command("fix-registry", Backup=str(MAINTENANCE_BACKUP_DIR)),
-            detect=_maintenance("fix_registry_orphans"),
+            detect=_maintenance("fix_registry_orphans"), restore_point=True,
             manual_hint=("Only your own (HKCU) entries, and only those whose program is "
                          "gone. Each key is exported to a .reg file in "
                          f"{MAINTENANCE_BACKUP_DIR} first; undo with the `reg import` "
@@ -445,11 +447,12 @@ def build_registry() -> list:
         Fix(id="create_restore_point", title="Create a system restore point",
             category="protection", risk="manual", reversible=True, shell="pwsh",
             command="", detect=_maintenance("create_restore_point"),
-            manual_hint=("In PowerShell run as administrator: `Checkpoint-Computer "
-                         "-Description 'Before changes' -RestorePointType "
-                         "MODIFY_SETTINGS`. If it reports System Restore is off, turn "
-                         "on protection for C: in System Properties -> System "
-                         "Protection. Needs elevation, which this service does not have.")),
+            manual_hint=("SysPerf creates restore points itself once its helper is set "
+                         "up (Details -> Protection: one administrator prompt): before the "
+                         "registry fix, app and component updates, and weekly. By hand: "
+                         "`Checkpoint-Computer -Description 'Before changes' "
+                         "-RestorePointType MODIFY_SETTINGS` in PowerShell run as "
+                         "administrator.")),
         Fix(id="repair_system_files", title="Check and repair Windows system files",
             category="protection", risk="manual", reversible=True, shell="pwsh",
             command="", detect=_maintenance("repair_system_files"),
@@ -549,6 +552,8 @@ class FixEngine:
         self.runner = runner
         self.registry = registry if registry is not None else build_registry()
         self._by_id = {f.id: f for f in self.registry}
+        # before_change(reason) -> dict: a restore point before fixes that ask for one
+        self.before_change: Callable[[str], dict] | None = None
 
     # ----------------------------------------------------------- registration
     def register(self, fix) -> bool:
@@ -619,10 +624,13 @@ class FixEngine:
                     "manual_hint": f.manual_hint,
                 })
                 continue
+            rp = (self.before_change(f.title.lower())
+                  if f.restore_point and self.before_change else None)
             rc, output = self.runner(f.shell, f.command)
             out.append({
                 "id": f.id, "title": f.title, "risk": f.risk,
                 "status": "ok" if rc == 0 else "error",
                 "returncode": rc, "output": output,
+                **({"restore_point": rp} if rp is not None else {}),
             })
         return out

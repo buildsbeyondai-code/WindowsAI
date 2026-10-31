@@ -4,6 +4,44 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.4.0 — 2026-10-30
+
+### Added
+- **SysPerf creates System Restore points itself** (`restorepoint.py`,
+  `restore_point.ps1`): before the registry fix, before every app update and
+  component upgrade, and weekly, unless one from the last 24 hours exists.
+  Windows lets only an administrator create one, so the first time it is
+  needed SysPerf shows the UAC prompt once and registers a helper task that
+  runs elevated as the signed-in user, from `C:\ProgramData\SysPerf\restore`
+  (only administrators can change it); it also turns System Restore on for the
+  system drive if it is off. A declined prompt is asked again at most once a
+  day, never while the PC is locked, and the change goes ahead with its own
+  backup. Details → Protection shows the state, with Create one now and Turn
+  off; `POST /api/restorepoint`. Opt-in in the Store app.
+- **Apps update themselves.** From Safe-auto, after each 6-hourly scan every
+  app winget lists is updated one at a time, after a restore point. Apps that
+  Components upgrades with its tested upgrader (Python, PowerShell, Git, Edge,
+  WSL) are left to it, and a version whose update failed is not retried until a
+  newer one appears. The scan records where each app is installed: apps
+  installed for all users need an administrator, and unattended their
+  installer would wait, unseen, on a UAC prompt until the 30-minute timeout, so
+  they are not updated unattended; **Update N machine-wide apps** updates all
+  of them after one UAC prompt. An update that winget downloaded but Windows
+  could not apply because the app was open (0x80073D02, which winget still
+  reports as success) now shows "waiting for the app to close" and is retried
+  after the next scan instead of counting as done. An app whose publisher
+  denies winget upgrades (MiKTeX, 0x8A150114) is tagged "use its own updater"
+  rather than "failed". A timed-out update now stops winget *and* the
+  installers it started, which used to keep running behind an unanswered
+  prompt.
+
+### Changed
+- **Components reach the latest version in one pass.** The standalone upgrade
+  pass upgrades every outdated Windows-side component in turn instead of one
+  per evolution cycle (it stops early only when SysPerf must restart to load
+  one), and always runs it from Safe-auto; the evolution cycle keeps the
+  repository and WSL-distro upgrades.
+
 ## 5.3.0 — 2026-10-30
 
 GitHub only; this release is not submitted to the Microsoft Store.

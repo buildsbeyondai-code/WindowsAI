@@ -318,8 +318,7 @@
   },
   "state": "awaiting_approval",
   "upgrades": {
-   "by_cycle": true,
-   "gate": "the self-evolution cycle runs the upgrades",
+   "gate": "next upgrade check in 3600 s",
    "manual": null
   }
  },
@@ -2485,6 +2484,25 @@
     "state": "Ready"
    }
   ]
+ },
+ "api/restorepoint": {
+  "age_s": null,
+  "auto": true,
+  "checked_at": null,
+  "count": null,
+  "declined": 0,
+  "fresh_s": 86400,
+  "installed": false,
+  "last": {
+   "message": "the restore-point helper is not set up yet (one administrator prompt sets it up)",
+   "reason": "the weekly safety net",
+   "state": "not_set_up"
+  },
+  "last_prompt": null,
+  "max_age_s": 604800,
+  "message": null,
+  "newest": null,
+  "ok": null
  },
  "api/metrics": {
   "browser": {

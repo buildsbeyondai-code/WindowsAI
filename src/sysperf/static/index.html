@@ -1178,7 +1178,7 @@
 
 <header>
   <div>
-    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v5.3.0</span></h1>
+    <h1>Self-Improving AI Agent for Windows <span class="ver-pill" id="hdrVersion" title="SysPerf version">v5.4.0</span></h1>
     <div class="sub" id="baseSub">Live remediation tracking against this machine's own baseline</div>
     <div class="chips" id="chips"></div>
   </div>
@@ -3248,7 +3248,23 @@ function renderArchitecture(d) {
   }
   const table = (head, rows) => `<table><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
 
-  function render(rep) {
+  // Automatic restore points (restorepoint.py): set up once with one UAC prompt.
+  function restoreCard(rp) {
+    if (!rp) return `<div class="note keep">Restore-point status is unavailable.</div>`;
+    const newest = rp.newest ? `${esc(when(rp.newest))} (${fmt(Math.round(rp.age_s / 3600))} h ago)` : "none recorded";
+    const last = rp.last ? `<div class="note keep">Last request (${esc(rp.last.reason || "")}): <b>${esc(rp.last.state)}</b> — ${esc(rp.last.message || "")}</div>` : "";
+    const state = !rp.auto ? `<span class="tag ta">off</span>`
+      : rp.installed ? `<span class="tag tg">on</span>` : `<span class="tag ta">waiting for set-up</span>`;
+    return `<div class="note keep">Automatic restore points ${state} · newest restore point: <b>${newest}</b>${rp.count != null ? " · " + fmt(rp.count) + " kept by Windows" : ""}</div>
+      <div class="note keep">${rp.auto ? "SysPerf creates one before the registry fix, app and component updates, and weekly, unless one from the last 24 hours exists." : "Turned off: no restore point is created automatically."}
+        ${rp.auto && !rp.installed ? " The first time, Windows asks for an administrator once to set up the helper; SysPerf asks by itself the next time one is needed." : ""}</div>
+      ${last}
+      <div class="acts" style="margin-top:6px">${rp.auto && !rp.installed ? `<button id="mtRpSetup" class="fixbtn">Set up now</button>` : ""}
+        ${rp.auto && rp.installed ? `<button id="mtRpCreate" class="fixbtn ghost">Create one now</button>` : ""}
+        <button id="mtRpAuto" class="fixbtn ghost" data-on="${rp.auto ? "0" : "1"}">${rp.auto ? "Turn off" : "Turn on"}</button></div>`;
+  }
+
+  function render(rep, rp) {
     const age = rep.age_s;
     $("mtStatus").innerHTML = rep.at
       ? `Last scan ${esc(when(rep.at))} (${fmt(Math.round(age / 60))} min ago) · next ${esc(when(rep.next_due))}${rep.scanning ? " · <b>scanning now…</b>" : ""}${rep.error ? ` · <span class="st-error">${esc(rep.error)}</span>` : ""}`
@@ -3260,8 +3276,7 @@ function renderArchitecture(d) {
 
     const P = part(rep, "protection"), C = part(rep, "crashes");
     $("mtProtection").innerHTML = `
-      <div class="card"><h3>Restore point</h3>${P ? `<div class="note keep">Newest restore point: <b>${P.last_restore_point ? esc(when(P.last_restore_point)) : "none recorded"}</b>.
-        Windows servicing last ran ${esc(when(P.last_servicing))}.</div>${action(rep, "create_restore_point")}` : missing(rep, "protection")}</div>
+      <div class="card"><h3>Restore points</h3>${restoreCard(rp)}${P ? `<div class="note keep">Windows servicing last ran ${esc(when(P.last_servicing))}.</div>` : ""}</div>
       <div class="card"><h3>System file check</h3>${C ? `<div class="note keep">${(C.bugchecks_30d || []).length} blue screen(s) and ${fmt(C.unexpected_shutdowns_30d || 0)} unexpected shutdown(s) in 30 days.</div>` : ""}${action(rep, "repair_system_files")}</div>`;
 
     const K = part(rep, "cleanup");
@@ -3293,23 +3308,35 @@ function renderArchitecture(d) {
         <div class="note keep">Change one in Services (services.msc) → its Startup type. Set it to <i>Automatic (Delayed Start)</i> rather than disabling it if you are unsure.</div></div>
       <div class="card"><h3>Third-party scheduled tasks</h3>${T ? (T.length ? table(["Task", "State", "Last run", "Result"], T.map(t => `<tr><td>${esc(t.path + t.name)}</td><td>${esc(t.state)}</td><td>${esc(when(t.last_run))}</td><td>${t.last_result ? "0x" + Number(t.last_result).toString(16) : "OK"}</td></tr>`)) : `<div class="note keep">None.</div>`) : missing(rep, "tasks")}</div>`;
 
-    const A = part(rep, "app_updates"), J = rep.job;
-    $("mtApps").innerHTML = `<div class="card"><h3>Apps with an update <span class="hint">from winget</span></h3>${A ? (!A.available
+    const A = part(rep, "app_updates"), J = rep.job, managed = rep.managed || [], failed = rep.failed || {}, admin = rep.admin || [], own = rep.publisher_only || [];
+    const busy = J && J.state === "running" ? "disabled" : "";
+    const appTags = (a) => (managed.includes(a.id) ? '<span class="tag ta">via Components</span> ' : "")
+      + (admin.includes(a.id) ? '<span class="tag ta">needs administrator</span> ' : "")
+      + (own.includes(a.id) ? '<span class="tag ta">use its own updater</span> '
+        : failed[a.id] ? '<span class="tag tr">failed last time</span> ' : "");
+    $("mtApps").innerHTML = `<div class="card"><h3>Apps with an update <span class="hint">from winget</span></h3>
+      <div class="note keep">${rep.auto_update
+        ? "<b>Automatic:</b> after each scan (every 6 hours) every app below is updated, one at a time, with a restore point first. Apps that Components upgrades with its own tested upgrader (Python, PowerShell, Git, Edge, WSL) are left to it, and an update that failed is retried only when a newer version appears. Apps installed for all users need an administrator, so they are updated together after one prompt (the button below) rather than left waiting on a prompt nobody sees."
+        : "<b>Automatic updates are off</b> because Autonomy is set below Safe-auto (AI Self-Evolution tab). Use Update for one app."}</div>${admin.length ? `<div class="note keep"><button class="fixbtn" id="mtUpAdmin" ${busy}>Update ${admin.length} machine-wide app${admin.length === 1 ? "" : "s"}</button> <span class="hint">one administrator prompt for all of them</span></div>` : ""}${A ? (!A.available
       ? `<div class="note keep">winget (App Installer) is not installed, so app updates cannot be listed.</div>`
       : (A.apps || []).length ? table(["App", "Installed", "Available", ""], A.apps.map(a => `<tr><td>${esc(a.name)} <span class="hint">${esc(a.id)}</span></td><td>${esc(a.current)}</td><td>${esc(a.available)}</td>
-          <td><button class="fixbtn ghost mt-up" data-id="${esc(a.id)}" data-name="${esc(a.name)}" ${J && J.state === "running" ? "disabled" : ""}>Update</button></td></tr>`))
+          <td>${appTags(a)}<button class="fixbtn ghost mt-up" data-id="${esc(a.id)}" data-name="${esc(a.name)}" ${busy}>Update</button></td></tr>`))
       : `<div class="note keep"><span class="tag tg">up to date</span> Every app winget knows about is current.</div>`) : missing(rep, "app_updates")}
-      ${J ? `<div class="note keep">Last update: <b>${esc(J.name || J.id)}</b> ${esc(J.from || "")} → ${esc(J.to || "")} — <b>${esc(J.state)}</b>${J.state === "failed" ? " (rc " + esc(String(J.returncode)) + ")" : ""}. To go back: <code>${esc(J.rollback)}</code></div>` : ""}</div>`;
+      ${J ? `<div class="note keep">Last update: <b>${esc(J.name || J.id)}</b> ${J.ids ? "" : esc(J.from || "") + " → " + esc(J.to || "")} — <b>${esc(J.state === "waiting" ? "waiting for the app to close" : J.state === "publisher" ? "its publisher updates it" : J.state)}</b>${J.state === "failed" ? " (rc " + esc(String(J.returncode)) + ")" : ""}.${J.state === "waiting" ? " The update is downloaded; Windows applies it once the app is closed, and SysPerf tries again after the next scan." : ""}${J.results ? " " + Object.keys(J.results).map(k => esc(k) + (J.results[k] === 0 ? " ✓" : " ✗ rc " + esc(String(J.results[k])))).join(" · ") : ""} To go back: <code>${esc(J.rollback)}</code></div>` : ""}</div>`;
   }
 
   async function refresh() {
-    try { render(await (await fetch("api/maintenance", {cache: "no-store"})).json()); }
+    try {
+      const [rep, rp] = await Promise.all([fetch("api/maintenance", {cache: "no-store"}).then(r => r.json()),
+        fetch("api/restorepoint", {cache: "no-store"}).then(r => r.json()).catch(() => null)]);
+      render(rep, rp);
+    }
     catch (e) { $("mtStatus").textContent = "Maintenance report unavailable: " + e.message; }
   }
   const say = (t) => { note = t; $("mtMsg").textContent = t; };
 
   view.addEventListener("click", async (e) => {
-    const f = e.target.closest(".mt-fix"), u = e.target.closest(".mt-up");
+    const f = e.target.closest(".mt-fix"), u = e.target.closest(".mt-up"), ua = e.target.closest("#mtUpAdmin");
     if (f) {
       if (!confirm("Run “" + f.dataset.title + "” now?")) return;
       try {
@@ -3319,12 +3346,29 @@ function renderArchitecture(d) {
         await post("api/maintenance/scan", {});
       } catch (err) { say("Error: " + err.message); }
       refresh();
+    } else if (ua) {
+      try { const d = await post("api/maintenance/upgrade", {machine_wide: true}); say("Windows will ask for an administrator once — choose Yes. Updating " + (d.ids || []).length + " app(s)…"); }
+      catch (err) { say("Error: " + err.message); }
+      refresh();
     } else if (u) {
       if (!confirm("Update " + u.dataset.name + " with winget now? The app may close while it updates.")) return;
       try { await post("api/maintenance/upgrade", {id: u.dataset.id}); say("Updating " + u.dataset.name + "…"); }
       catch (err) { say("Error: " + err.message); }
       refresh();
     }
+  });
+  view.addEventListener("click", async (e) => {
+    const b = e.target.closest("#mtRpSetup, #mtRpCreate, #mtRpAuto");
+    if (!b) return;
+    const body = b.id === "mtRpSetup" ? {action: "setup"} : b.id === "mtRpCreate" ? {action: "create"}
+      : {action: "auto", on: b.dataset.on === "1"};
+    try {
+      await post("api/restorepoint", body);
+      say(b.id === "mtRpSetup" ? "Windows will ask for an administrator once — choose Yes."
+        : b.id === "mtRpCreate" ? "Creating a restore point — Windows can take a minute or two."
+        : body.on ? "Automatic restore points are on." : "Automatic restore points are off.");
+    } catch (err) { say("Error: " + err.message); }
+    setTimeout(refresh, 1500);
   });
   $("mtScan").onclick = async () => {
     try { const d = await post("api/maintenance/scan", {}); say(d.started ? "Scan started — about half a minute." : "A scan is already running."); }
@@ -5766,15 +5810,14 @@ document.addEventListener("visibilitychange", () => {
       : r.decision === "rejected" ? "not upgraded — " + (r.reason || "")
       : !r.outdated ? "up to date"
       : !d.enabled ? "auto-upgrade is off"
-      : U.by_cycle ? "queued for the next evolution cycle"
       : r.standalone ? (U.gate ? "waiting — " + U.gate : "queued for the next upgrade check")
-      : "needs self-evolution (a source checkout and the sandbox)";
+      : "queued for the next evolution cycle (needs a source checkout and the sandbox)";
     const body = rows.map(r => `<tr><td>${esc(r.name || r.key)}</td><td>${esc(r.current || "—")}</td>
       <td>${esc(r.latest || "—")}</td><td>${esc(r.label)}</td><td>${esc(state(r))}</td></tr>`).join("");
     $("sevDeps").innerHTML = `<p class="evo-note">${d.enabled
         ? "On. Every component below is upgraded by self-evolution, one per cycle: tested in isolation first (the sandbox, a throwaway venv or interpreter, or a throwaway copy of the WSL distro), then backed up, applied, verified, and rolled back if the check fails."
         : "Off. Turn on “Auto-upgrade every outdated component” in Settings → AI self-evolution."}</p>`
-      + (d.enabled ? `<p class="evo-note">Windows Update, Edge, PowerShell, winget and WSL upgrades need no AI model, WSL sandbox or source checkout: they run on their own every 6 hours from Safe-auto${U.by_cycle ? " (here the evolution cycle runs them)" : ""}, or one at a time with Upgrade now.</p>`
+      + (d.enabled ? `<p class="evo-note">Windows Update, Edge, PowerShell, winget and WSL upgrades need no AI model, WSL sandbox or source checkout: every outdated one is upgraded on its own every 6 hours from Safe-auto, and Upgrade now runs that pass immediately.</p>`
          + `<div class="evo-row">${U.manual == null ? `<button id="sevUpgrade">Upgrade now</button>` : ""}<span id="sevUpgradeMsg" class="evo-note" role="status">${esc(upgradeNote || (U.manual ? "Upgrade now is unavailable: " + U.manual : ""))}</span></div>` : "")
       + (body ? tbl(["Component", "Installed", "Latest", "Upgraded by", "Upgrade"], body) : empty("The component list is not available yet."))
       + `<p class="evo-note">Drivers, the BIOS, the Windows build, Edge and WebView2 are handed to Windows Update or the vendor's updater, which test and roll back their own packages. Installers that need administrator rights (WSL, Git for Windows) show the Windows UAC prompt. See <a href="#details/components">Components</a>.</p>`;

@@ -118,8 +118,9 @@ REGISTRY = {s.id: s for s in (
           "medium", True, "user", None, False, "a clean start-up and uninstall list",
           "the entries are gone on the next maintenance scan",
           "reg import the .reg backup the result names (data\\registry-backups)"),
-    _spec("create_restore_point", "Create a System Restore point (manual, administrator)",
-          "no recent restore point", "medium", True, "admin", None, False,
+    _spec("create_restore_point", "Create a System Restore point through the elevated helper "
+          "task (restorepoint.py), before changes and weekly",
+          "no restore point in the last 24 hours", "medium", True, "admin", None, False,
           "a way back before risky changes", "a new restore point on the next scan",
           "none needed — a restore point changes nothing"),
     _spec("repair_system_files", "Run DISM RestoreHealth and SFC (manual, administrator)",
@@ -130,7 +131,8 @@ REGISTRY = {s.id: s for s in (
           "Windows Update cache above 1 GB", "high", False, "admin", "c_free_gb", True,
           "more free disk", "c_free_gb",
           "irreversible — installed updates can no longer be uninstalled"),
-    ActionSpec("winget_upgrade_app", "Update one app the maintenance scan listed, with winget",
+    ActionSpec("winget_upgrade_app", "Update the apps the maintenance scan listed, with winget, "
+               "one at a time after a restore point (automatic from Safe-auto)",
                "winget lists a newer version", "medium", True, "user", None, False,
                "a current app", "maintenance.Maintenance.start_upgrade(app_id)",
                "the app leaves the update list on the next scan",

@@ -40,6 +40,7 @@ TARGETS = [
     "version_check.py", "depupgrade.py", "upgrader.py",
     "hostguard.py",                                       # 5.0.0
     "maintenance.py",                                     # 5.3.0
+    "restorepoint.py",                                    # 5.4.0
 ]
 # Two layouts: the development repo keeps the modules at the root, an exported
 # distribution keeps them in src/sysperf/. Resolving here means one runner covers

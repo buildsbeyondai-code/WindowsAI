@@ -45,6 +45,12 @@ FEATURES = {
         "OneDrive lock-state policy",
         "Pauses OneDrive while you use the PC and lets it sync while the PC is locked.",
         "Turn it off here, or start OneDrive from the Auto-Improve tab."),
+    "restore_points": (
+        "Automatic restore points",
+        "Creates a System Restore point before the registry fix, app and component "
+        "updates, and weekly. The first time, Windows asks for an administrator once to "
+        "set up the small helper task that does it.",
+        "Turn it off here, or remove the helper in Details → Protection."),
     "self_evolution": (
         "AI self-evolution",
         "Asks an AI model to propose code improvements, tests them in a sandbox and keeps "
@@ -61,7 +67,7 @@ class StoreFeatures:
     """Describes the opt-in features and routes the Home switches to their owners."""
 
     def __init__(self, state_file: Path, *, store_mode: bool, action_policy, improver,
-                 proc_watchdog, tray_quitter, session_policy) -> None:
+                 proc_watchdog, tray_quitter, session_policy, restore_points=None) -> None:
         self.file = Path(state_file)
         self.store_mode = store_mode
         self.policy = action_policy
@@ -69,6 +75,7 @@ class StoreFeatures:
         self.watchdog = proc_watchdog
         self.tray = tray_quitter
         self.session = session_policy
+        self.restore = restore_points
         self._lock = threading.Lock()
         if store_mode:
             self.session.enabled = bool(self._load().get("onedrive_lock"))
@@ -97,6 +104,8 @@ class StoreFeatures:
             return bool(self.tray.settings.get("enabled"))
         if fid == "onedrive_lock":
             return bool(self.session.enabled)
+        if fid == "restore_points":
+            return bool(self.restore and self.restore.auto)
         return self.policy.level == "self_evolve"
 
     def describe(self) -> dict:
@@ -124,6 +133,10 @@ class StoreFeatures:
                 self.watchdog.set_enabled(on)
             elif fid == "tray_quit":
                 self.tray.configure(enabled=on)
+            elif fid == "restore_points":
+                if self.restore is None:
+                    raise ValueError("restore points need Windows")
+                self.restore.set_auto(on)
             else:
                 self.session.enabled = on
                 self._save(fid, on)
