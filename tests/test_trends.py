@@ -83,7 +83,7 @@ def test_ingest_no_rows_key(tmp_path):
 def test_trim_drops_oldest_days(tmp_path):
     st = _store(tmp_path, retain_days=3)
     for d in range(1, 7):
-        _ingest_day(st, "2026-09-%02d" % d)
+        _ingest_day(st, f"2026-09-{d:02d}")
     assert len(st.days) == 3 and min(st.days) == "2026-09-04"
 
 
@@ -229,7 +229,7 @@ def test_analyze_flat_zero_mean_is_stable(tmp_path):
 def test_analyze_chronic(tmp_path):
     st = _store(tmp_path)
     for d in range(4, 4 + trends.CHRONIC_DAYS):
-        _ingest_day(st, "2026-09-%02d" % d, key="net_remote", vals=(40, 40, 40))
+        _ingest_day(st, f"2026-09-{d:02d}", key="net_remote", vals=(40, 40, 40))
     info = st.analyze("net_remote")
     assert info["chronic"] is True and info["met_days"] == 0
 

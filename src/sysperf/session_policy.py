@@ -105,7 +105,7 @@ class SessionOneDrivePolicy:
 
     def manual_hold_s(self) -> int:
         """Seconds of manual hold remaining (0 when not holding)."""
-        return max(0, int(round(self.manual_until - self.clock())))
+        return max(0, round(self.manual_until - self.clock()))
 
     def tick(self) -> dict | None:
         """One evaluation. Corrects any mismatch between actual and desired

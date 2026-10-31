@@ -290,14 +290,14 @@ def test_a_skipped_auto_apply_leaves_the_upgrade_for_review(tmp_path, repo, sync
 
 
 def test_lane_is_off_without_rows_setting_or_work(tmp_path, repo):
-    e, db = lane(tmp_path, repo, auto_upgrade_deps=False)
+    e, _db = lane(tmp_path, repo, auto_upgrade_deps=False)
     assert e._component_lane("x", repo, head(repo), {}, repo) is None
     (tmp_path / "b").mkdir()
     current = [dict(ROWS[0], latest="3.1.3", outdated=False),
                {"key": "docker", "missing": True, "upgrade": {"via": "apt"}},
                {"key": "mystery", "upgrade": {}},
                {"key": "kernel", "upgrade": {"via": "follows", "of": "wsl"}}]
-    e, db = lane(tmp_path / "b", repo, rows=current)
+    e, _db = lane(tmp_path / "b", repo, rows=current)
     assert e._component_lane("x", repo, head(repo), {}, repo) is None
     rows = e.status("self_evolve")["components"]["rows"]
     assert [r["label"] for r in rows][2] == "no upgrader"

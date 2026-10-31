@@ -88,7 +88,7 @@ def send_toast(title: str, body: str, url: str, run: Callable = run_hidden) -> b
 
 class Notifier:
     DEFAULTS: ClassVar[dict] = {"toasts": True, "min_interval_s": 1800, "quiet_start": None,
-                "quiet_end": None, "kinds": {k: True for k in KINDS}}
+                "quiet_end": None, "kinds": dict.fromkeys(KINDS, True)}
 
     def __init__(self, state_file: Path, base_url: str, *, toast_capable: bool,
                  sender: Callable = send_toast, clock: Callable[[], float] = time.time,

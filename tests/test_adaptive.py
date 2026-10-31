@@ -67,7 +67,7 @@ def test_update_only_subset(tmp_path):
 def test_update_builds_best_and_worst(tmp_path):
     sc = _scorer(tmp_path)
     for i in range(4):
-        sc.update({"available_mb": 12000 + i, "_iso": "2026-09-13T00:00:0%d" % i})
+        sc.update({"available_mb": 12000 + i, "_iso": f"2026-09-13T00:00:0{i}"})
     m = sc.metrics["available_mb"]
     assert m["personal_best"] is not None      # hib=True best computed
     assert m["worst"] is not None
@@ -80,7 +80,7 @@ def test_update_trims_to_60_days(tmp_path):
     sc = _scorer(tmp_path)
     for d in range(1, 66):
         sc.update({"committed_app_mb": 8000 + d,
-                   "_iso": "2026-07-%02dT00:00:00" % d}, persist=False)
+                   "_iso": f"2026-07-{d:02d}T00:00:00"}, persist=False)
     assert len(sc.metrics["committed_app_mb"]["daily"]) <= 60
 
 
@@ -104,7 +104,7 @@ def test_seed_cold_then_backfill(tmp_path):
     # samples carry EVERY adaptive key so a cold seed fully populates state
     keys = ("committed_app_mb", "compression_mb", "available_mb", "vmmem_mb",
             "browser_procs", "handles", "net_remote")
-    hist = [{**{k: 100 + i for k in keys}, "_iso": "2026-09-13T00:00:0%d" % i}
+    hist = [{**dict.fromkeys(keys, 100 + i), "_iso": f"2026-09-13T00:00:0{i}"}
             for i in range(4)]
     sc = _scorer(tmp_path)
     sc.seed(hist)                               # cold -> seeds all keys

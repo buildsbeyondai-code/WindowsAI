@@ -97,7 +97,7 @@ def test_vmmem_above_cap():
 
 
 def test_vmmem_measuring():
-    prog, status, note = score_vmmem(5000, 10240, 0, 100, 3)
+    prog, status, _note = score_vmmem(5000, 10240, 0, 100, 3)
     assert status == "measuring" and prog is None
 
 
@@ -113,7 +113,7 @@ def test_vmmem_rising_lots_of_headroom():
 
 def test_vmmem_rising_high_util_partial():
     # util >= 0.5 so the ">=12h and util<0.5" branch is skipped -> partial
-    prog, status, _ = score_vmmem(6000, 10240, 100, 700, 6)
+    _prog, status, _ = score_vmmem(6000, 10240, 100, 700, 6)
     assert status == "partial"
 
 
@@ -123,7 +123,7 @@ def test_vmmem_rising_partial_window():
 
 
 def test_vmmem_rising_regress():
-    prog, status, _ = score_vmmem(9000, 10240, 1000, 700, 6)  # ~1.2h to cap
+    _prog, status, _ = score_vmmem(9000, 10240, 1000, 700, 6)  # ~1.2h to cap
     assert status == "regress"
 
 
@@ -138,7 +138,7 @@ def test_trend_too_few():
 
 def test_trend_short_span_returns_zero_slope():
     hist = [{"_t": 1000.0 + i, "vmmem_mb": 100 + i} for i in range(6)]  # span=5s
-    slope, span, n = vmmem_trend(hist)
+    slope, _span, n = vmmem_trend(hist)
     assert slope == 0.0 and n == 6
 
 
@@ -152,7 +152,7 @@ def test_trend_reanchor_on_gap():
     # a large collector gap should re-anchor the window to the post-gap points
     hist = [{"_t": i * 100.0, "vmmem_mb": 5000} for i in range(4)]
     hist += [{"_t": 100000.0 + i * 120.0, "vmmem_mb": 3000 + i * 50} for i in range(7)]
-    slope, span, n = vmmem_trend(hist)
+    _slope, _span, n = vmmem_trend(hist)
     assert n == 7
 
 
@@ -160,7 +160,7 @@ def test_trend_reanchor_on_collapse():
     # a collapse from a high steady state (WSL restart) re-anchors
     hist = [{"_t": i * 120.0, "vmmem_mb": 6000} for i in range(4)]
     hist += [{"_t": (4 + i) * 120.0, "vmmem_mb": 2000 + i * 30} for i in range(7)]
-    slope, span, n = vmmem_trend(hist)
+    _slope, _span, n = vmmem_trend(hist)
     assert n == 7
 
 
