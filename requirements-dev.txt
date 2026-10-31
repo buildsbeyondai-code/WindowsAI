@@ -1,6 +1,6 @@
 -r requirements.txt
 pytest==9.2.0
-ruff==0.6.9
+ruff==0.17.3
 # The resolver self-evolution relocks with, as CI checks the lock (5.4.4).
 uv==0.13.5
 # Markdown 3.11 needs Python 3.11; CI still tests 3.10 (requires-python >=3.10).
