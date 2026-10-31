@@ -4,6 +4,15 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.4.2 — 2026-10-31
+
+### Fixed
+- **An upgrade the test suite rejected is tried again after a new commit.**
+  "One try per version" kept such an upgrade stuck for good, even when the
+  failure was the code's (Python 3.15.2 was rejected while the checkout was
+  mid-edit for 5.4.1). A rejection at the apply or verify stage still waits for
+  a newer version.
+
 ## 5.4.1 — 2026-10-31
 
 ### Fixed

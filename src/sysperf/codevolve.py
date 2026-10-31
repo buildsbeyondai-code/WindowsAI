@@ -676,7 +676,7 @@ class CodeEvolution:
         cid, done = None, []
         try:
             self._next_upgrade = self.clock() + self.UPGRADE_EVERY_S
-            tried = {c["title"] for c in self.db.candidates(limit=1000)}
+            tried = self._tried()
             host = upgrader.Host(run=self.run, get=self.http_get,
                                  staging=self.workroot.parent / "upgrade-staging",
                                  repo=Path(self.settings.get("repo") or self.state_dir),
@@ -954,7 +954,7 @@ class CodeEvolution:
         """
         if not self.settings.get("auto_upgrade_deps", True) or self.components_fn is None:
             return None
-        tried = {c["title"] for c in self.db.candidates(limit=1000)}
+        tried = self._tried()
         pins = depupgrade.pinned(repo)
         host = None
         for row in self.components_fn() or []:
@@ -977,6 +977,22 @@ class CodeEvolution:
             if up and self._upgrade_title(u, up) not in tried:
                 return self._host_upgrade(cid, u, up, host)
         return None
+
+    def _tried(self) -> set:
+        """Titles of upgrade attempts not to repeat.
+
+        An upgrade rejected because the test suite failed is tried again once the
+        checkout has a newer commit: the failure may have been the code's, not the
+        upgrade's (5.4.1 live: Python 3.15.2 was rejected while the version was
+        being bumped in the checkout, and would never have been retried).
+        """
+        try:
+            head_at = float(_git(Path(self.settings["repo"]), "log", "-1", "--format=%ct").strip())
+        except (RuntimeError, ValueError, TypeError, OSError):
+            head_at = 0.0
+        return {c["title"] for c in self.db.candidates(limit=1000)
+                if not (c["decision"] == "rejected" and c["tests_ok"] == 0
+                        and c["created"] < head_at)}
 
     def _upgrade_title(self, u, up: dict) -> str:
         t = upgrader.title(up)

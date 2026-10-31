@@ -61,6 +61,10 @@ rerun them, not that they passed.
   which the cycle lock blocks other cycles.
 - A `follows` row (the WSL kernel) is only an upgrade when its carrier (WSL)
   is outdated; otherwise it reads *waiting for WSL release*.
+- Do not edit the live checkout while an upgrade cycle is testing: some
+  upgraders (Python) run the suite in the checkout itself, and a mid-edit tree
+  rejects a good upgrade. Check `GET /api/codevolve` `state` first. A
+  suite-rejected upgrade is retried after the next commit (5.4.2).
 - Nothing runs while the PC sleeps (a 2.5-day gap on 28–30 Oct 2026 was sleep).
 - The Components "Assessment" date is the latest live version check (daily);
   `catalog_date` is when the hand-reviewed fallbacks were last edited.
