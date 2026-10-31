@@ -132,8 +132,40 @@ def test_maintenance_report_scan_and_upgrade(client, monkeypatch):
     monkeypatch.setattr(m, "start_upgrade", lambda app_id: {"started": True, "id": app_id})
     assert client.post("/api/maintenance/upgrade", json={**T, "id": "Git.Git"}).get_json() == {
         "started": True, "id": "Git.Git"}
+    monkeypatch.setattr(m, "start_admin_batch", lambda: {"started": True, "id": "machine-wide"})
+    assert client.post("/api/maintenance/upgrade", json={**T, "machine_wide": True}
+                       ).get_json()["id"] == "machine-wide"
     monkeypatch.setattr(app, "FIX_ENABLED", False)
     assert client.post("/api/maintenance/upgrade", json={**T, "id": "Git.Git"}).status_code == 403
+
+
+def test_restorepoint_routes(client, monkeypatch):
+    rp = app.restore_points
+    monkeypatch.setattr(rp, "installed", lambda: True)
+    assert set(client.get("/api/restorepoint").get_json()) >= {"auto", "installed", "newest"}
+    _csrf_refused(client, "/api/restorepoint")
+    saved = rp.auto
+    try:
+        assert client.post("/api/restorepoint", json={**T, "action": "auto", "on": False}
+                           ).get_json() == {"auto": False}
+    finally:
+        rp.set_auto(saved)
+    assert client.post("/api/restorepoint", json={**T, "action": "x"}).status_code == 400
+    ran = []
+    monkeypatch.setattr(rp, "ps_exe", "pwsh")
+    monkeypatch.setattr(rp, "setup", lambda: ran.append("setup"))
+    monkeypatch.setattr(rp, "ensure", lambda why: ran.append(why))
+    monkeypatch.setattr(rp, "remove", lambda: ran.append("remove"))
+    for action in ("setup", "create", "remove"):
+        assert client.post("/api/restorepoint", json={**T, "action": action}).get_json() == {
+            "started": True, "action": action}
+    for _ in range(1000):
+        if len(ran) == 3:
+            break
+        time.sleep(0.01)
+    assert sorted(ran) == ["a manual request", "remove", "setup"]
+    monkeypatch.setattr(rp, "ps_exe", None)
+    assert client.post("/api/restorepoint", json={**T, "action": "setup"}).status_code == 400
 
 
 def test_codevolve_upgrade_gated_and_started(client, monkeypatch):

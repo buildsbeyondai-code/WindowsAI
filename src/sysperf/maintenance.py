@@ -15,6 +15,7 @@ ever chosen by the unattended loop. An app update runs one app at a time through
 """
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import re
@@ -23,7 +24,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from .background_process import run_hidden
+from .background_process import run_tree
 
 log = logging.getLogger("sysperf.maintenance")
 
@@ -31,7 +32,15 @@ SCRIPT = Path(__file__).with_name("maintenance.ps1")
 SCAN_EVERY_S = 6 * 3600
 SCAN_TIMEOUT_S = 300.0
 UPGRADE_TIMEOUT_S = 1800.0
+DECLINED = 1223                # ERROR_CANCELLED: the UAC prompt was declined
+PUBLISHER_ONLY = -1978334956   # 0x8A150114: the manifest denies winget upgrades
 WINGET_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$")
+# Apps Components upgrades with its own tested upgrader (upgrader.py). winget is
+# not allowed to swap them underneath SysPerf: a new Python, say, would leave
+# SysPerf's own virtual environment pointing at an interpreter that has gone.
+COMPONENT_MANAGED = re.compile(
+    r"^(Python\.Python\..*|Microsoft\.PowerShell(\..*)?|Git\.Git|Microsoft\.WSL|"
+    r"Microsoft\.Edge(\..*)?|Microsoft\.EdgeWebView2Runtime|Microsoft\.AppInstaller)$", re.I)
 
 # Thresholds for turning measurements into findings.
 RESTORE_MAX_AGE_DAYS = 30
@@ -59,10 +68,12 @@ def script_command(mode: str, **params) -> str:
 
 def _default_run(argv: list, timeout: float) -> tuple:
     try:
-        res = run_hidden(argv, capture_output=True, text=True, timeout=timeout)
-        return res.returncode, (res.stdout or "") + (res.stderr or "")
+        rc, out, timed_out = run_tree(argv, timeout)
     except Exception as exc:
         return 1, f"{type(exc).__name__}: {exc}"
+    if timed_out:
+        out += f"\ntimed out after {timeout:.0f} s; stopped it and the installers it started"
+    return rc, out
 
 
 def _section(rep: dict, name: str):
@@ -171,6 +182,17 @@ class Maintenance:
         self.scanning = False
         self.job: dict | None = None
         self.last_error: str | None = None
+        # 5.4 (restorepoint.py): a restore point before an app update, and the
+        # newest one the helper knows of, which the event log may not record.
+        self.before_change: Callable[[str], dict] | None = None
+        self.restore_newest: Callable[[], float | None] | None = None
+        # 5.4: apps update themselves after each scan while this says so (the
+        # app wires it to the autonomy level); a failed version is not retried.
+        self.auto_fn: Callable[[], bool] = lambda: False
+        self.failed: dict = {}
+        self.data_dir = self.cache_file.parent
+        self.publisher_only: set = set()   # apps whose manifest denies winget upgrades
+        self._auto_for = None             # the scan the last automatic pass followed
         try:
             self.data = json.loads(self.cache_file.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -216,12 +238,16 @@ class Maintenance:
         return True
 
     def loop(self, stop: threading.Event | None = None, tick_s: float = 300.0) -> None:
-        """Background thread: rescan whenever the report is older than SCAN_EVERY_S."""
+        """Background thread: rescan when the report is older than SCAN_EVERY_S,
+        then update the apps it lists, once per scan, while auto_fn() allows."""
         stop = stop or threading.Event()
         while True:
             try:
                 if self.due():
                     self.scan()
+                if self.auto_fn() and self.data.get("at") and self._auto_for != self.data["at"]:
+                    self._auto_for = self.data["at"]
+                    self.auto_update()
             except Exception:           # pragma: no cover - the loop must survive anything
                 log.exception("maintenance scan failed")
             if stop.wait(tick_s):
@@ -230,12 +256,20 @@ class Maintenance:
     # --------------------------------------------------------------- report
     def report(self) -> dict:
         at = self.data.get("at")
-        return {**{k: v for k, v in self.data.items() if k != "at"},
+        data = dict(self.data)
+        known = self.restore_newest() if self.restore_newest else None
+        prot = _section(data, "protection")
+        if known and prot is not None and known > (prot.get("last_restore_point") or 0):
+            data["protection"] = {**prot, "last_restore_point": known}
+        return {**{k: v for k, v in data.items() if k != "at"},
                 "at": at, "age_s": None if not at else round(self.clock() - at),
                 "next_due": None if not at else at + SCAN_EVERY_S,
                 "scanning": self.scanning, "error": self.last_error,
-                "findings": findings(self.data, self.clock()) if at else [],
-                "job": self.job, "every_s": SCAN_EVERY_S}
+                "findings": findings(data, self.clock()) if at else [],
+                "job": self.job, "every_s": SCAN_EVERY_S,
+                "auto_update": bool(self.auto_fn()), "failed": dict(self.failed),
+                "managed": sorted(i for i in self.upgradable() if COMPONENT_MANAGED.match(i)),
+                "admin": self.admin_ids(), "publisher_only": sorted(self.publisher_only)}
 
     # ---------------------------------------------------------- app updates
     def upgradable(self) -> dict:
@@ -264,13 +298,127 @@ class Maintenance:
                          daemon=True).start()
         return {"started": True, "id": app_id}
 
+    def admin_ids(self) -> list:
+        """Listed apps installed machine-wide: updating one needs an administrator."""
+        return [i for i, a in self.upgradable().items()
+                if a.get("scope") == "machine" and not COMPONENT_MANAGED.match(i)]
+
+    def auto_update(self) -> list:
+        """Update every app the last scan listed, one at a time.
+
+        Skips the apps Components manages, any whose update to this version
+        already failed, and machine-wide ones: their installer asks for an
+        administrator, and unattended that prompt would wait, unanswered, for
+        the whole timeout (``start_admin_batch`` updates them after one prompt).
+        Stops if a manual update is running.
+        """
+        done = []
+        for app_id, app in list(self.upgradable().items()):
+            if (COMPONENT_MANAGED.match(app_id) or self.failed.get(app_id) == app.get("available")
+                    or app.get("scope") == "machine"):
+                continue
+            try:
+                job = self.start_upgrade(app_id, background=False)
+            except ValueError:
+                break
+            if job["state"] in ("failed", "publisher"):
+                self.failed[app_id] = app.get("available")
+            if job["state"] == "publisher":
+                self.publisher_only.add(app_id)
+            done.append(job)
+        return done
+
     def _upgrade(self, app_id: str) -> dict:
+        if self.before_change:
+            self.job["restore_point"] = self.before_change(f"updating {self.job['name']}")
         rc, out = self.run(["winget", "upgrade", "--id", app_id, "--exact", "--silent",
                             "--accept-package-agreements", "--accept-source-agreements",
                             "--disable-interactivity"], UPGRADE_TIMEOUT_S)
-        self.job.update(state="done" if rc == 0 else "failed", returncode=rc,
-                        output=out.strip()[-600:], finished=self.clock())
-        if rc == 0:
-            apps = self.data.get("app_updates") or {}
-            apps["apps"] = [a for a in apps.get("apps") or [] if a.get("id") != app_id]
+        state = "done" if rc == 0 else "failed"
+        if rc != 0 and (rc == PUBLISHER_ONLY or "cannot be upgraded using WinGet" in out):
+            # The manifest denies winget upgrades: the app updates itself.
+            state = "publisher"
+            out += "\nIts publisher does not allow winget to update it; use the app's own updater."
+        if rc == 0 and self._still_outdated(app_id):
+            # winget exits 0 when it has staged a Store/MSIX package that Windows
+            # would not swap in because the app is open (0x80073D02).
+            state = "waiting"
+            out += "\nThe update is downloaded; Windows applies it once the app is closed. " \
+                   "SysPerf tries again after the next scan."
+        self.job.update(state=state, returncode=rc, output=out.strip()[-600:],
+                        finished=self.clock())
+        if state == "done":
+            self._drop(app_id)
+        return dict(self.job)
+
+    def _drop(self, app_id: str) -> None:
+        apps = self.data.get("app_updates") or {}
+        apps["apps"] = [a for a in apps.get("apps") or [] if a.get("id") != app_id]
+
+    def _still_outdated(self, app_id: str) -> bool:
+        rc, out = self.run(["winget", "list", "--id", app_id, "--exact", "--upgrade-available",
+                            "--accept-source-agreements", "--disable-interactivity"], 120)
+        return rc == 0 and app_id in out
+
+    # 5.4: machine-wide apps, all after one administrator prompt.
+    def start_admin_batch(self, background: bool = True) -> dict:
+        """Update every machine-wide app the last scan listed, elevated, in one go.
+
+        Windows shows one UAC prompt; the elevated PowerShell runs winget for
+        each id (each one checked against WINGET_ID by ``upgradable``) and
+        writes ``id=rc`` lines that this process reads back.
+        """
+        with self._lock:
+            ids = self.admin_ids()
+            if not ids:
+                raise ValueError("no machine-wide app needs an update")
+            if self.ps_exe is None:
+                raise ValueError("app updates need Windows")
+            if self.job and self.job.get("state") == "running":
+                raise ValueError(f"already upgrading {self.job['id']}")
+            self.job = {"id": "machine-wide", "name": f"{len(ids)} machine-wide app(s)",
+                        "ids": ids, "state": "running", "started": self.clock(),
+                        "rollback": "winget install --id <id> --exact --version <old> --force"}
+        if not background:
+            return self._admin_batch(ids)
+        threading.Thread(target=self._admin_batch, args=(ids,), name="maintenance-admin",
+                         daemon=True).start()
+        return {"started": True, "id": "machine-wide", "ids": ids}
+
+    def _admin_batch(self, ids: list) -> dict:
+        if self.before_change:
+            self.job["restore_point"] = self.before_change(f"updating {len(ids)} machine-wide apps")
+        res_file = self.data_dir / "admin_upgrade.txt"
+        res_file.unlink(missing_ok=True)
+        inner = "".join(
+            f"winget upgrade --id {ps_quote(i)} --exact --silent --accept-package-agreements "
+            f"--accept-source-agreements --disable-interactivity | Out-Null; "
+            f"Add-Content -LiteralPath {ps_quote(res_file)} -Value ({ps_quote(i + '=')} + $LASTEXITCODE); "
+            for i in ids)
+        enc = base64.b64encode(inner.encode("utf-16-le")).decode()
+        script = (f"try {{ $p = Start-Process -FilePath powershell.exe -ArgumentList "
+                  f"'-NoProfile -ExecutionPolicy Bypass -EncodedCommand {enc}' -Verb RunAs -Wait "
+                  f"-PassThru -WindowStyle Hidden; exit $p.ExitCode }} "
+                  f"catch {{ Write-Output $_.Exception.Message; exit {DECLINED} }}")
+        rc, out = self.run([self.ps_exe, "-NoProfile", "-NonInteractive", "-Command", script],
+                           UPGRADE_TIMEOUT_S * len(ids))
+        try:
+            lines = res_file.read_text(encoding="utf-8-sig").splitlines()
+        except OSError:
+            lines = []
+        results = {}
+        for ln in lines:
+            app_id, _, code = ln.strip().rpartition("=")
+            if app_id in ids:
+                results[app_id] = int(code) if code.lstrip("-").isdigit() else 1
+        apps = self.upgradable()
+        for app_id, code in results.items():       # a declined prompt marks none failed
+            if code == 0:
+                self._drop(app_id)
+            else:
+                self.failed[app_id] = (apps.get(app_id) or {}).get("available")
+        ok = bool(results) and all(v == 0 for v in results.values()) and len(results) == len(ids)
+        self.job.update(state="done" if ok else "failed", returncode=rc, results=results,
+                        output=("the administrator (UAC) prompt was declined" if rc == DECLINED
+                                else out.strip()[-600:]), finished=self.clock())
         return dict(self.job)

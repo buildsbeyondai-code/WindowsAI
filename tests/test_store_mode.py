@@ -103,3 +103,26 @@ def test_set_refuses_unknown_and_self_evolution(tmp_path):
         sf.set("nope", True)
     with pytest.raises(ValueError, match="its tab"):
         sf.set("self_evolution", True)
+
+
+class _Restore:
+    def __init__(self):
+        self.auto = False
+
+    def set_auto(self, on):
+        self.auto = on
+        return on
+
+
+def test_restore_points_switch(tmp_path):
+    """5.4: automatic restore points are opt-in in the Store app like the rest."""
+    sf, _ = _make(tmp_path)
+    by = {f["id"]: f for f in sf.describe()["features"]}
+    assert by["restore_points"]["on"] is False                 # no helper object: off
+    with pytest.raises(ValueError, match="need Windows"):
+        sf.set("restore_points", True)
+    sf.restore = _Restore()
+    d = sf.set("restore_points", True)
+    assert sf.restore.auto is True
+    assert {f["id"]: f["on"] for f in d["features"]}["restore_points"] is True
+

@@ -415,19 +415,18 @@ def test_upgrades_work_without_ai_and_upgrade_now_starts_one(browser, site):
             {"key": "flask", "name": "Flask", "label": "pinned", "via": "pip-lock",
              "standalone": False, "current": "3.1.3", "latest": "3.2.0", "outdated": True}]
     plain = dict(STUBS["api/codevolve"], components={"enabled": True, "rows": rows},
-                 upgrades={"gate": None, "manual": None, "by_cycle": False})
+                 upgrades={"gate": None, "manual": None})
     page = _open(browser, site, hash_="#self-evolution", overrides={"api/codevolve": plain},
                  posts={"api/codevolve/upgrade": {"started": True}})
     page.wait_for_selector("#sevUpgrade")
     text = page.inner_text("#sevDeps")
     assert "need no AI model" in text and "queued for the next upgrade check" in text
-    assert "needs self-evolution (a source checkout and the sandbox)" in text
+    assert "queued for the next evolution cycle (needs a source checkout and the sandbox)" in text
     page.click("#sevUpgrade")
     page.wait_for_function("() => document.getElementById('sevUpgradeMsg').innerText.includes('Upgrade started')")
     assert page.posted and any("api/codevolve/upgrade" in u for u in page.posted)
     page.close()
-    waiting = dict(plain, upgrades={"gate": "autonomy level is 'observe'", "manual": "autonomy level is 'off'",
-                                    "by_cycle": False})
+    waiting = dict(plain, upgrades={"gate": "autonomy level is 'observe'", "manual": "autonomy level is 'off'"})
     page = _open(browser, site, hash_="#self-evolution", overrides={"api/codevolve": waiting},
                  posts={"api/codevolve/upgrade": {"started": False, "reason": "x"}})
     page.wait_for_function("() => document.getElementById('sevUpgradeMsg').innerText.includes('unavailable')")

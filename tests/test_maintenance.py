@@ -42,6 +42,7 @@ class Run:
 
 
 def make(tmp_path, run=None, data=None, ps="pwsh"):
+    tmp_path.mkdir(parents=True, exist_ok=True)
     f = tmp_path / "maintenance.json"
     if data is not None:
         f.write_text(json.dumps(data))
@@ -57,14 +58,15 @@ def test_quoting_and_script_command():
 
 
 def test_default_run(monkeypatch):
-    class R:
-        returncode, stdout, stderr = 0, "out", None
-    monkeypatch.setattr(mt, "run_hidden", lambda argv, **kw: R())
+    monkeypatch.setattr(mt, "run_tree", lambda argv, t: (0, "out", False))
     assert mt._default_run(["x"], 1) == (0, "out")
+    monkeypatch.setattr(mt, "run_tree", lambda argv, t: (1, "half", True))
+    assert mt._default_run(["x"], 30) == (
+        1, "half\ntimed out after 30 s; stopped it and the installers it started")
 
-    def boom(argv, **kw):
+    def boom(argv, t):
         raise OSError("no pwsh")
-    monkeypatch.setattr(mt, "run_hidden", boom)
+    monkeypatch.setattr(mt, "run_tree", boom)
     assert mt._default_run(["x"], 1) == (1, "OSError: no pwsh")
 
 
@@ -206,3 +208,138 @@ def test_failed_upgrade_keeps_the_app_listed_and_one_job_at_a_time(tmp_path):
     done = threading.Event()
     m._upgrade = lambda app_id: done.set()
     assert m.start_upgrade("Git.Git") == {"started": True, "id": "Git.Git"} and done.wait(5)
+
+
+# ------------------------------------------------- 5.4: automatic app updates --
+def test_apps_update_themselves_after_each_scan(tmp_path):
+    rep = report(app_updates={"available": True, "apps": [
+        {"id": "Git.Git", "name": "Git", "current": "1", "available": "2"},
+        {"id": "Python.Python.3.12", "name": "Python", "current": "3.12.1", "available": "3.12.2"},
+        {"id": "OpenAI.ChatGPT", "name": "ChatGPT", "current": "1", "available": "2"},
+        {"id": "Zoom.Zoom", "name": "Zoom", "current": "5", "available": "6"},
+        {"id": "HP.Opt", "name": "HP", "current": "1", "available": "2", "scope": "machine"}]})
+    run = Run((0, "ok"), (0, "No installed package found"), (7, "installer failed"))
+    m = make(tmp_path, run, data=rep)
+    seen = []
+    m.before_change = lambda why: seen.append(why) or {"state": "recent"}
+    out = m.auto_update()
+    # component-managed and machine-wide (would wait on a UAC prompt) skipped
+    assert [j["id"] for j in out] == ["OpenAI.ChatGPT", "Zoom.Zoom"]
+    assert [j["state"] for j in out] == ["done", "failed"]
+    assert run.calls[1][:4] == ["winget", "list", "--id", "OpenAI.ChatGPT"]
+    assert seen == ["updating ChatGPT", "updating Zoom"] and out[0]["restore_point"]
+    assert m.failed == {"Zoom.Zoom": "6"}
+    assert m.auto_update() == []                  # the failed version is not retried
+    r = m.report()
+    assert r["failed"] == {"Zoom.Zoom": "6"} and r["managed"] == ["Git.Git", "Python.Python.3.12"]
+    assert r["admin"] == ["HP.Opt"]
+    assert r["auto_update"] is False
+    m.job = {"id": "x", "state": "running"}
+    m.failed = {}
+    assert m.auto_update() == []                  # a manual update is running: wait
+
+
+def test_loop_runs_the_automatic_pass_once_per_scan(tmp_path):
+    m = make(tmp_path, data=report())
+    m.due = lambda: False
+    m.auto_fn = lambda: True
+    calls, stop = [], threading.Event()
+    m.auto_update = lambda: (calls.append(1), stop.set())
+    m.loop(stop=stop, tick_s=0.01)
+    stop.clear()
+    m.auto_update = lambda: calls.append(2)
+    t = threading.Thread(target=m.loop, kwargs={"stop": stop, "tick_s": 0.01})
+    t.start()
+    time.sleep(0.05)
+    stop.set()
+    t.join(5)
+    assert calls == [1]                           # same scan: not again
+
+
+def test_the_helpers_restore_point_overrides_the_event_log(tmp_path):
+    m = make(tmp_path, data=report(protection={"last_restore_point": None}))
+    assert m.report()["findings"][0]["fix"] == "create_restore_point"
+    m.restore_newest = lambda: NOW - 3600
+    rep = m.report()
+    assert rep["protection"]["last_restore_point"] == NOW - 3600 and rep["findings"] == []
+    m.restore_newest = lambda: None
+    assert m.report()["findings"]
+
+
+def test_an_open_app_waits_instead_of_counting_as_updated(tmp_path):
+    # winget exits 0 after staging an MSIX that Windows would not swap in (0x80073D02)
+    run = Run((0, "Successfully installed"), (0, "Git  Git.Git  2.56  2.57  winget"))
+    m = make(tmp_path, run, data=apps_report())
+    job = m.start_upgrade("Git.Git", background=False)
+    assert job["state"] == "waiting" and "once the app is closed" in job["output"]
+    assert "Git.Git" in m.upgradable() and m.failed == {}
+
+
+def admin_report():
+    return report(app_updates={"available": True, "apps": [
+        {"id": "HP.Opt", "name": "HP", "current": "1", "available": "2", "scope": "machine"},
+        {"id": "VC.Redist", "name": "VC", "current": "1", "available": "3", "scope": "machine"},
+        {"id": "Zoom.Zoom", "name": "Zoom", "current": "5", "available": "6", "scope": "user"}]})
+
+
+def test_machine_wide_apps_update_after_one_prompt(tmp_path):
+    m = make(tmp_path, data=admin_report())
+    res = m.data_dir / "admin_upgrade.txt"
+
+    def elevated(argv, timeout):
+        assert "-Verb RunAs" in argv[-1] and timeout == 2 * mt.UPGRADE_TIMEOUT_S
+        res.write_text("HP.Opt=0\nVC.Redist=-1978335189\nnoise\nHP.Opt=x\n")
+        return 0, ""
+    m.run = elevated
+    seen = []
+    m.before_change = lambda why: seen.append(why) or {"state": "created"}
+    job = m.start_admin_batch(background=False)
+    assert job["state"] == "failed" and job["results"] == {"HP.Opt": 1, "VC.Redist": -1978335189}
+    assert seen == ["updating 2 machine-wide apps"] and job["restore_point"]
+    assert m.failed == {"HP.Opt": "2", "VC.Redist": "3"}
+
+
+def test_machine_wide_batch_all_good_declined_and_refused(tmp_path):
+    m = make(tmp_path, data=admin_report())
+    m.run = lambda argv, t: ((m.data_dir / "admin_upgrade.txt").write_text("HP.Opt=0\nVC.Redist=0"), (0, ""))[1]
+    assert m.start_admin_batch(background=False)["state"] == "done"
+    assert set(m.upgradable()) == {"Zoom.Zoom"}
+    with pytest.raises(ValueError, match="no machine-wide app"):
+        m.start_admin_batch()
+    m = make(tmp_path / "d", data=admin_report())
+    m.run = lambda argv, t: (mt.DECLINED, "The operation was canceled by the user.")
+    job = m.start_admin_batch(background=False)
+    assert job["state"] == "failed" and "declined" in job["output"] and m.failed == {}
+    m.job = {"id": "x", "state": "running"}
+    with pytest.raises(ValueError, match="already upgrading"):
+        m.start_admin_batch()
+    m.job = None
+    done = threading.Event()
+    m._admin_batch = lambda ids: done.set()
+    assert m.start_admin_batch()["ids"] == ["HP.Opt", "VC.Redist"] and done.wait(5)
+    with pytest.raises(ValueError, match="need Windows"):
+        make(tmp_path / "w", data=admin_report(), ps=None).start_admin_batch()
+
+
+def test_the_batch_script_is_one_encoded_command(tmp_path):
+    import base64
+    m = make(tmp_path, data=admin_report())
+    seen = []
+    m.run = lambda argv, t: (seen.append(argv), (0, ""))[1]
+    assert m.start_admin_batch(background=False)["results"] == {}
+    enc = seen[0][-1].split("-EncodedCommand ")[1].split("'")[0]
+    inner = base64.b64decode(enc).decode("utf-16-le")
+    assert inner.count("winget upgrade --id ") == 2 and "'HP.Opt=' + $LASTEXITCODE" in inner
+
+
+
+def test_an_app_whose_publisher_denies_winget_is_not_called_failed(tmp_path):
+    rep = report(app_updates={"available": True, "apps": [
+        {"id": "MiKTeX.MiKTeX", "name": "MiKTeX", "current": "23.4", "available": "25.12", "scope": "user"},
+        {"id": "Other.App", "name": "Other", "current": "1", "available": "2", "scope": "user"}]})
+    run = Run((1, "The package cannot be upgraded using WinGet."), (mt.PUBLISHER_ONLY, ""))
+    m = make(tmp_path, run, data=rep)
+    out = m.auto_update()
+    assert [j["state"] for j in out] == ["publisher", "publisher"]
+    assert "own updater" in out[0]["output"] and m.report()["publisher_only"] == ["MiKTeX.MiKTeX", "Other.App"]
+    assert m.auto_update() == []                  # not retried

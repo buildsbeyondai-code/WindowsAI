@@ -618,9 +618,32 @@ def test_upgrades_run_without_a_model_sandbox_or_checkout(tmp_path, repo, probe)
     assert e.upgrade_pass("observe", "manual") == {
         "started": False, "reason": "every component is current or already tried"}
     st = e.status("safe_auto")
-    assert st["upgrades"] == {"gate": e.upgrade_gate("safe_auto"), "manual": None,
-                              "by_cycle": False}
+    assert st["upgrades"] == {"gate": e.upgrade_gate("safe_auto"), "manual": None}
     assert st["components"]["rows"][0]["standalone"] is True
+
+
+def test_one_pass_upgrades_every_outdated_component(tmp_path, repo, probe):  # noqa: F811
+    """5.4: a pass reaches the latest of every standalone component, not one per
+    cycle; the evolution cycle's lane leaves them to it."""
+    u = probe(Probe())
+    u.standalone = True
+    e, db = eng(tmp_path, repo, provider=False, box=Box())
+    e.run = Run()
+    e.components_fn = lambda: [row("a", "1.0", "2.0", "probe"), row("b", "3.0", "4.0", "probe")]
+    assert e._component_lane("x", repo, "HEAD", {}, repo) is None      # left to the pass
+    seen = []
+    e.before_change = lambda why: seen.append(why) or {"state": "recent", "message": "ok"}
+    res = e.upgrade_pass("safe_auto")
+    assert [x["state"] for x in res["upgrades"]] == ["completed", "completed"]
+    assert sorted(c["title"] for c in db.candidates()) == [
+        "3PP upgrade: a 1.0 → 2.0", "3PP upgrade: b 3.0 → 4.0"]
+    assert seen == ["upgrading A", "upgrading B"]
+    assert any(a["event"] == "upgrade.restore_point" for a in db.audit_tail(limit=30))
+    # one that needs SysPerf to restart ends the pass; the rest go next time
+    u.restart = True
+    e.components_fn = lambda: [row("c", "1.0", "2.0", "probe"), row("d", "1.0", "2.0", "probe")]
+    e.on_applied = lambda: None
+    assert len(e.upgrade_pass("observe", "manual")["upgrades"]) == 1
 
 
 def test_upgrade_pass_skips_what_it_cannot_run_and_survives_errors(tmp_path, repo, probe,  # noqa: F811
@@ -633,8 +656,7 @@ def test_upgrade_pass_skips_what_it_cannot_run_and_survives_errors(tmp_path, rep
             row("flask", "1", "2", "pip-lock"), row("odd", "1", "2", "no-such-upgrader")]
     e.components_fn = lambda: rows
     assert e.upgrade_pass("observe", "manual")["reason"].startswith("every component")
-    # with a checkout and a sandbox, the evolution cycle runs them instead
-    assert e.upgrade_gate("self_evolve") == "the self-evolution cycle runs the upgrades"
+    assert e.upgrade_gate("self_evolve").startswith("next upgrade check")  # any auto level
     e._lock.acquire()
     assert e.upgrade_pass("observe", "manual")["reason"] == "a cycle is already running"
     e._lock.release()

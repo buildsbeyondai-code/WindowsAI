@@ -294,3 +294,17 @@ def test_the_trim_remediation_only_touches_large_working_sets():
     command = FixEngine().get("trim_working_sets").command
     assert "200MB" in command and "EmptyWorkingSet" in command
     assert "Select-Object -First 5" in command    # bounded
+
+
+def test_a_restore_point_comes_first_for_fixes_that_ask():
+    """5.4: the registry fix asks FixEngine.before_change for a restore point."""
+    ran, seen = [], []
+    eng = FixEngine(runner=lambda sh, cmd: (ran.append(cmd), (0, "done"))[1])
+    eng.before_change = lambda why: seen.append((why, len(ran))) or {"state": "created"}
+    res = eng.apply(["fix_registry_orphans", "flush_dns"], {})
+    assert seen == [("back up and remove your start-up and uninstall entries for missing "
+                     "programs", 0)]
+    assert res[0]["restore_point"] == {"state": "created"} and "restore_point" not in res[1]
+    eng.before_change = None
+    assert "restore_point" not in eng.apply(["fix_registry_orphans"], {})[0]
+

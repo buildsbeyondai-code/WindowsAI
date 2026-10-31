@@ -51,6 +51,7 @@ from . import optactions as optactions_mod
 from . import procwatch as procwatch_mod
 from . import pwsh_session as pwsh_mod
 from . import rca as rca_mod
+from . import restorepoint as restorepoint_mod
 from . import session_policy as session_policy_mod
 from . import settings_hub as settings_mod
 from . import store_mode as store_mode_mod
@@ -173,6 +174,15 @@ fix_engine = FixEngine()
 # 5.3: slow read-only maintenance checks, scanned every 6 h into a cached report.
 maintenance = maintenance_mod.Maintenance(MAINTENANCE_FILE, PS_EXE if CAN_COLLECT else None,
                                           backup_dir=MAINTENANCE_BACKUP_DIR)
+# 5.4: SysPerf creates System Restore points itself, through a helper task set up
+# once with one UAC prompt. Windows-only: the helper is a Windows scheduled task.
+restore_points = restorepoint_mod.RestorePoints(
+    DATA_DIR / "restore_points.json", PS_EXE if CAN_COLLECT and os.name == "nt" else None,
+    run=maintenance_mod._default_run, default_auto=not STORE_MODE)
+fix_engine.before_change = restore_points.ensure
+maintenance.before_change = restore_points.ensure
+maintenance.restore_newest = restore_points.newest
+maintenance.auto_fn = lambda: action_policy.level in ("safe_auto", "self_evolve")
 trend_store = TrendStore(TRENDS_FILE)
 # Long-term reasoning needs history on day one: import the adaptive scorer's
 # per-day aggregates for any (day, metric) the trend store does not have yet.
@@ -342,11 +352,12 @@ def _components_now() -> list:
 if not STORE_MODE:
     code_evolution.components_fn = _components_now
 code_evolution.on_applied = lambda: _restart_soon()
+code_evolution.before_change = restore_points.ensure
 # Store mode: everything that acts outside the app is opt-in and listed on Home.
 store_features = store_mode_mod.StoreFeatures(
     DATA_DIR / "store_features.json", store_mode=STORE_MODE, action_policy=action_policy,
     improver=improver, proc_watchdog=proc_watchdog, tray_quitter=tray_quitter,
-    session_policy=session_policy)
+    session_policy=session_policy, restore_points=restore_points)
 app = Flask(__name__, static_folder=None)
 
 # Per-process CSRF token: required on POST /api/fix so a mutating action cannot
@@ -493,15 +504,48 @@ def api_maintenance_scan():
     return jsonify({"started": maintenance.scan_async()})
 
 
+@app.get("/api/restorepoint")
+def api_restorepoint():
+    """Automatic restore points: on/off, helper set up, newest restore point."""
+    return jsonify(restore_points.describe())
+
+
+@app.post("/api/restorepoint")
+def api_restorepoint_act():
+    """Body: {"action": setup|create|remove|auto, "on": bool, "token"}.
+
+    setup and remove show the Windows UAC prompt; setup and create run in the
+    background (create waits for Windows, which can take minutes).
+    """
+    body = request.get_json(silent=True) or {}
+    if (bad := _csrf(body)):
+        return bad
+    action = str(body.get("action") or "")
+    if action == "auto":
+        return jsonify({"auto": restore_points.set_auto(bool(body.get("on")))})
+    jobs = {"setup": lambda: restore_points.setup(),
+            "create": lambda: restore_points.ensure("a manual request"),
+            "remove": restore_points.remove}
+    if action not in jobs:
+        return jsonify({"error": "action must be one of setup, create, remove, auto"}), 400
+    if restore_points.ps_exe is None:
+        return jsonify({"error": "restore points need SysPerf running on Windows"}), 400
+    threading.Thread(target=jobs[action], daemon=True).start()
+    return jsonify({"started": True, "action": action})
+
+
 @app.post("/api/maintenance/upgrade")
 def api_maintenance_upgrade():
-    """Update one app the last scan listed. Body: {"id": "<winget id>", "token"}."""
+    """Update one app the last scan listed. Body: {"id": "<winget id>", "token"}, or
+    {"machine_wide": true, "token"} for every machine-wide one after one UAC prompt."""
     body = request.get_json(silent=True) or {}
     if (bad := _csrf(body)):
         return bad
     if not FIX_ENABLED:
         return jsonify({"error": "fix execution disabled (PERFDASH_FIX_ENABLED=0)"}), 403
     try:
+        if body.get("machine_wide") is True:
+            return jsonify(maintenance.start_admin_batch())
         return jsonify(maintenance.start_upgrade(str(body.get("id") or "")))
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -1684,6 +1728,9 @@ def main() -> None:
     _start("action-verification", _verify_actions_loop)
     _start("housekeeping", _housekeeping_loop)
     _start("maintenance", maintenance.loop)
+    if restore_points.ps_exe is not None:
+        _start("restore-points", restore_points.loop,
+               lambda: not (collector.latest or {}).get("session_locked"))
     if VERSION_CHECK:
         _start("version-check", latest_versions.loop)
     if PLATFORM == "windows":

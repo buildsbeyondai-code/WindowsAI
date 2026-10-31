@@ -2,6 +2,18 @@
 
 _Last updated: 2026-10-25, release 5.0.0._
 
+## 5.4.0 (2026-10-31)
+
+- SysPerf creates System Restore points itself (`restorepoint.py`,
+  `restore_point.ps1`) before the registry fix, app updates and component
+  upgrades, and weekly; set up once after one UAC prompt.
+- Apps update themselves after each 6-hourly scan from Safe-auto. Machine-wide
+  installs need an administrator, so they are updated together after one
+  prompt instead of hanging unattended; an update an open app blocked is shown
+  as waiting and retried; a timeout stops the installers winget started.
+- Components: one pass upgrades every outdated Windows-side component.
+- GitHub, then the Store after verification.
+
 ## 5.3.0 (2026-10-30)
 
 - Maintenance check (`maintenance.py`, `maintenance.ps1`): seven Details

@@ -232,6 +232,18 @@ $report.app_updates = Section {
                 current = $l.Substring($cv, $ca - $cv).Trim(); available = $l.Substring($ca, $end - $ca).Trim() }
         }
     }
+    # 5.4: where each app is installed. A machine-wide installer needs an
+    # administrator, so an unattended update of one would wait on a UAC prompt.
+    $scope = @{}; $cur = $null
+    $det = & winget list --upgrade-available --details --accept-source-agreements --disable-interactivity 2>$null | Out-String
+    foreach ($l in ($det -split "`r?`n")) {
+        if ($l -match '^\(\d+/\d+\) .*\[([^\]]+)\]\s*$') { $cur = $Matches[1]; continue }
+        if (-not $cur) { continue }
+        if ($l -match '^Installed Scope:\s*(\w+)') { $scope[$cur] = $Matches[1].ToLower() }
+        elseif ($l -match '^Local Identifier:\s*(MSIX|ARP\\Machine|ARP\\User)' -and -not $scope.ContainsKey($cur)) {
+            $scope[$cur] = @{ 'MSIX' = 'msix'; 'ARP\Machine' = 'machine'; 'ARP\User' = 'user' }[$Matches[1]] }
+    }
+    foreach ($a in $apps) { $a.scope = $scope[$a.id] }
     [ordered]@{ available = $true; apps = $apps }
 }
 
