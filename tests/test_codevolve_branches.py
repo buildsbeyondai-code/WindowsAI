@@ -4,6 +4,7 @@ import json
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -452,3 +453,24 @@ def test_real_edit_on_a_crlf_checkout_changes_only_its_lines(tmp_path, repo):
 def test_match_eol():
     assert cv._match_eol("a\nb\n", True) == "a\r\nb\r\n"
     assert cv._match_eol("a\r\nb\n", False) == "a\nb\n"
+
+
+def test_an_upgrade_the_suite_rejected_is_retried_after_a_new_commit(tmp_path, repo):
+    # 5.4.1 live: Python 3.15.2 was rejected while the checkout was mid-edit, and
+    # "one try per version" would have kept it stuck for good
+    e, db = eng(tmp_path, repo)
+    db.start_cycle("c", "upgrade:schedule")
+    base = {"cycle_id": "c", "target": "t", "rationale": "r", "protected": 0, "files": "[]",
+            "static_ok": 1, "security_ok": 1, "reason": "x", "details": "{}"}
+    future = time.time() + 3600
+    for cid, title, created, decision, tests_ok in (
+            ("c-1", "3PP upgrade: python 1 → 2", 0.0, "rejected", 0),    # before HEAD: retry
+            ("c-2", "3PP upgrade: pytest 1 → 2", future, "rejected", 0),  # after HEAD: wait
+            ("c-3", "3PP upgrade: git 1 → 2", 0.0, "rejected", 1),        # apply failed: keep
+            ("c-4", "3PP upgrade: edge 1 → 2", 0.0, "retained", 1)):
+        db.add_candidate({**base, "id": cid, "title": title, "created": created,
+                          "decision": decision, "tests_ok": tests_ok, "review_state": "none"})
+    assert e._tried() == {"3PP upgrade: pytest 1 → 2", "3PP upgrade: git 1 → 2",
+                          "3PP upgrade: edge 1 → 2"}
+    e.settings["repo"] = str(tmp_path / "not-a-repo")                  # no HEAD: retry nothing
+    assert "3PP upgrade: python 1 → 2" in e._tried()

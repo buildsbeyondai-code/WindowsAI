@@ -2,6 +2,11 @@
 
 _Last updated: 2026-10-25, release 5.0.0._
 
+## 5.4.2 (2026-10-31)
+
+- An upgrade rejected by the test suite is retried once the checkout has a
+  newer commit (Python 3.15.2 had been rejected by a mid-edit checkout).
+
 ## 5.4.1 (2026-10-31)
 
 - Component upgrades drain in hours: the next cycle follows after `cooldown_s`
