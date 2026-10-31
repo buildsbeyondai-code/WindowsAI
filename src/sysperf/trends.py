@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import threading
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 
 from .config import CRITERIA
@@ -109,6 +110,7 @@ def _ols(xs: list[float], ys: list[float]) -> float | None:
     return sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / den
 
 
+@lru_cache(maxsize=4096)
 def _ordinal(day: str) -> int:
     """Day string -> ordinal day number, so gaps in the record are real gaps."""
     y, m, d = (int(p) for p in day.split("-"))
