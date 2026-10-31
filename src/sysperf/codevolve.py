@@ -742,6 +742,8 @@ class CodeEvolution:
                     self.run_cycle(trig, level_fn(), detail=self._pending_event)
                 self._pending_event = None
                 self.upgrade_pass(level_fn())
+                if level_fn() == "self_evolve":
+                    self.auto_apply_pending()
             except Exception:        # pragma: no cover - the loop must survive anything
                 log.exception("evolution loop error")
                 self._state = "failed"
@@ -1459,6 +1461,64 @@ class CodeEvolution:
     # --------------------------------------------------------------- deploy
     def pending_apply(self) -> dict | None:
         return read_marker(self.state_dir)
+
+    def auto_apply_pending(self) -> dict | None:
+        """With auto_apply on, deploy the oldest winner still waiting for review.
+
+        Winners kept before auto_apply was switched on, or measured on a main
+        that has moved since, used to wait for a click that was no longer
+        wanted (5.4.6 live). A candidate on the current main is applied as it is;
+        one built on an older main is replayed onto today's main and must pass
+        the full suite in the sandbox first, else it is rejected with the reason.
+        """
+        if not self.settings.get("auto_apply") or self.pending_apply():
+            return None
+        self.reconcile_shipped()
+        waiting = [c for c in self.db.candidates(limit=500)
+                   if c["decision"] == "retained" and c.get("branch")
+                   and c["review_state"] in ("pending", "approved")]
+        if not waiting or not self._lock.acquire(blocking=False):
+            return None
+        c = waiting[-1]                               # oldest first
+        try:
+            repo = Path(self.settings["repo"])
+            head = _git(repo, "rev-parse", "HEAD").strip()
+            if _git(repo, "rev-parse", c["commit_sha"] + "^").strip() != head:
+                why = self._reverify(c, repo, head)
+                if why:
+                    self.db.update_candidate(c["id"], decision="rejected", review_state="none",
+                                             reason=f"re-checked on the current main: {why}"[:2000])
+                    self.db.audit("evolution", "candidate.reverify_failed",
+                                  {"id": c["id"], "reason": why[:300]})
+                    return {"applied": False, "id": c["id"], "reason": why}
+            self._apply_after = c["id"]
+        finally:
+            self._lock.release()
+        self._auto_apply()
+        return {"applied": True, "id": c["id"]}
+
+    def _reverify(self, c: dict, repo: Path, head: str) -> str | None:
+        """Replay ``c`` onto ``head`` and run the suite; why it failed, or None."""
+        wt = self._worktree(repo, head, f"{c['id']}-recheck")
+        try:
+            try:
+                _git(wt, "-c", "user.name=SysPerf Evolution",
+                     "-c", "user.email=evolution@sysperf.invalid",
+                     "cherry-pick", c["commit_sha"])
+            except RuntimeError as exc:
+                return f"it no longer applies ({exc})"
+            t = self._tests(wt)
+            if t.get("blocked") or t["rc"] != 0 or t["failed"] or t["errors"]:
+                return f"tests: {t.get('summary')}"
+            branch = f"{c['branch']}-on-{head[:8]}"
+            _git(wt, "branch", "-f", branch)
+            sha = _git(wt, "rev-parse", "HEAD").strip()
+            self.db.update_candidate(c["id"], branch=branch, commit_sha=sha)
+            self.db.audit("evolution", "candidate.reverified",
+                          {"id": c["id"], "sha": sha, "base": head, "tests": t.get("summary")})
+            return None
+        finally:
+            self._drop_worktree(repo, wt)
 
     def apply(self, cand_id: str, actor: str = "user") -> dict:
         """Fast-forward main to a retained candidate (applying implies approval).

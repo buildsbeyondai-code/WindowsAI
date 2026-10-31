@@ -2,6 +2,11 @@
 
 _Last updated: 2026-10-25, release 5.0.0._
 
+## 5.4.7 (2026-10-31)
+
+- Live Wi-Fi speed (3 s) with charts that have axes, values and times.
+- Auto-apply also deploys winners left waiting, re-checked on the current main.
+
 ## 5.4.6 (2026-10-31)
 
 - Driver rows follow what Windows Update offers the PC (daily, search only)

@@ -669,6 +669,8 @@ def test_the_common_fix_modal_opens_previews_applies_and_closes(browser, site):
 # here.
 CONDITIONAL = {
     "alerts": "empty when nothing is wrong, which is the stubbed state",
+    "wfLive": "the live Wi-Fi chart needs signal from the WLAN service; the stubbed PC "
+              "has Location off (test_e2e_v41 covers it with signal)",
     "autoMsg": "a status line, written only after an action",
     "evoMsg": "a status line, written only after an action",
     "sevMsg": "a status line, written only after a self-evolution control is used",

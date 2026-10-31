@@ -80,3 +80,12 @@ def test_api_failures_return_nothing(win, monkeypatch):
     assert ls.read() == {}
     monkeypatch.setattr(ctypes, "windll", SimpleNamespace(), raising=False)
     assert ls.read() == {}                                   # AttributeError path
+
+
+def test_wifi_throughput_from_two_counter_reads():
+    # 5.4.7: Wi-Fi speed is live; traffic is the byte-counter delta between reads
+    from sysperf.livestats import throughput
+    assert throughput(None, (10.0, 1000, 500)) == (None, None)                 # first read
+    assert throughput((10.0, 0, 0), (12.0, 2_500_000, 250_000)) == (10.0, 1.0)  # Mbps
+    assert throughput((10.0, 9, 9), (12.0, 5, 20)) == (None, None)             # counter reset
+    assert throughput((10.0, 0, 0), (10.0, 5, 5)) == (None, None)              # no time passed

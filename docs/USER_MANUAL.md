@@ -1,6 +1,6 @@
 # SysPerf User Manual
 
-**System Performance Agent — version 5.4.6**
+**System Performance Agent — version 5.4.7**
 
 A self-improving performance dashboard for Windows 11. It measures the PC, explains
 what holds it back, and changes it only in ways it lists and you can undo.

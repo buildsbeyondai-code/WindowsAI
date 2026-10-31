@@ -4,6 +4,27 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.4.7 — 2026-10-31
+
+### Fixed
+- **Wi-Fi speed is live and readable.** Rx/Tx came from the minute sample and the
+  chart under them had no axis, values, times or legend. The live feed (every
+  3 s, in-process: `wlanapi` for the negotiated Rx/Tx rate and signal, the
+  adapter's byte counters for real traffic) now updates the bars, shows
+  download/upload now, and draws a live chart with a Mbps axis, time labels and
+  a legend. Link-rate history (new `wifi_rx_mbps` / `wifi_tx_mbps` series) and
+  signal history (with the 70% "good" line) are charted the same way.
+- **Waiting winners are applied when auto-apply is on.** A winner kept before
+  the switch, or measured on a main that has moved, kept waiting for approval
+  and Apply refused it. Each scheduler tick now takes the oldest one: on the
+  current main it is applied; otherwise it is replayed onto today's main and
+  must pass the full suite in the sandbox first, or it is rejected with the
+  reason.
+
+### Changed
+- Self-evolution's `trends` memoisation (TrendStore.analyze 36% faster),
+  re-checked on the current main.
+
 ## 5.4.6 — 2026-10-31
 
 ### Fixed
