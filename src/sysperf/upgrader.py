@@ -54,6 +54,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from .version_check import git_windows_version
+
 TASK = "SysPerf Dashboard"
 TEST_DISTRO = "sysperf-upgrade-test"
 MIN_FREE_GB = 20
@@ -718,7 +720,7 @@ class Winget(Upgrader):
 
     def test(self, up, host):
         url, tag = host.github_asset("git-for-windows/git", r"PortableGit-[\d.]+-64-bit\.7z\.exe")
-        if up["to"] not in tag:
+        if git_windows_version(tag) != up["to"]:
             return f"the newest Git for Windows release is {tag}, not {up['to']}"
         exe = host.download(url, "PortableGit.7z.exe")
         root = host.staging / "PortableGit"
@@ -742,7 +744,8 @@ class Winget(Upgrader):
 
     def verify(self, up, host):
         rc, out = host.run(["git", "--version"], timeout=60)
-        return (None if up["to"] in out else f"git reports {out.strip()[:60]}") or \
+        return (None if git_windows_version(out) == up["to"] else
+                f"git reports {out.strip()[:60]}") or \
             self._smoke(host, "git")
 
     def rollback(self, up, bk, host):

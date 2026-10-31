@@ -25,6 +25,7 @@ from pathlib import Path
 
 from .background_process import run_hidden
 from .config import BASE, DATA_DIR, PLATFORM, lock_packages
+from .version_check import git_windows_version
 
 log = logging.getLogger("perfdash")
 
@@ -170,7 +171,7 @@ def _toolchain_versions(v: dict) -> dict:
         except metadata.PackageNotFoundError:
             pass
     if PLATFORM == "windows":
-        v["git-windows"] = _ver(_run(["git", "--version"]))
+        v["git-windows"] = git_windows_version(_run(["git", "--version"]))
         wsl_exe = shutil.which("wsl.exe") or shutil.which("wsl")
         if wsl_exe:
             # A non-interactive shell skips ~/.bashrc, so add the user bins by

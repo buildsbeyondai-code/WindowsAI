@@ -2,6 +2,11 @@
 
 _Last updated: 2026-10-25, release 5.0.0._
 
+## 5.4.9 (2026-10-31)
+
+- App updates: exact-package install fallback, publisher updaters (MiKTeX),
+  Git for Windows revisions compared.
+
 ## 5.4.8 (2026-10-31)
 
 - Hand-cherry-picked pending winners count as shipped; disabling evolution stops auto-apply.

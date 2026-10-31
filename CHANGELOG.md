@@ -4,6 +4,19 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.4.9 — 2026-10-31
+
+### Fixed
+- **Apps that would not update now update themselves** (Details → App updates):
+  - When `winget upgrade` lists a newer version but then reports "no newer
+    package versions" (Zoom 7.2.1 → 7.2.5), SysPerf installs the exact package
+    over it, in the same scope.
+  - Apps whose winget package refuses upgrades but have their own updater are
+    updated with it: MiKTeX through `miktex packages update` (23.4 → 26.5).
+  - Git for Windows' revision is kept: 2.56.0.windows.3 was read as "2.56.0",
+    equal to .windows.4, so Git was never updated. Components and its Git
+    upgrader now compare 2.56.0.3 with 2.56.0.4.
+
 ## 5.4.8 — 2026-10-31
 
 ### Fixed
