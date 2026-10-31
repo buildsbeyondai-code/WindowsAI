@@ -477,3 +477,23 @@ def test_an_upgrade_the_suite_rejected_is_retried_after_a_new_commit(tmp_path, r
                           "3PP upgrade: edge 1 → 2"}
     e.settings["repo"] = str(tmp_path / "not-a-repo")                  # no HEAD: retry nothing
     assert "3PP upgrade: python 1 → 2" in e._tried()
+
+
+def test_a_pending_winner_cherry_picked_by_hand_counts_as_shipped(tmp_path, repo):
+    # 5.4.7 live: the trends patch was cherry-picked onto main while still pending;
+    # auto-apply would have replayed it onto a main that already had it
+    e, db = eng(tmp_path, repo)
+    sha = _approved(db, repo, "c-hand", "evo/h")
+    db.update_candidate("c-hand", review_state="pending")
+    _git_t(repo, "cherry-pick", "-x", sha)
+    assert e.reconcile_shipped() == ["c-hand"]
+    assert db.candidate("c-hand")["review_state"] == "applied"
+
+
+def test_auto_apply_waits_while_evolution_is_disabled(tmp_path, repo):
+    e, db = eng(tmp_path, repo, auto_apply=True)
+    _approved(db, repo, "c-off", "evo/o")
+    db.update_candidate("c-off", review_state="pending")
+    e.settings["enabled"] = False
+    assert e.auto_apply_pending() is None                   # disabled stops everything
+    assert db.candidate("c-off")["review_state"] == "pending"
