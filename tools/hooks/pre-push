@@ -15,3 +15,6 @@ if [ -n "$LOCALAPPDATA" ]; then
 else
   "$PY" -m pytest -q -rs -p no:cacheprovider
 fi
+# The self-evolution baseline: the same suite inside its sandbox (bubblewrap),
+# which CI does not reproduce. Skips itself where no sandbox backend exists.
+"$PY" tools/sandbox_suite.py

@@ -2,6 +2,11 @@
 
 _Last updated: 2026-10-25, release 5.0.0._
 
+## 5.4.3 (2026-10-31)
+
+- Sandbox baseline green again (a test needed 20 GB free in the sandbox's
+  small /tmp); `tools/sandbox_suite.py` runs in pre-push. GitHub only.
+
 ## 5.4.2 (2026-10-31)
 
 - An upgrade rejected by the test suite is retried once the checkout has a
