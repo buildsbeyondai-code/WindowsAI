@@ -45,7 +45,7 @@ $UninstallKeys = @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
                    'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
                    'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
 
-function Get-RegistryOrphans {
+function Get-RegistryOrphan {
     $out = @()
     foreach ($k in $RunKeys) {
         $item = Get-ItemProperty -LiteralPath $k
@@ -80,13 +80,13 @@ $Browsers = @(
     @{ name = 'Microsoft Edge'; proc = 'msedge'; root = "$env:LOCALAPPDATA\Microsoft\Edge\User Data" },
     @{ name = 'Google Chrome'; proc = 'chrome'; root = "$env:LOCALAPPDATA\Google\Chrome\User Data" },
     @{ name = 'Brave'; proc = 'brave'; root = "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data" })
-function Get-BrowserCacheDirs($b) {
+function Get-BrowserCacheDir($b) {
     if (-not (Test-Path -LiteralPath $b.root)) { return @() }
     Get-ChildItem -LiteralPath $b.root -Directory | Where-Object { $_.Name -eq 'Default' -or $_.Name -like 'Profile *' } |
         ForEach-Object { foreach ($c in 'Cache', 'Code Cache', 'GPUCache') {
             $d = Join-Path $_.FullName $c; if (Test-Path -LiteralPath $d) { $d } } }
 }
-function Get-FirefoxCacheDirs {
+function Get-FirefoxCacheDir {
     $r = "$env:LOCALAPPDATA\Mozilla\Firefox\Profiles"
     if (Test-Path -LiteralPath $r) { Get-ChildItem -LiteralPath $r -Directory | ForEach-Object {
         $d = Join-Path $_.FullName 'cache2'; if (Test-Path -LiteralPath $d) { $d } } }
@@ -97,7 +97,7 @@ if ($Mode -eq 'fix-registry') {
     if (-not $Backup) { 'no backup folder given - nothing changed'; exit 1 }
     New-Item -ItemType Directory -Force -Path $Backup | Out-Null
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $mine = @(Get-RegistryOrphans | Where-Object user)
+    $mine = @(Get-RegistryOrphan | Where-Object user)
     if (-not $mine) { 'no orphaned entries for this user - nothing changed'; exit 0 }
     $n = 0
     foreach ($o in $mine) {
@@ -118,7 +118,7 @@ if ($Mode -eq 'clear-browser-cache') {
     $freed = 0
     foreach ($b in $Browsers + @(@{ name = 'Firefox'; proc = 'firefox'; ff = $true })) {
         if (Get-Process -Name $b.proc -ErrorAction SilentlyContinue) { "skipped $($b.name): it is running"; continue }
-        $dirs = if ($b.ff) { Get-FirefoxCacheDirs } else { Get-BrowserCacheDirs $b }
+        $dirs = if ($b.ff) { Get-FirefoxCacheDir } else { Get-BrowserCacheDir $b }
         foreach ($d in $dirs) {
             $before = Get-DirSize $d
             Get-ChildItem -LiteralPath $d -Force | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
@@ -138,9 +138,9 @@ $report.protection = Section {
     # Restore points themselves need admin to list; the event System Restore
     # writes when it creates one (8194) is readable. No provider = none recorded.
     $rp = $null
-    try { $rp = Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = 'Microsoft-Windows-SystemRestore'; Id = 8194 } -MaxEvents 1 -ErrorAction Stop } catch { }
+    try { $rp = Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = 'Microsoft-Windows-SystemRestore'; Id = 8194 } -MaxEvents 1 -ErrorAction Stop } catch { Write-Verbose "no such event: $_" }
     $cbs = $null
-    try { $cbs = Get-WinEvent -LogName Setup -MaxEvents 1 -ErrorAction Stop } catch { }
+    try { $cbs = Get-WinEvent -LogName Setup -MaxEvents 1 -ErrorAction Stop } catch { Write-Verbose "no such event: $_" }
     [ordered]@{
         last_restore_point = if ($rp) { [DateTimeOffset]::new($rp.TimeCreated).ToUnixTimeSeconds() } else { $null }
         last_servicing = if ($cbs) { [DateTimeOffset]::new($cbs.TimeCreated).ToUnixTimeSeconds() } else { $null }
@@ -152,11 +152,11 @@ $report.cleanup = Section {
     $items += [ordered]@{ id = 'temp'; label = 'Your TEMP folder'; mb = Get-DirSize $env:TEMP; fix = 'clear_temp' }
     $items += [ordered]@{ id = 'crashdumps'; label = 'App crash dumps'; mb = Get-DirSize "$env:LOCALAPPDATA\CrashDumps"; fix = $null }
     foreach ($b in $Browsers) {
-        $dirs = @(Get-BrowserCacheDirs $b)
+        $dirs = @(Get-BrowserCacheDir $b)
         if ($dirs) { $items += [ordered]@{ id = $b.proc; label = "$($b.name) cache"
             mb = [math]::Round((($dirs | ForEach-Object { Get-DirSize $_ }) | Measure-Object -Sum).Sum, 1); fix = 'clear_browser_cache' } }
     }
-    $ff = @(Get-FirefoxCacheDirs)
+    $ff = @(Get-FirefoxCacheDir)
     if ($ff) { $items += [ordered]@{ id = 'firefox'; label = 'Firefox cache'
         mb = [math]::Round((($ff | ForEach-Object { Get-DirSize $_ }) | Measure-Object -Sum).Sum, 1); fix = 'clear_browser_cache' } }
     $wu = "$env:SystemRoot\SoftwareDistribution\Download"
@@ -171,7 +171,7 @@ $report.cleanup = Section {
 }
 
 $report.registry = Section {
-    $o = @(Get-RegistryOrphans)
+    $o = @(Get-RegistryOrphan)
     [ordered]@{ orphans = @($o | ForEach-Object { [ordered]@{ kind = $_.kind; key = $_.key; name = $_.name; target = $_.target; user = [bool]$_.user } })
                 checked = @{ startup_keys = $RunKeys.Count; uninstall_keys = $UninstallKeys.Count } }
 }

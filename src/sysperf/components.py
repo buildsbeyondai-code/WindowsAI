@@ -185,6 +185,14 @@ def _live_latest() -> dict:
         return {}
 
 
+def _local_date(ts) -> str:
+    """YYYY-MM-DD of a Unix time in this machine's zone; "" when not a time."""
+    try:
+        return datetime.fromtimestamp(float(ts)).strftime("%Y-%m-%d")
+    except (TypeError, ValueError, OverflowError, OSError):
+        return ""
+
+
 def effective_latest(catalog: str, live: str, current: str) -> tuple[str, str]:
     """(target, source) for a version row.
 
@@ -259,17 +267,32 @@ def build_components(latest: dict) -> dict:
                 c.get("latest", ""), live_latest.get(key, ""), cur)
             cmp = _cmp(cur, row["latest"])
             row["outdated"] = (cmp is not None and cmp < 0)
+        rows.append(row)
+
+    # A component that ships inside another (the WSL kernel in WSL) cannot be
+    # upgraded while its carrier is current: the newer build is not released
+    # in it yet. It waits for the carrier rather than reading as an upgrade.
+    by_key = {r["key"]: r for r in rows}
+    for row in rows:
+        carrier = by_key.get(row["upgrade"].get("of", "")) \
+            if row["upgrade"].get("via") == "follows" else None
+        if row["outdated"] and carrier and not carrier.get("missing") \
+                and not carrier["outdated"]:
+            row.update(outdated=False, waiting_on=carrier["name"])
+    for row in rows:
         if row["outdated"]:
             upg += 1
             uplift_sum += row["perf"]
-        rows.append(row)
 
     # Outdated first, then by performance benefit; not-installed rows last.
     rows.sort(key=lambda r: (r.get("missing", False), not r["outdated"], -r["perf"]))
     avg_uplift = round(uplift_sum / upg) if upg else 0
     return {
         "rows": rows,
-        "assessment_date": cat.get("assessment_date", ""),
+        # The assessment is as fresh as its last live re-check; the catalog date is
+        # only when the hand-reviewed fallbacks were last edited.
+        "assessment_date": max(cat.get("assessment_date", ""), _local_date(live.get("checked_at"))),
+        "catalog_date": cat.get("assessment_date", ""),
         "latest_checked_at": live.get("checked_at"),
         "note": cat.get("note", ""),
         "upgrades": upg,

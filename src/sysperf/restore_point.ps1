@@ -56,7 +56,7 @@ switch ($Mode) {
         Register-ScheduledTask -TaskName $Task -Action $action -Principal $principal -Settings $settings `
             -Description 'Creates a System Restore point when SysPerf asks for one.' -Force | Out-Null
         $enabled = $false
-        try { Enable-ComputerRestore -Drive "$env:SystemDrive\"; $enabled = $true } catch { }
+        try { Enable-ComputerRestore -Drive "$env:SystemDrive\"; $enabled = $true } catch { Write-Verbose "System Restore stays off: $_" }
         Write-Status $true ("installed" + $(if ($enabled) { "; System Restore is on for $env:SystemDrive" } else { "" })) $false
         'installed'
     }

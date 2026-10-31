@@ -599,6 +599,11 @@ class CodeEvolution:
         wait = self.settings["interval_s"]
         if last["state"] in ("failed",) and "retryable" in (last.get("error") or ""):
             wait = min(wait, self.settings["cooldown_s"])
+        # A cycle that upgraded a component makes one change; the next one in the
+        # queue follows after the cooldown, not a full interval later (7 outdated
+        # components took 42 h at 6 h apart).
+        if last.get("provider") == "3pp" and last["state"] in ("completed", "failed"):
+            wait = min(wait, self.settings["cooldown_s"])
         return last["started"] + wait
 
     def gate(self, trigger: str, level: str) -> str | None:

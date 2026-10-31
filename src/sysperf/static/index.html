@@ -2723,6 +2723,8 @@ function render(d) {
       ? `<span class="tag">${c.optional ? "optional · not installed" : "not installed"}</span>`
       : c.outdated
       ? `<span class="tag tr">upgrade</span>`
+      : c.waiting_on
+      ? `<span class="tag ta" title="${esc(c.latest)} is not in a ${esc(c.waiting_on)} release yet">waiting for ${esc(c.waiting_on)} release</span>`
       : `<span class="tag tg">current</span>`;
     const curTxt = esc(c.current || "—") + (c.current_date
       ? ` <span class="hint">(${esc(c.current_date)}${c.months_old != null ? ", " + c.months_old + " mo" : ""})</span>` : "");
@@ -2747,7 +2749,7 @@ function render(d) {
           <div class="v v-ok">${CP.avg_uplift ?? 0}<span class="u"> / 100</span></div>
           <div class="t">mean score across recommended upgrades</div></div></div></div></div>
       <div class="card"><h3>Assessment</h3>
-        <div class="note keep">Dated <b>${esc(CP.assessment_date || "—")}</b>.<br>
+        <div class="note keep">Dated <b>${esc(CP.assessment_date || "—")}</b>${CP.catalog_date && CP.catalog_date !== CP.assessment_date ? ` (catalog fallbacks reviewed ${esc(CP.catalog_date)})` : ""}.<br>
           Current versions are measured live. "Latest" is each vendor's newest public release,
           checked daily${CP.latest_checked_at ? ` (last ${esc(localTime(CP.latest_checked_at))})` : ""}; rows without a public feed use the reviewed catalog.
           Driver freshness is judged by age (recommend at ≥9 months).</div></div>

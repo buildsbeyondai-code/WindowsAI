@@ -120,6 +120,8 @@ def test_cycle_bookkeeping(tmp_path):
     d.start_cycle("c1", "manual")
     d.update_cycle("c1", state="failed", finished=time.time())
     assert d.cycles()[0]["state"] == "failed" and d.cycles_since(0) == 1
+    d.update_cycle("c1", provider="3pp")                   # upgrades spend no daily allowance
+    assert d.cycles_since(0) == 0
     assert d.recover() == 0
     with pytest.raises(sqlite3.IntegrityError):
         d.add_candidate({"id": "x", "cycle_id": "missing", "created": 1})
