@@ -4,6 +4,35 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.4.4 — 2026-10-31
+
+### Fixed
+- **Store updates no longer fail the first time.** Windows will not replace a
+  package while it runs, so with the SysPerf window open every update failed
+  once with 0x80073D02 ("apps need to be closed") and only Retry, which
+  force-closes the app, worked; Store auto-updates, which never force, could
+  wait indefinitely. The window now watches the AppX deployment log
+  (`selfupdate.py`); when Windows stages a newer SysPerf it starts a relauncher
+  outside the package, closes, and the relauncher opens the new version once
+  it is registered. Works from the next update after 5.4.4 (the running
+  version is the one that must close).
+- **Dev tools upgrade again.** The dependency check meant for hash-locked
+  packages also ran for dev tools, which are not in `requirements.lock`, so it
+  refused every one ("pytest 9.2.0 needs colorama"). It now applies only to
+  locked packages, and a release refused before its tests ran is retried after
+  the next commit.
+
+### Added
+- **Upgrades bring their dependencies.** Self-evolution regenerates
+  `requirements.lock` with uv, the same command CI checks it with, so a new or
+  newer dependency enters the lock with its hashes and is installed on deploy;
+  the sandbox tests the full resolved set for its Linux Python. A package the
+  resolver adds becomes a Components row with a live PyPI feed and is upgraded
+  like the rest. `uv` is pinned as a dev tool (`requirements-dev.txt`).
+- **A light theme as rich as the dark one.** An aurora backdrop, brighter
+  frosted cards with tinted edges and depth, gradient title and active tab,
+  and darker secondary text for contrast. Dark mode is unchanged.
+
 ## 5.4.3 — 2026-10-31
 
 ### Fixed

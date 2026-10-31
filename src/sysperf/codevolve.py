@@ -507,6 +507,7 @@ class CodeEvolution:
         self.components_fn = None        # Components rows; None turns the upgrade lane off
         self.before_change = None        # before_change(reason) -> dict: a restore point
         self.http_get = depupgrade.http_get_bytes
+        self.uv_fn = depupgrade.uv_cmd   # the resolver that brings dependencies along
         self.run = run_text
         self._apply_after: str | None = None
         self._restart_after = False
@@ -981,17 +982,18 @@ class CodeEvolution:
     def _tried(self) -> set:
         """Titles of upgrade attempts not to repeat.
 
-        An upgrade rejected because the test suite failed is tried again once the
-        checkout has a newer commit: the failure may have been the code's, not the
-        upgrade's (5.4.1 live: Python 3.15.2 was rejected while the version was
-        being bumped in the checkout, and would never have been retried).
+        An upgrade rejected before its tests passed (the suite failed, or SysPerf's
+        own checks refused the release) is tried again once the checkout has a
+        newer commit: the cause may have been the code's, not the upgrade's
+        (5.4.1 live: Python 3.15.2 was rejected while the version was being bumped
+        in the checkout; 5.4.3: a wrong lock check refused pytest 9.2.0).
         """
         try:
             head_at = float(_git(Path(self.settings["repo"]), "log", "-1", "--format=%ct").strip())
         except (RuntimeError, ValueError, TypeError, OSError):
             head_at = 0.0
         return {c["title"] for c in self.db.candidates(limit=1000)
-                if not (c["decision"] == "rejected" and c["tests_ok"] == 0
+                if not (c["decision"] == "rejected" and not c["tests_ok"]
                         and c["created"] < head_at)}
 
     def _upgrade_title(self, u, up: dict) -> str:
@@ -1093,7 +1095,9 @@ class CodeEvolution:
         pyver = self._sandbox_pyver()
         try:
             rel = depupgrade.release(up["name"], up["latest"], self.http_get)
-            why = depupgrade.unsuitable(rel, depupgrade.locked(repo), pyver)
+            uv = self.uv_fn()
+            lock = depupgrade.locked(repo)
+            why = depupgrade.unsuitable(rel, lock, pyver, resolver=bool(uv))
             wheel = None if why else depupgrade.fetch_wheel(rel, self.http_get, pyver)
         except Exception as exc:          # network, or a malformed PyPI answer
             return self._finish(cid, "failed", f"3PP upgrade of {up['name']}: release "
@@ -1102,7 +1106,23 @@ class CodeEvolution:
             return self._reject(cid, cand, why)
         wt = self._worktree(repo, base_sha, cand["id"])
         try:
-            cand["files"] = json.dumps(depupgrade.apply_pin(wt, up, rel))
+            files = depupgrade.apply_pin(wt, up, rel)
+            if uv:
+                # Dependencies follow the release: the lock is regenerated as CI
+                # checks it, and the sandbox gets every wheel of the resolved set.
+                locked = depupgrade.norm(up["name"]) in lock
+                err = depupgrade.relock(wt, uv) if locked else None
+                deps = err or depupgrade.closure(
+                    wt, uv, "" if locked else f"{up['name']}=={up['latest']}", pyver)
+                if isinstance(deps, str):
+                    return self._reject(cid, cand, deps)
+                files = sorted(set(files) | ({"requirements.lock"} if locked else set()))
+                for n, v in deps.items():
+                    if depupgrade.norm(n) != depupgrade.norm(up["name"]):
+                        depupgrade.unpack_wheel(depupgrade.fetch_wheel(
+                            depupgrade.release(n, v, self.http_get), self.http_get, pyver),
+                            wt / "_deps")
+            cand["files"] = json.dumps(files)
             cand["diff"] = _git(wt, "diff", "--no-color")[:200000]
             cand["static_ok"] = cand["security_ok"] = 1
             depupgrade.unpack_wheel(wheel, wt / "_deps")

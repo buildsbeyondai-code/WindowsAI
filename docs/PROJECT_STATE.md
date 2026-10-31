@@ -2,6 +2,16 @@
 
 _Last updated: 2026-10-25, release 5.0.0._
 
+## 5.4.4 (2026-10-31)
+
+- Store app closes itself when Windows stages its update and reopens on the
+  new version (`selfupdate.py`); every update had failed once with 0x80073D02.
+- Upgrades bring their dependencies: uv relocks as CI does, the sandbox tests
+  the resolved set, new lock packages become Components rows (ARCHITECTURE.md
+  step 6). Dev-tool upgrades (pytest 9.2.0) are no longer refused.
+- Light theme redesigned to match the dark one.
+- GitHub only; Store listing improvements are prepared but not submitted.
+
 ## 5.4.3 (2026-10-31)
 
 - Sandbox baseline green again (a test needed 20 GB free in the sandbox's

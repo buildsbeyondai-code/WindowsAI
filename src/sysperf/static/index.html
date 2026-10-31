@@ -6264,6 +6264,68 @@ const api41 = (() => {
   /* key/value lists and diagnostics */
   .diag-kv, .diag-err, #view-evo .evo-k, #view-evo .evo-v{font-size:var(--fs-sm)}
   #view-evo .evo-v{font-weight:600}
+
+  /* ==================================================================
+     5.4.4 LIGHT THEME — as rich as the dark one. Frosted white on a white
+     page had nothing to frost: cards, tabs and header vanished into the
+     background and secondary text was faint. Light mode now has its own
+     aurora backdrop (the dark theme's blue / violet / teal glows, softened),
+     brighter glass with tinted edges and coloured depth, and darker
+     secondary text (WCAG AA on the card surface). Dark mode is unchanged.
+     ================================================================== */
+  body:not(.dark){
+    --ink:#0f1729; --muted:#4a5570; --line:rgba(30,50,110,.14);
+    --accent:#2563eb; --green:#14a35a; --amber:#d97706; --red:#e11d48;
+    --violet:#6d5df6; --cyan:#0891b2;
+    background:
+      radial-gradient(1100px 620px at 6% -8%, rgba(37,99,235,.20), transparent 60%),
+      radial-gradient(1000px 580px at 100% -4%, rgba(109,93,246,.18), transparent 58%),
+      radial-gradient(900px 600px at 55% 115%, rgba(8,145,178,.16), transparent 62%),
+      radial-gradient(700px 420px at 0% 100%, rgba(236,72,153,.08), transparent 60%),
+      linear-gradient(180deg,#eef2fb,#e8edf8 50%,#eef1fa);
+    background-attachment:fixed}
+  body:not(.dark) .card, body:not(.dark) .sum-stat{
+    background:linear-gradient(150deg,rgba(255,255,255,.92),rgba(255,255,255,.78) 55%,rgba(238,242,255,.82));
+    border:1px solid rgba(255,255,255,.95);
+    box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 0 0 1px rgba(37,99,235,.07),
+               0 18px 40px -22px rgba(30,50,120,.38), 0 4px 12px -6px rgba(30,50,120,.10)}
+  body:not(.dark) .card:hover{border-color:#fff;
+    box-shadow:0 1px 0 #fff inset, 0 0 0 1px rgba(37,99,235,.16),
+               0 26px 50px -24px rgba(37,99,235,.38), 0 6px 16px -8px rgba(30,50,120,.14)}
+  body:not(.dark) .card h3{color:#3b4a6b}
+  body:not(.dark) .card.alert{
+    background:linear-gradient(150deg,rgba(255,255,255,.94),rgba(255,228,233,.85));
+    border-color:rgba(225,29,72,.35)}
+  body:not(.dark) .sum-ring{
+    background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.98),rgba(240,244,255,.88));
+    border:1px solid #fff;
+    box-shadow:0 0 0 1px rgba(37,99,235,.08), 0 18px 40px -22px rgba(30,50,120,.38)}
+  body:not(.dark) header{
+    background:linear-gradient(120deg,rgba(255,255,255,.95),rgba(244,247,255,.86) 60%,rgba(230,246,250,.9));
+    border:1px solid #fff;
+    box-shadow:0 0 0 1px rgba(37,99,235,.08), 0 18px 40px -22px rgba(30,50,120,.40)}
+  body:not(.dark) header h1{color:#1d4ed8;text-shadow:none;
+    background:linear-gradient(90deg,#1d4ed8,#6d28d9 55%,#0e7490);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  body:not(.dark) .tab{
+    background:rgba(255,255,255,.78);border:1px solid rgba(255,255,255,.95);color:#1e3a5f;
+    box-shadow:0 0 0 1px rgba(30,50,110,.08), 0 6px 16px -10px rgba(30,50,120,.35)}
+  body:not(.dark) .tab:hover{background:#fff;color:#1d4ed8;border-color:#fff}
+  body:not(.dark) .tab.active{
+    background:linear-gradient(135deg,#2563eb,#6d5df6);color:#fff;border-color:transparent;
+    box-shadow:0 10px 24px -10px rgba(37,99,235,.65)}
+  body:not(.dark) .chips span{background:rgba(255,255,255,.85);color:#3b4a6b;
+    border:1px solid rgba(30,50,110,.10)}
+  body:not(.dark) .chips span b{color:#0f1729}
+  body:not(.dark) .fixbtn{background:linear-gradient(135deg,#2563eb,#4f46e5);
+    box-shadow:0 8px 18px -10px rgba(37,99,235,.7)}
+  body:not(.dark) .fixbtn.ghost{background:rgba(37,99,235,.10);color:#1d4ed8;box-shadow:none}
+  body:not(.dark) .fixbtn.danger{background:linear-gradient(135deg,#e11d48,#be123c)}
+  body:not(.dark) .banner{background:rgba(255,255,255,.88);border-color:rgba(30,50,110,.12)}
+  body:not(.dark) [id^="view-"] h2{border-bottom-color:rgba(37,99,235,.18)}
+  body:not(.dark) table tbody tr:hover{background:rgba(37,99,235,.06)}
+  body:not(.dark) td{border-bottom-color:rgba(30,50,110,.09)}
+  body:not(.dark) code{background:#eef2ff;color:#3730a3;border-color:rgba(55,48,163,.15)}
 </style>
 </body>
 </html>

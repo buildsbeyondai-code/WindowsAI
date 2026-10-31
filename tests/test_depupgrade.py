@@ -131,6 +131,9 @@ def test_unsuitable_explains_every_refusal():
         dep.release("flask", "3.2.0", fake_get(pypi(files=linux_only))), lock)
     new_dep = dep.release("flask", "3.2.0", fake_get(pypi(requires_dist=["Blinker>=1.9"])))
     assert "needs blinker" in dep.unsuitable(new_dep, lock)
+    # 5.4.3 live: a dev tool is not hash-locked, so pip resolves its dependencies
+    # ("pytest 9.2.0 needs colorama" had refused every pytest upgrade)
+    assert dep.unsuitable(dict(new_dep, name="pytest"), lock) is None
 
 
 def whl(name, sha=None):
@@ -236,6 +239,7 @@ def lane(tmp_path, repo, box=None, rows=None, get=None, **settings):
     e, db = eng(tmp_path, repo, box=box, **settings)
     e.components_fn = lambda: ROWS if rows is None else rows
     e.http_get = get or fake_get()
+    e.uv_fn = lambda: None                    # the resolver tests below opt in
     return e, db
 
 
@@ -352,3 +356,98 @@ def test_pins_changed(repo):
     subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@x",
                     "commit", "-qam", "lock"], check=True)
     assert cv.pins_changed(repo, h, head(repo)) == {"requirements.lock", "requirements-dev.txt"}
+
+
+# ------------------------------------------------- dependencies come along --
+def test_uv_cmd_only_when_uv_is_installed():
+    assert dep.uv_cmd(find=lambda name: None) is None
+    assert dep.uv_cmd(find=lambda name: object())[1:] == ["-m", "uv"]
+
+
+def test_unsuitable_leaves_new_dependencies_to_the_resolver():
+    lock = {"click": "8.5.0", "flask": "3.1.3"}
+    new_dep = dep.release("flask", "3.2.0", fake_get(pypi(requires_dist=["Blinker>=1.9"])))
+    assert "needs blinker" in dep.unsuitable(new_dep, lock)
+    assert dep.unsuitable(new_dep, lock, resolver=True) is None
+
+
+def test_relock_regenerates_the_lock_like_ci_and_keeps_its_header(tmp_path):
+    (tmp_path / "requirements.lock").write_text(LOCK)
+    seen = []
+
+    def run(argv, cwd=None, **kw):
+        seen.append(argv)
+        (tmp_path / "requirements.lock.new").write_text("colorama==0.4.6 ; sys_platform == 'win32'\n")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+    assert dep.relock(tmp_path, ["uv"], run=run) is None
+    out = (tmp_path / "requirements.lock").read_text()
+    assert out.startswith("# header\n#   regenerate with uv\n") and "colorama==0.4.6" in out
+    assert seen[0][1:4] == ["pip", "compile", "--universal"] and "--generate-hashes" in seen[0]
+    assert not (tmp_path / "requirements.lock.new").exists()
+
+    def fail(argv, **kw):
+        return SimpleNamespace(returncode=1, stdout="", stderr="No solution found")
+    assert "No solution found" in dep.relock(tmp_path, ["uv"], run=fail)
+
+    def boom(argv, **kw):
+        raise OSError("no uv")
+    assert dep.relock(tmp_path / "empty", ["uv"], run=boom) == "uv: OSError: no uv"
+
+
+def test_closure_resolves_for_the_sandbox_platform(tmp_path):
+    (tmp_path / "requirements.txt").write_text(REQS)
+    seen = []
+
+    def run(argv, cwd=None, **kw):
+        seen.append((argv, (tmp_path / "requirements.sandbox.in").read_text()))
+        return SimpleNamespace(returncode=0, stderr="",
+                               stdout="flask==3.2.0\niniconfig==2.1.0\npytest==9.2.0\n")
+    got = dep.closure(tmp_path, ["uv"], "pytest==9.2.0", "312", run=run)
+    assert got == {"flask": "3.2.0", "iniconfig": "2.1.0", "pytest": "9.2.0"}
+    argv, src = seen[0]
+    assert "x86_64-unknown-linux-gnu" in argv and "3.12" in argv and "pytest==9.2.0" in src
+    assert not (tmp_path / "requirements.sandbox.in").exists()
+    assert "boom" in dep.closure(tmp_path, ["uv"], run=lambda a, **k: SimpleNamespace(
+        returncode=2, stdout="", stderr="boom"))
+
+    def boom(argv, **kw):
+        raise OSError("no uv")
+    assert dep.closure(tmp_path, ["uv"], run=boom) == "uv: OSError: no uv"
+
+
+def test_upgrade_with_a_new_dependency_relocks_and_tests_the_whole_set(tmp_path, repo, synced,
+                                                                        monkeypatch):
+    # 5.4.3 live: "pytest 9.2.0 needs colorama" refused the upgrade; dependencies
+    # are now resolved, hash-locked and unpacked for the sandbox
+    calls = []
+
+    def relock(wt, uv):
+        calls.append(("relock", uv))
+        (wt / "requirements.lock").write_text(LOCK.replace("3.1.3", "3.2.0")
+                                              + "blinker==1.9.0 \\\n    --hash=sha256:" + H["e"] + "\n")
+    monkeypatch.setattr(dep, "relock", relock)
+    monkeypatch.setattr(dep, "closure", lambda wt, uv, extra, pyver: calls.append(
+        ("closure", extra)) or {"flask": "3.2.0", "blinker": "1.9.0"})
+    e, db = lane(tmp_path, repo, get=fake_get(pypi(requires_dist=["Blinker>=1.9"])))
+    e.uv_fn = lambda: ["uv"]
+    res = e.run_cycle("manual", "self_evolve")
+    assert res["state"] == "awaiting_approval", res
+    assert calls == [("relock", ["uv"]), ("closure", "")]
+    c = db.candidates()[0]
+    assert "requirements.lock" in json.loads(c["files"]) and c["decision"] == "retained"
+    assert "blinker==1.9.0" in (repo / "requirements.lock").read_text()
+
+
+def test_a_dev_tool_resolves_with_its_new_pin_and_an_unresolvable_set_is_rejected(
+        tmp_path, repo, monkeypatch):
+    extras = []
+    monkeypatch.setattr(dep, "closure", lambda wt, uv, extra, pyver: extras.append(extra)
+                        or "uv could not resolve the dependencies: conflict")
+    rows = [{"key": "pytest", "name": "pytest", "current": "9.1.1", "latest": "9.2.0",
+             "outdated": True, "upgrade": {"via": "pip-dev"}}]
+    e, db = lane(tmp_path, repo, rows=rows)
+    e.uv_fn = lambda: ["uv"]
+    e.run_cycle("manual", "self_evolve")
+    c = db.candidates()[0]
+    assert extras == ["pytest==9.2.0"]
+    assert c["decision"] == "rejected" and "could not resolve" in c["reason"]

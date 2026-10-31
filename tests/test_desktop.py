@@ -2,6 +2,7 @@
 import io
 import json
 import socket
+import types
 
 import sysperf.desktop as desktop
 
@@ -105,6 +106,8 @@ class _WebView:
 
     def create_window(self, title, url=None, html=None, **kw):
         self.windows.append({"title": title, "url": url, "html": html, **kw})
+        self.destroyed = []
+        return types.SimpleNamespace(destroy=lambda: self.destroyed.append(title))
 
     def start(self, **kw):
         self.started = kw
@@ -159,3 +162,13 @@ def test_relaunch_waits_for_the_old_instance_before_choosing(tmp_path):
                  server=lambda p, e: None, ready=lambda p, probe: True,
                  released=lambda p, free: order.append(("released", p)))
     assert order[0] == ("released", 5056) and "probe" in order
+
+
+def test_main_closes_the_window_when_windows_stages_an_update(tmp_path):
+    # 5.4.2 live: every Store update failed once with 0x80073D02 while the window
+    # was open; the window now hands its close to the update watcher
+    wv, watched = _WebView(), []
+    desktop.main(env={"SYSPERF_DATA_DIR": str(tmp_path)}, webview=wv, probe=lambda p: True,
+                 watch_update=watched.append)
+    watched[0]()
+    assert wv.destroyed == ["SysPerf"]

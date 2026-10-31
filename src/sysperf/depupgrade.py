@@ -7,11 +7,16 @@ cycle tests and deploys like any other candidate:
 
 * SysPerf's pinned packages: the hash-locked runtime (requirements.lock) and
   the test tools pinned in requirements-dev.txt (5.1.1). A release qualifies
-  when it still supports Python 3.10 (the CI floor), needs no package the lock
-  does not already hold, and ships a wheel for both sides: one the sandbox's
-  Linux interpreter can import (pure, or a manylinux build for its version) and
-  one Windows can install without compiling. The sandbox wheel is unpacked
-  into the worktree, because the sandboxed tests have no network.
+  when it still supports Python 3.10 (the CI floor) and ships a wheel for both
+  sides: one the sandbox's Linux interpreter can import (pure, or a manylinux
+  build for its version) and one Windows can install without compiling.
+* Dependencies come with it (5.4.4). The lock is regenerated with uv exactly as
+  CI checks it (``relock``), so a dependency the new release added, or a newer
+  one it needs, enters the lock with its hashes; deploying installs it. The
+  sandbox gets every wheel of the resolved set for its Linux Python
+  (``closure``), unpacked into the worktree, because the sandboxed tests have
+  no network. Without uv, a release that needs a package the lock does not
+  hold is refused, as before.
 * The pin moves in every file that holds it (requirements.txt, the lock with
   the release's published sha256 hashes, requirements-dev.txt, pyproject.toml),
   so the offline lock test still holds and a fresh install gets the same set.
@@ -38,6 +43,10 @@ from pathlib import Path, PurePosixPath
 from .background_process import run_hidden
 
 PIN = re.compile(r"^([A-Za-z0-9_.-]+)==([^\s;\\]+)", re.M)
+# CI's "Lock file matches requirements.txt" check, so a relocked file passes it.
+LOCK_ARGS = ["pip", "compile", "--universal", "--generate-hashes", "--python-version", "3.10",
+             "--no-header", "--quiet", "requirements.txt", "-o"]
+SANDBOX_PLATFORM = "x86_64-unknown-linux-gnu"
 PIN_FILES = ("requirements.txt", "requirements.lock", "requirements-dev.txt", "pyproject.toml")
 DEV_PIN = re.compile(r"^([A-Za-z0-9_.-]+)==([^\s;\\]+)\s*$", re.M)   # markers: not ours to move
 PYTHON_FLOOR = (3, 10)
@@ -144,7 +153,61 @@ def _windows_ok(rel: dict) -> bool:
                for f in _wheels(rel))
 
 
-def unsuitable(rel: dict, lock: dict, pyver: str = "312") -> str | None:
+def uv_cmd(find=None) -> list | None:
+    """``[python, -m, uv]`` when uv is installed next to SysPerf, else None."""
+    import importlib.util
+    find = find or importlib.util.find_spec
+    return [_python(), "-m", "uv"] if find("uv") else None
+
+
+def relock(wt: Path, uv: list, run=run_hidden, timeout: float = 600) -> str | None:
+    """Regenerate requirements.lock from requirements.txt; the error text, or None.
+
+    The same command CI diffs the lock against, so the result passes that check
+    and carries every dependency the pinned releases need, with hashes.
+    """
+    lock = Path(wt) / "requirements.lock"
+    old = lock.read_text(encoding="utf-8") if lock.is_file() else ""
+    header = "".join(ln for ln in old.splitlines(True)[:20] if ln.startswith("#"))
+    fresh = Path(wt) / "requirements.lock.new"
+    try:
+        r = run([*uv, *LOCK_ARGS, str(fresh)], cwd=str(wt), capture_output=True, text=True,
+                timeout=timeout)
+    except Exception as exc:
+        return f"uv: {type(exc).__name__}: {exc}"
+    if r.returncode != 0 or not fresh.is_file():
+        return f"uv could not resolve the dependencies: {(r.stderr or r.stdout).strip()[-400:]}"
+    lock.write_text(header + fresh.read_text(encoding="utf-8"), encoding="utf-8")
+    fresh.unlink()
+    return None
+
+
+def closure(wt: Path, uv: list, extra: str = "", pyver: str = "312", run=run_hidden,
+            timeout: float = 600) -> dict | str:
+    """{name: version} the sandbox's Linux Python needs; the error text on failure.
+
+    requirements.txt, plus ``extra`` (a dev tool's new pin), resolved for the
+    sandbox's platform, so a dependency only Windows needs (colorama) is not
+    fetched and one Linux needs is.
+    """
+    src = Path(wt) / "requirements.sandbox.in"
+    req = (Path(wt) / "requirements.txt").read_text(encoding="utf-8")
+    src.write_text(req + ("\n" + extra + "\n" if extra else ""), encoding="utf-8")
+    try:
+        r = run([*uv, "pip", "compile", "--python-version", f"{pyver[0]}.{pyver[1:]}",
+                 "--python-platform", SANDBOX_PLATFORM, "--no-header", "--quiet",
+                 "--no-annotate", str(src)], cwd=str(wt), capture_output=True, text=True,
+                timeout=timeout)
+    except Exception as exc:
+        return f"uv: {type(exc).__name__}: {exc}"
+    finally:
+        src.unlink(missing_ok=True)
+    if r.returncode != 0:
+        return f"uv could not resolve the dependencies: {(r.stderr or r.stdout).strip()[-400:]}"
+    return {norm(n): v for n, v in PIN.findall(r.stdout)}
+
+
+def unsuitable(rel: dict, lock: dict, pyver: str = "312", resolver: bool = False) -> str | None:
     """Why this release cannot be upgraded to automatically (None = it can)."""
     if not rel["files"]:
         return f"{rel['name']} {rel['version']} has no published files"
@@ -156,7 +219,12 @@ def unsuitable(rel: dict, lock: dict, pyver: str = "312") -> str | None:
                 f"{pyver[0]}.{pyver[1:]} can import")
     if not _windows_ok(rel):
         return f"{rel['name']} {rel['version']} has no Windows wheel; pip would have to compile it"
-    for req in rel["requires_dist"]:
+    # A hash-locked package needs every dependency hash-locked too (pip's
+    # --require-hashes refuses anything else). A dev tool (pytest) is not in the
+    # lock: pip resolves its dependencies, so this check refused every one of
+    # them (5.4.3 live: "pytest 9.2.0 needs colorama").
+    # With a resolver the lock is regenerated, dependencies and all.
+    for req in rel["requires_dist"] if norm(rel["name"]) in lock and not resolver else []:
         if "extra ==" in req:
             continue
         dep = norm(re.match(r"\s*([A-Za-z0-9_.-]+)", req).group(1))

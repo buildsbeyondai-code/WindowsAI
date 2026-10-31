@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .background_process import run_hidden
-from .config import BASE, DATA_DIR, PLATFORM
+from .config import BASE, DATA_DIR, PLATFORM, lock_packages
 
 log = logging.getLogger("perfdash")
 
@@ -132,8 +132,8 @@ def _toolchain_versions(v: dict) -> dict:
     from importlib import metadata
     v["python"] = platform.python_version()
     # Every runtime package in the CI SBOM (requirements.lock, plus pip).
-    for dist in ("flask", "waitress", "werkzeug", "jinja2", "markupsafe", "itsdangerous",
-                 "click", "blinker", "pip", "pytest", "playwright"):
+    for dist in sorted({"flask", "waitress", "werkzeug", "jinja2", "markupsafe", "itsdangerous",
+                        "click", "blinker", "pip", "pytest", "playwright", *lock_packages()}):
         try:
             v[dist] = metadata.version(dist)
         except metadata.PackageNotFoundError:
@@ -206,6 +206,24 @@ def effective_latest(catalog: str, live: str, current: str) -> tuple[str, str]:
     return target, source
 
 
+def catalog(cat: dict, lock=None) -> list:
+    """The reviewed catalog, plus a row for every locked package it lacks.
+
+    An upgrade that brings in a new dependency (5.4.4) adds it to the lock; it
+    then shows here, is checked against PyPI daily and is upgraded like the rest.
+    """
+    rows = list(cat.get("catalog", []))
+    keys = {c.get("key") for c in rows}
+    for name in lock_packages() if lock is None else lock:
+        if name not in keys:
+            rows.append({"upgrade": {"via": "pip-lock"}, "key": name, "name": name,
+                         "category": "SysPerf toolchain", "compare": "version", "latest": "",
+                         "channel": "pip (requirements.lock)", "perf": 1, "owner": "user",
+                         "why": "A dependency of SysPerf's pinned packages, added to the "
+                                "lock by the resolver; upgraded with them."})
+    return rows
+
+
 def build_components(latest: dict) -> dict:
     """Assemble the upgrade-advisory table from the catalog + live versions."""
     try:
@@ -231,7 +249,7 @@ def build_components(latest: dict) -> dict:
                   "net-driver": latest.get("net_driver_name")}
 
     rows, uplift_sum, upg = [], 0, 0
-    for c in cat.get("catalog", []):
+    for c in catalog(cat):
         key = c.get("key", "")
         mode = c.get("compare", "version")
         # A component this machine does not have is listed as "not installed"
