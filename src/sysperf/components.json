@@ -1,6 +1,6 @@
 {
   "assessment_date": "2026-10-25",
-  "note": "current = measured live on this machine. latest = each vendor's newest public release, checked daily from its release feed (version_check.py); the values here are the fallback when that check is off or offline. An installed build newer than any public release is shown as its own target. Driver/BIOS staleness is judged by age. perf = estimated performance/stability benefit (0-100).",
+  "note": "current = measured live on this machine. latest = each vendor's newest public release, checked daily from its release feed (version_check.py); the values here are the fallback when that check is off or offline. An installed build newer than any public release is shown as its own target. A driver is an upgrade only when Windows Update offers a newer one for that device (checked daily); without that check, and for the BIOS, staleness is judged by age. perf = estimated performance/stability benefit (0-100).",
   "catalog": [
     {
       "upgrade": {"via": "wsl"},

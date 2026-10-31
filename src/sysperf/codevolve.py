@@ -535,11 +535,15 @@ class CodeEvolution:
         "min_gain": 0.10, "engine_min_gain": 0.20, "max_regression": 0.05,
         "noise_k": 3.0, "test_timeout_s": 600, "sandbox": "auto", "docker_image": None,
         "auto_retain": True, "auto_upgrade_deps": True,
+        # Deploy a retained winner without waiting for review: the same Apply
+        # path (fast-forward, restart, health check, automatic rollback). Off
+        # unless the user turns it on.
+        "auto_apply": False,
     }
     EDITABLE = {"enabled": bool, "repo": (str, type(None)), "interval_s": (int, float),
                 "max_per_day": int, "min_evidence": int, "cooldown_s": (int, float),
                 "bench_reps": int, "eligible": list, "docker_image": (str, type(None)),
-                "auto_retain": bool, "auto_upgrade_deps": bool}
+                "auto_retain": bool, "auto_upgrade_deps": bool, "auto_apply": bool}
     # Acceptance thresholds are deliberately NOT editable through the API.
 
     def _load_settings(self) -> dict:
@@ -946,6 +950,11 @@ class CodeEvolution:
                 self.on_retained(cand)
             except Exception:
                 log.exception("on_retained hook failed")
+        if self.settings.get("auto_apply"):
+            self._apply_after = cand_id      # deployed once the cycle lock is released
+            return self._finish(cid, "completed",
+                                f"retained on {branch}: {reason}; applying automatically "
+                                "(rolled back if SysPerf is not healthy afterwards)")
         return self._finish(cid, "awaiting_approval",
                             f"retained on {branch}: {reason}; awaiting review")
 

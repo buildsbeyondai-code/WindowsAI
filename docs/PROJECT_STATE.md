@@ -2,6 +2,11 @@
 
 _Last updated: 2026-10-25, release 5.0.0._
 
+## 5.4.6 (2026-10-31)
+
+- Driver rows follow what Windows Update offers the PC (daily, search only)
+  instead of age alone.
+
 ## 5.4.5 (2026-10-31)
 
 - Audit of every category: `docs/AUDIT-2026-10-31.md` (41 issues, 22 fixed,

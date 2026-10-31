@@ -277,7 +277,9 @@ def test_evolution_settings_controls_post(browser, site):
     page.wait_for_selector("#sevSave")
     for sel in ("#sevEnabled", "#sevRepo", "#sevInterval", "#sevMax", "#sevProvider", "#sevBudget"):
         assert page.query_selector(sel), sel
+    assert "without your approval" in page.inner_text("#sevApplyMode")
     page.fill("#sevMax", "3")
+    page.check("#sevAutoApply")                      # 5.4.6: apply winners automatically
     page.click("#sevSave")
     page.wait_for_timeout(300)
     assert _posted(page, "api/codevolve/settings")

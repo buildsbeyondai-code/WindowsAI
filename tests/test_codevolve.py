@@ -398,3 +398,15 @@ def test_profile_without_output_and_marker_helpers(tmp_path):
     assert codevolve.read_apply_log(tmp_path / "nope") == []
     (tmp_path / codevolve.APPLY_LOG).write_text('{"a": 1}\nnot json\n')
     assert codevolve.read_apply_log(tmp_path) == [{"a": 1}]
+
+
+@needs_sandbox
+def test_a_winner_is_applied_without_review_when_auto_apply_is_on(tmp_path, repo):
+    # 5.4.6: "don't ask any more for new evolutions" - the same Apply path runs at once
+    eng, db = engine(tmp_path, repo, Fixed(GOOD), auto_apply=True)
+    applied = []
+    eng.apply = lambda cand_id, actor="user": applied.append((cand_id, actor)) or {}
+    res = eng.run_cycle("manual", "self_evolve")
+    c = db.candidates()[0]
+    assert res["state"] == "completed" and "applying automatically" in res["explanation"]
+    assert c["decision"] == "retained" and applied == [(c["id"], "evolution")]

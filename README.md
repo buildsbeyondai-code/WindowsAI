@@ -454,6 +454,9 @@ is merged or deployed without your approval. Since 4.1, **Apply & restart**
 deploys an approved patch in one click — the previous version is tagged, the
 restarted service must report healthy, and the supervisor rolls the patch back
 automatically if it does not (**Roll back** is always one click away).
+Since 5.4.6, **Apply winners automatically** (off by default; AI Self-Evolution
+tab or Settings) skips the review step: a winner goes straight through the same
+Apply path, with the same health check and automatic rollback.
 
 The **autonomy levels** are:
 

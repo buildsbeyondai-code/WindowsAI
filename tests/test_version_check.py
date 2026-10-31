@@ -76,3 +76,35 @@ def test_load_tolerates_missing_or_bad_files(tmp_path):
     assert lv.load() == {}
     (tmp_path / "l.json").write_text("{bad")
     assert lv.load() == {}
+
+
+def test_refresh_records_the_drivers_windows_update_offers(tmp_path):
+    # 5.4.5 live: an up-to-date Realtek driver read "upgrade" only for its age
+    offers = [[{"title": "Realtek - Net - 6001.16.1.0", "cls": "Net"}], None]
+    lv = vc.LatestVersions(tmp_path / "l.json", get=_get, clock=lambda: 50.0, sources={},
+                           drivers=lambda: offers.pop(0))
+    assert lv.refresh()["drivers"] == {"checked_at": 50.0, "offered": [
+        {"title": "Realtek - Net - 6001.16.1.0", "cls": "Net"}]}
+    assert lv.refresh()["drivers"]["offered"][0]["cls"] == "Net"   # unreachable: kept
+
+
+def test_offered_drivers_asks_windows_update_read_only(monkeypatch):
+    import subprocess
+    monkeypatch.setattr(vc.os, "name", "posix")
+    assert vc.offered_drivers() is None
+    monkeypatch.setattr(vc.os, "name", "nt")
+    seen = []
+
+    def run(argv, **kw):
+        seen.append(argv[-1])
+        return subprocess.CompletedProcess(argv, 0, '{"title": "x", "cls": "Net"}', "")
+    assert vc.offered_drivers(run) == [{"title": "x", "cls": "Net"}]   # one object, not a list
+    assert "Search(" in seen[0]
+    assert "CreateUpdateInstaller" not in seen[0] and "CreateUpdateDownloader" not in seen[0]
+    assert vc.offered_drivers(lambda a, **k: subprocess.CompletedProcess(a, 0, "[]", "")) == []
+    assert vc.offered_drivers(lambda a, **k: subprocess.CompletedProcess(a, 1, "", "e")) is None
+    assert vc.offered_drivers(lambda a, **k: subprocess.CompletedProcess(a, 0, "{bad", "")) is None
+
+    def boom(argv, **kw):
+        raise OSError("no powershell")
+    assert vc.offered_drivers(boom) is None

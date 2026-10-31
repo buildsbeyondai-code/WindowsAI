@@ -412,3 +412,38 @@ def test_a_stale_version_cache_is_served_while_one_thread_refreshes(monkeypatch)
             t.join(5)
     assert not components._refresh_lock.locked()                  # released after a failure
     components._cache.update(linux=None, t=0.0)
+
+
+def test_a_driver_is_an_upgrade_only_when_windows_update_offers_one(tmp_path, monkeypatch):
+    # 5.4.5 live: the Realtek driver read "upgrade" for its age although it was the
+    # newest HP and Windows Update had
+    f = tmp_path / "c.json"
+    f.write_text(json.dumps({"catalog": [
+        {"key": "net-driver", "name": "Wi-Fi", "compare": "date", "date_key": "net_driver_date",
+         "stale_months": 9, "latest": "manufacturer's latest", "perf": 30},
+        {"key": "gpu-driver", "name": "GPU", "compare": "date", "date_key": "gpu_driver_date",
+         "stale_months": 9, "latest": "manufacturer's latest", "perf": 22}]}))
+    live = tmp_path / "live.json"
+    monkeypatch.setattr(components, "COMPONENTS_FILE", f)
+    monkeypatch.setattr(components, "LATEST_FILE", live)
+    monkeypatch.setattr(components, "_linux_versions", lambda: {})
+    monkeypatch.setattr(components, "lock_packages", lambda: [])
+    snap = {"net_driver_ver": "6001.15.163.0", "net_driver_date": "2020-01-27",
+            "net_driver_name": "Realtek RTL8852BE-VS WiFi 6 802.11ax PCIe Adapter",
+            "gpu_driver": "32.0", "gpu_driver_date": "2020-09-03",
+            "gpu_name": "Intel(R) UHD Graphics"}
+    by = lambda: {r["key"]: r for r in build_components(snap)["rows"]}   # noqa: E731
+    assert by()["net-driver"]["outdated"] is True                        # never checked: by age
+    offered = [{"title": "Intel - Bluetooth - 23.1", "model": "Intel Wireless Bluetooth",
+                "cls": "Bluetooth"}]                                      # other class: ignored
+    live.write_text(json.dumps({"drivers": {"checked_at": 9.0, "offered": offered}}))
+    rows = by()
+    assert rows["net-driver"]["outdated"] is False and rows["net-driver"]["latest"] == "newest offered"
+    assert rows["gpu-driver"]["outdated"] is False and rows["gpu-driver"]["checked_at"] == 9.0
+    offered.append({"title": "Realtek Semiconductor Corp. - Net - 6001.16.2.0",
+                    "model": "Realtek RTL8852BE WiFi 6 802.11ax PCIe Adapter", "cls": "Net"})
+    live.write_text(json.dumps({"drivers": {"checked_at": 9.0, "offered": offered}}))
+    net = by()["net-driver"]
+    assert net["outdated"] is True and "6001.16.2.0" in net["latest"]
+    assert net["latest_source"] == "windows-update"
+    assert components._offered_for("", offered) is None

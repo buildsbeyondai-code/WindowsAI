@@ -82,8 +82,9 @@ remediation helpers.
    is under the threshold, applies allow-listed fixes allowed by the autonomy
    level, then verifies the measured effect on later samples and learns from it.
 5. **Evolve (opt-in).** `codevolve` asks the model for a patch, tests and
-   benchmarks it in a sandbox, and keeps a winner on a review branch. Only an
-   explicit Apply fast-forwards the checkout and restarts the service.
+   benchmarks it in a sandbox, and keeps a winner on a review branch. An
+   explicit Apply, or `auto_apply` when the user turns it on (5.4.6), fast-forwards
+   the checkout and restarts the service; an unhealthy restart is rolled back.
 6. **Upgrade components and their dependencies.** Each cycle first takes one
    outdated Components row (`upgrader.REGISTRY` by its `upgrade.via`).
    SysPerf's own Python packages go through `depupgrade`:
@@ -118,7 +119,7 @@ remediation helpers.
 |---|---|---|
 | Browser ↔ service | Other web pages (CSRF, DNS rebinding) | Host/Origin guard, per-process token on every POST, CSP, `X-Frame-Options` |
 | Service ↔ OS | Command injection, unsafe changes | Fixed script paths, no shell; allow-listed actions; reversible-only autonomy; forbidden categories |
-| Service ↔ model provider | Prompt injection, hostile patches | Repository content marked as data; schema validation; protected files; security scan of diffs; sandboxed execution; human Apply |
+| Service ↔ model provider | Prompt injection, hostile patches | Repository content marked as data; schema validation; protected files; security scan of diffs; sandboxed execution; human Apply unless the user opts into `auto_apply`; health-checked restart with automatic rollback |
 | Service ↔ disk | Secret disclosure | DPAPI-encrypted key file (Windows) or `0600`; keys redacted from every log record |
 | Service ↔ internet | Data leakage | Only version feeds and the configured model provider; SSID/BSSID masked in `/api/metrics` |
 
