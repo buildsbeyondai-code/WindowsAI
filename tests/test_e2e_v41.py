@@ -506,6 +506,45 @@ def test_recommendations_explain_evidence_risk_effect_and_measurement(browser, s
     page.close()
 
 
+def test_measured_effects_are_shown_with_attribution_age_and_uncertainty(browser, site):
+    # 5.5.2 (audit F4): the page as it renders explain() output for each kind of
+    # ledger record; fixtures check the wording, not a real performance benefit
+    import time
+
+    from sysperf.explain import explain
+    now, day = time.time(), 86400
+    v2 = {"v": 2, "at": now - 3600, "last_before": 50, "last_after": 40}
+    ledger = {"alone": {"cpu_pct": {**v2, "ema": 0.2, "n": 4, "wins": 4}},
+              "worse": {"cpu_pct": {**v2, "ema": -0.05, "n": 3, "losses": 3}},
+              "flat": {"cpu_pct": {**v2, "ema": 0.0, "n": 3}},
+              "batch": {"cpu_pct": {"n": 0, "ema": None, "group_n": 2}},
+              "old": {"cpu_pct": {**v2, "ema": 0.1, "n": 5, "wins": 5, "at": now - 40 * day}},
+              "legacy": {"cpu_pct": {"ema": 0.123, "n": 4, "wins": 3, "losses": 1}},
+              "once": {"cpu_pct": {**v2, "ema": 0.3, "n": 1, "wins": 1}}}
+    ids = [*ledger, "failed"]                     # "failed" ran but never succeeded
+    finding = [{"key": "cpu_pct", "label": "CPU", "confidence": 0.9, "contribution_pct": 50,
+                "remediations": ids}]
+    fixes = {i: {"title": f"fix-{i}", "risk": "safe", "reversible": True} for i in ids}
+    st = {**STUBS["api/autoimprove"], "explained": explain(finding, fixes, ledger, 600, now)}
+    page = _open(browser, site, hash_="#auto-improve", overrides={"api/autoimprove": st})
+    page.wait_for_selector("#autoWhy table")
+    rows = {r.split("\t")[0].strip(): r for r in page.inner_text("#autoWhy table").splitlines()}
+
+    def row(i):
+        return rows[f"fix-{i}"]
+    assert "20.0% better (recency-weighted, 4 run(s): 4 better, 0 worse)" in row("alone")
+    assert "last run 50 → 40, measured today" in row("alone")
+    assert "recorded before" not in row("alone") and "not yet reliable" not in row("alone")
+    assert "5.0% worse" in row("worse") and "0 better, 3 worse" in row("worse")
+    assert "no measurable change" in row("flat")
+    assert "seen only together with other fixes (2 batch(es))" in row("batch")
+    assert "measured 40 days ago, may be out of date" in row("old")
+    assert "recorded before 5.5.2: may include other fixes" in row("legacy")
+    assert "only 1 run(s), not yet reliable" in row("once")
+    assert "not measured on this PC yet" in row("failed")
+    page.close()
+
+
 def test_an_interrupted_apply_and_an_unfinished_recovery_are_shown_plainly(browser, site):
     # 5.5.2 (audit F3): never show an unfinished recovery as "Verifying"
     for phase, expect in (("rollback_incomplete", "Recovery not finished"),

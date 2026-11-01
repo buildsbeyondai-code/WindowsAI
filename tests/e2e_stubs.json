@@ -1598,10 +1598,14 @@
       "expected": {
        "measured": true,
        "runs": 3,
-       "avg_change_pct": -0.0,
+       "recency_weighted_change_pct": -0.0,
        "wins": 0,
        "losses": 0,
-       "text": "no measurable change over 3 run(s)"
+       "legacy": true,
+       "measured_at": null,
+       "uncertain": false,
+       "stale": false,
+       "text": "no measurable change (recency-weighted, 3 run(s): 0 better, 0 worse) (recorded before 5.5.2: may include other fixes run at the same time)"
       }
      }
     ],
@@ -1627,10 +1631,14 @@
       "expected": {
        "measured": true,
        "runs": 2,
-       "avg_change_pct": 17.0,
+       "recency_weighted_change_pct": 17.0,
        "wins": 1,
        "losses": 1,
-       "text": "17.0% better on average over 2 measured run(s)"
+       "legacy": true,
+       "measured_at": null,
+       "uncertain": true,
+       "stale": false,
+       "text": "17.0% better (recency-weighted, 2 run(s): 1 better, 1 worse); only 2 run(s), not yet reliable (recorded before 5.5.2: may include other fixes run at the same time)"
       }
      },
      {
