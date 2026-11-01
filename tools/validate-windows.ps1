@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  SysPerf 4.0 Windows-native validation. Run on a real Windows 10/11 machine
+  SysPerf 4.0 Windows-native validation. Run on a real Windows 11 machine
   from the unpacked release folder:
 
       powershell -ExecutionPolicy Bypass -File tools\validate-windows.ps1
@@ -28,8 +28,8 @@ function Check($name, [scriptblock]$body) {
 function Skip($name, $why) { $results.Add([pscustomobject]@{Check = $name; Result = 'SKIP'; Detail = $why}) }
 
 $os = Get-CimInstance Win32_OperatingSystem
-Check 'Windows version (10/11)' {
-    if ([int]$os.BuildNumber -lt 10240) { throw "build $($os.BuildNumber) is older than Windows 10" }
+Check 'Windows version (11)' {
+    if ([int]$os.BuildNumber -lt 22000) { throw "build $($os.BuildNumber) is older than Windows 11 (22000)" }
     "$($os.Caption) build $($os.BuildNumber)"
 }
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()

@@ -61,16 +61,14 @@ function Write-Warn { param([string]$Text) Write-Host "    $Text" -ForegroundCol
 Write-Step 'Checking prerequisites'
 
 if ($PSVersionTable.PSVersion.Major -lt 5) {
-    throw 'PowerShell 5.1 or later is required. It ships with Windows 10 and 11.'
+    throw 'PowerShell 5.1 or later is required. It ships with Windows 11.'
 }
 
 $osVer = [Environment]::OSVersion.Version
-if ($osVer.Major -lt 10) {
-    throw "SysPerf targets Windows 10/11. Detected $osVer."
-}
-if ($osVer.Build -lt 22000) {
-    Write-Warn "Windows 11 is build 22000 or later; this machine is build $($osVer.Build)."
-    Write-Warn 'SysPerf should still work, but it is only tested on Windows 11.'
+# Windows 11 only (5.5.2): Windows 10 was never tested, and the Store package
+# now requires build 22000 too.
+if ($osVer.Major -lt 10 -or $osVer.Build -lt 22000) {
+    throw "SysPerf requires Windows 11 (build 22000 or later). Detected $osVer."
 }
 Write-Ok "Windows build $($osVer.Build), PowerShell $($PSVersionTable.PSVersion)"
 

@@ -2,15 +2,21 @@
 
 Branch `impl/5.5.x-audit-remediation`, 1 November 2026. Answers
 [the 5.5.0 audit](./SysPerf_5_5_0_Audit.md) and
-[the implementation prompt](./SysPerf_Claude_Code_Prompt.md). Not released, not
-tagged, not submitted to the Store. The working checklist is
-[PROGRESS.md](./PROGRESS.md); raw evidence is in [evidence/](./evidence/).
+[the implementation prompt](./SysPerf_Claude_Code_Prompt.md). The working
+checklist is [PROGRESS.md](./PROGRESS.md); raw evidence is in
+[evidence/](./evidence/).
 
-**Decision: HOLD.** The three code blockers (F1 packaging, F2 trust decision,
-F3 recovery claim) are fixed and verified locally, in simulated faults and on
-hosted Windows x64 and ARM64. Still missing before any release: an installed-app
-run on disposable Windows 11 x64 and ARM64 machines, the disposable
-test-certificate run, a 24-hour soak, and a decision on Windows 10.
+**Decision: the evidence alone said HOLD; released as 5.5.2 (GitHub and the
+Microsoft Store) on 1 November 2026 at the owner's direction.** The three code
+blockers (F1 packaging, F2 trust decision, F3 recovery claim) are fixed and
+verified locally, in simulated faults and on hosted Windows x64 and ARM64.
+Windows 10 was decided: the package and the scripted install now require
+Windows 11 (build 22000). Released with these checks still not run, because no
+disposable machines are available: an installed-app run on clean Windows 11 x64
+and ARM64 machines, the test-certificate run (attempted on the owner's PC; an
+elevated run that trusts a test root was refused by this session's permission
+policy), and a 24-hour soak (started read-only against the owner's live
+service after the upgrade; see PROGRESS.md for its result).
 
 ## Evidence kinds
 
@@ -144,13 +150,13 @@ Reason: the false recovery claim is removed and every fault the prompt names
 is exercised, in simulated faults rather than real crashes; the installed-app
 user-control journeys are untested.
 
-### 5. Windows compatibility and field evidence — 8.0 → re-scored 5.5; candidate **6.5**
+### 5. Windows compatibility and field evidence — 8.0 → re-scored 5.5; candidate **7.0**
 
 | Condition | Baseline | Candidate |
 |---|---|---|
 | Hosted Windows x64 and ARM64 execution of the package | Fail | Pass |
 | Installed app on disposable Windows 11 x64 and ARM64 (activation, WebView2, counters vs Windows) | Not done | **Not done** |
-| Minimum OS tested, or manifest narrowed (manifest says 10.0.19041) | Not done | **Not done** (your decision) |
+| Minimum OS tested, or manifest narrowed (manifest said 10.0.19041) | Not done | Pass: narrowed to Windows 11 (10.0.22000.0) in the manifest, install script and docs |
 | Genuine 24-hour soak of the installed candidate | Not done (harness could pass blank data) | **Not done** (harness fixed and trialled) |
 | Second account, sleep/resume, offline collector, occupied port, upgrade while running, uninstall/reinstall | Not done | **Not done** |
 
@@ -166,8 +172,8 @@ field.
 | Recommendation quality | 7.5 | 6.0 | 8.0 |
 | Release verification | 7.0 | 4.5 | 8.0 |
 | Recovery / user control | 7.0 | 5.0 | 8.5 |
-| Windows compatibility / field | 8.0 | 5.5 | 6.5 |
-| **Mean** | **7.3** | **5.3** | **7.9** |
+| Windows compatibility / field | 8.0 | 5.5 | 7.0 |
+| **Mean** | **7.3** | **5.3** | **8.0** |
 
 The re-scored baseline is lower than 7.3 because the conditions are counted
 strictly and the reproductions confirmed every finding. No category is a 10: each
@@ -190,11 +196,10 @@ has at least one material condition not run.
 
 ## Remaining defects and blockers
 
-- **No release blocker remains in code.** Release readiness is blocked on
-  evidence: installed-app runs (x64, ARM64), the test-certificate run, a 24-hour
-  soak, and the Windows 10 decision.
-- The version is still 5.5.1 in the code; a release needs the bump to 5.5.2
-  (the recommendation labels say "before 5.5.2").
+- **No release blocker remains in code.** Still unproven at release:
+  installed-app runs on clean x64 and ARM64 machines, the test-certificate run
+  and a 24-hour soak. The first real installed evidence will be this release
+  arriving through the Store on the owner's Windows 11 x64 PC.
 - PowerShell 7.6.9 has no GitHub MSIX; the PowerShell upgrader's MSIX apply
   fails closed until that path is changed or removed.
 - Two `app.py` lines are covered only where PowerShell exists (unchanged from

@@ -4,10 +4,16 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased (audit remediation, branch `impl/5.5.x-audit-remediation`)
+## 5.5.2 — 2026-11-01
 
-Fixes for `docs/release-engineering/SysPerf_5_5_0_Audit.md`. Not released;
-evidence and what remains are in `docs/release-engineering/RELEASE-EVIDENCE.md`.
+Fixes for `docs/release-engineering/SysPerf_5_5_0_Audit.md`. Evidence, and the
+checks still not run (installed-app tests on clean machines, a 24-hour soak),
+are in `docs/release-engineering/RELEASE-EVIDENCE.md`.
+
+### Changed
+- **Windows 11 only.** The package now requires build 22000 (it allowed
+  Windows 10 build 19041, which was never tested), and the scripted install
+  refuses older builds instead of warning.
 
 ### Fixed
 - **`--once` takes a fresh sample (F1).** It printed the last cached snapshot,
