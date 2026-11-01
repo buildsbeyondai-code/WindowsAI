@@ -332,20 +332,35 @@ def test_red_tests_reject_the_upgrade(tmp_path, repo):
     assert "flask==3.1.3" in (repo / "requirements.lock").read_text()
 
 
-def test_apply_rolls_back_when_the_packages_do_not_install(tmp_path, repo, monkeypatch):
+def _failing_install(tmp_path, repo, monkeypatch, restore_error):
     calls = []
     monkeypatch.setattr(dep, "pip_sync", lambda repo, dev=False: calls.append(1) or (
-        "no matching distribution" if len(calls) == 1 else "still offline"))
+        "no matching distribution" if len(calls) == 1 else restore_error))
     e, db = lane(tmp_path, repo)
     e.apply = lambda cid, actor="user": None            # retain only
     e.run_cycle("manual", "self_evolve")
     del e.apply
+    return e, db.candidates()[0], calls
+
+
+def test_apply_rolls_back_when_the_packages_do_not_install(tmp_path, repo, monkeypatch):
+    e, cand, calls = _failing_install(tmp_path, repo, monkeypatch, None)
     before = head(repo)
-    cand = db.candidates()[0]
     with pytest.raises(RuntimeError, match="no matching distribution"):
         e.apply(cand["id"])
-    # git is back where it was, and the old lock was reinstalled (that failure is logged)
+    # git is back where it was and the old lock was reinstalled
     assert head(repo) == before and len(calls) == 2 and e.pending_apply() is None
+
+
+def test_a_failed_package_restore_is_reported_as_unfinished(tmp_path, repo, monkeypatch):
+    # 5.5.0 audit F3: the restore failure was only logged and the apply looked rolled back
+    e, cand, calls = _failing_install(tmp_path, repo, monkeypatch, "still offline")
+    before = head(repo)
+    with pytest.raises(cv.RecoveryIncomplete, match="still offline"):
+        e.apply(cand["id"])
+    marker = e.pending_apply()
+    assert head(repo) == before and len(calls) == 2
+    assert marker["phase"] == "rollback_incomplete" and "still offline" in marker["error"]
 
 
 def test_pins_changed(repo):
