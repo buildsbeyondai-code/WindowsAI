@@ -212,18 +212,32 @@ def read_apply_log(state_dir: Path, limit: int = 50) -> list:
     return out
 
 
+class RecoveryIncomplete(RuntimeError):
+    """main is back on the backup commit, but the previous packages are not."""
+
+
 def git_rollback(repo: Path, backup_sha: str, applied_sha: str) -> None:
-    """Move main back to ``backup_sha`` if it still points at ``applied_sha``."""
+    """Move main back to ``backup_sha`` and restore the packages it pins.
+
+    Idempotent, so an interrupted or failed recovery can simply be retried: if
+    main is already on ``backup_sha`` only the packages are restored. Refuses to
+    move a HEAD that is neither commit (someone moved main since). Raises
+    RecoveryIncomplete when the packages could not be restored; 5.5.0 logged a
+    warning and returned, so callers reported a rollback that had not finished
+    (audit F3).
+    """
     head = _git(repo, "rev-parse", "HEAD").strip()
-    if head != applied_sha:
-        raise RuntimeError(f"HEAD is {head[:10]}, not the applied patch {applied_sha[:10]}; "
-                           "refusing to move it")
-    _git(repo, "reset", "--keep", backup_sha)
+    if head == applied_sha:
+        _git(repo, "reset", "--keep", backup_sha)
+    elif head != backup_sha:
+        raise RuntimeError(f"HEAD is {head[:10]}, neither the applied patch {applied_sha[:10]} "
+                           f"nor the backup {backup_sha[:10]}; refusing to move it")
     changed = pins_changed(repo, backup_sha, applied_sha)
     if changed:
         err = depupgrade.pip_sync(repo, dev="requirements-dev.txt" in changed)
         if err:
-            log.warning("rollback: reinstalling the previous packages failed: %s", err)
+            raise RecoveryIncomplete(f"main is back on {backup_sha[:10]}, but the previous "
+                                     f"packages could not be reinstalled: {err}")
 
 
 def pins_changed(repo: Path, a: str, b: str) -> set:
@@ -517,6 +531,9 @@ class CodeEvolution:
         self.workroot = Path(workroot)
         self.clock = clock
         self._lock = threading.Lock()
+        # Apply, rollback and recovery change main and the installed packages:
+        # one at a time (5.5.2).
+        self._apply_lock = threading.Lock()
         self._state = "idle"
         self._shipped_head: str | None = None
         self._wake = threading.Event()
@@ -1533,6 +1550,14 @@ class CodeEvolution:
             raise ValueError("only retained candidates can be applied")
         if c["review_state"] not in ("pending", "approved"):
             raise ValueError(f"candidate is {c['review_state']}")
+        if not self._apply_lock.acquire(blocking=False):
+            raise ValueError("another apply or rollback is in progress")
+        try:
+            return self._apply_locked(c, cand_id, actor)
+        finally:
+            self._apply_lock.release()
+
+    def _apply_locked(self, c: dict, cand_id: str, actor: str) -> dict:
         if self.pending_apply():
             raise ValueError("another applied patch is still being verified")
         repo = Path(self.settings["repo"])
@@ -1545,21 +1570,38 @@ class CodeEvolution:
             raise ValueError("main has moved on since this candidate was measured; "
                              "it has to be re-evaluated by a new cycle")
         now = self.clock()
+        marker = {"id": cand_id, "title": c.get("title"), "backup_sha": head,
+                  "applied_sha": c["commit_sha"], "repo": str(repo), "applied_at": now,
+                  "by": actor, "phase": "intent"}
+        # Durable intent BEFORE anything changes: 5.5.0 merged first and wrote the
+        # marker after, so a failed write left main moved with no record to roll
+        # back from (audit F3). If this write fails, nothing has changed.
+        write_marker(self.state_dir, marker)
         if c["review_state"] == "pending":
             self.db.update_candidate(cand_id, review_state="approved", reviewed_by=actor,
                                      reviewed_at=now)
             self.db.audit(actor, "candidate.approved", {"id": cand_id, "via": "apply"})
-        _git(repo, "tag", "-f", f"sysperf-backup/{cand_id}", head)
-        _git(repo, "merge", "-q", "--ff-only", c["branch"])
+        try:
+            _git(repo, "tag", "-f", f"sysperf-backup/{cand_id}", head)
+            _git(repo, "merge", "-q", "--ff-only", c["branch"])
+        except RuntimeError:
+            if _git(repo, "rev-parse", "HEAD").strip() == head:
+                clear_marker(self.state_dir)  # nothing moved: no recovery needed
+            raise
+        write_marker(self.state_dir, {**marker, "phase": "merged"})
         changed = pins_changed(repo, head, c["commit_sha"])
         if changed:
             err = depupgrade.pip_sync(repo, dev="requirements-dev.txt" in changed)
             if err:
-                git_rollback(repo, head, c["commit_sha"])
+                try:
+                    git_rollback(repo, head, c["commit_sha"])
+                except RecoveryIncomplete as exc:
+                    write_marker(self.state_dir, {**marker, "phase": "rollback_incomplete",
+                                                  "error": str(exc)[:500]})
+                    raise
+                clear_marker(self.state_dir)
                 raise RuntimeError(f"installing the upgraded packages failed: {err}")
-        marker = {"id": cand_id, "title": c.get("title"), "backup_sha": head,
-                  "applied_sha": c["commit_sha"], "repo": str(repo), "applied_at": now,
-                  "by": actor}
+        marker["phase"] = "applied"
         write_marker(self.state_dir, marker)
         append_apply_log(self.state_dir, {"at": now, "event": "applied", **marker})
         self.db.update_cycle(c["cycle_id"], state="completed")
@@ -1571,14 +1613,36 @@ class CodeEvolution:
     def rollback(self, cand_id: str | None = None, actor: str = "user",
                  reason: str = "requested") -> dict:
         """Return main to the commit it was on before ``cand_id`` was applied."""
+        if not self._apply_lock.acquire(blocking=False):
+            raise ValueError("another apply or rollback is in progress")
+        try:
+            return self._rollback_locked(cand_id, actor, reason)
+        finally:
+            self._apply_lock.release()
+
+    def _rollback_locked(self, cand_id, actor: str, reason: str) -> dict:
         m = self.pending_apply()
         if m is None or (cand_id and m["id"] != cand_id):
+            # The newest apply-log entry for it: an apply already rolled back (or
+            # recovered) is not offered again, now that rollback is idempotent.
             m = next((e for e in reversed(read_apply_log(self.state_dir))
-                      if e.get("event") == "applied" and (not cand_id or e.get("id") == cand_id)),
-                     None)
+                      if e.get("event") in ("applied", "rolled_back", "recovered")
+                      and (not cand_id or e.get("id") == cand_id)), None)
+            if m is not None and m.get("event") != "applied":
+                m = None
         if m is None:
             raise ValueError("nothing has been applied that could be rolled back")
-        git_rollback(Path(m["repo"]), m["backup_sha"], m["applied_sha"])
+        try:
+            git_rollback(Path(m["repo"]), m["backup_sha"], m["applied_sha"])
+        except RecoveryIncomplete as exc:
+            # Keep the record: the supervisor or a retry finishes the job.
+            write_marker(self.state_dir, {**m, "phase": "rollback_incomplete",
+                                          "error": str(exc)[:500]})
+            append_apply_log(self.state_dir, {"at": self.clock(), "event": "rollback_incomplete",
+                                              "id": m["id"], "by": actor, "error": str(exc)[:500]})
+            self.db.audit(actor, "candidate.rollback_incomplete",
+                          {"id": m["id"], "error": str(exc)[:300]})
+            return {"rolled_back": False, "incomplete": True, "id": m["id"], "error": str(exc)}
         clear_marker(self.state_dir)
         c = self.db.candidate(m["id"])
         if c and c["review_state"] == "applied":
@@ -1591,11 +1655,42 @@ class CodeEvolution:
         self.db.audit(actor, "candidate.rolled_back", {"id": m["id"], "reason": reason})
         return {"rolled_back": True, "id": m["id"], "head": m["backup_sha"]}
 
+    def recover_apply(self) -> dict | None:
+        """Finish an apply or rollback that was interrupted (call at start-up).
+
+        intent or merged: the patch was never verified, so main goes back to the
+        backup commit and its packages (a no-op when the merge had not happened).
+        rollback_incomplete: retried. applied: left to the normal health check.
+        Idempotent; a failure keeps the record and says why.
+        """
+        m = self.pending_apply()
+        if m is None or m.get("phase", "applied") == "applied":
+            return None
+        if not self._apply_lock.acquire(blocking=False):
+            return {"recovered": False, "id": m["id"], "error": "another apply or rollback is running"}
+        try:
+            try:
+                git_rollback(Path(m["repo"]), m["backup_sha"], m["applied_sha"])
+            except RuntimeError as exc:           # RecoveryIncomplete or a moved HEAD
+                write_marker(self.state_dir, {**m, "phase": "rollback_incomplete",
+                                              "error": str(exc)[:500]})
+                self.db.audit("system", "candidate.recovery_incomplete",
+                              {"id": m["id"], "phase": m.get("phase"), "error": str(exc)[:300]})
+                return {"recovered": False, "id": m["id"], "error": str(exc)}
+            clear_marker(self.state_dir)
+            append_apply_log(self.state_dir, {"at": self.clock(), "event": "recovered",
+                                              "id": m["id"], "from_phase": m.get("phase")})
+            self.db.audit("system", "candidate.recovered", {"id": m["id"], "phase": m.get("phase")})
+            self._shipped_head = None
+            return {"recovered": True, "id": m["id"], "from_phase": m.get("phase")}
+        finally:
+            self._apply_lock.release()
+
     def confirm_apply(self, healthy: bool) -> dict | None:
         """Called once the restarted service has produced a good sample."""
         m = self.pending_apply()
-        if m is None or not healthy:
-            return None
+        if m is None or not healthy or m.get("phase", "applied") != "applied":
+            return None                       # an unfinished apply or rollback is not a deploy
         clear_marker(self.state_dir)
         self._shipped_head = None            # re-check: it was skipped while verifying
         append_apply_log(self.state_dir, {"at": self.clock(), "event": "confirmed",

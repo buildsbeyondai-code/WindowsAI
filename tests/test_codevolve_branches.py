@@ -497,3 +497,143 @@ def test_auto_apply_waits_while_evolution_is_disabled(tmp_path, repo):
     e.settings["enabled"] = False
     assert e.auto_apply_pending() is None                   # disabled stops everything
     assert db.candidate("c-off")["review_state"] == "pending"
+
+
+# --------------------------------------- apply/rollback as a transaction (5.5.2) --
+def _approved_pins(db, repo, cid, branch):
+    """An approved candidate whose commit changes requirements.lock."""
+    _git_t(repo, "switch", "-q", "-c", branch, "main")
+    (repo / "requirements.lock").write_text(f"flask==9.9.9  # {cid}\n")
+    _git_t(repo, "add", "-A")
+    _git_t(repo, "commit", "-qm", f"evolve: {cid}")
+    sha = _git_t(repo, "rev-parse", "HEAD")
+    _git_t(repo, "switch", "-q", "main")
+    db.start_cycle(f"cy-{cid}", "manual")
+    db.add_candidate({"id": cid, "cycle_id": f"cy-{cid}", "created": 1.0, "decision": "retained",
+                      "branch": branch, "commit_sha": sha, "review_state": "approved"})
+    return sha
+
+
+def _failing_writes(monkeypatch, fail_on: int):
+    """write_marker that raises on its ``fail_on``-th call (1-based)."""
+    real, n = cv.write_marker, [0]
+
+    def write(state_dir, marker):
+        n[0] += 1
+        if n[0] == fail_on:
+            raise OSError("disk full")
+        real(state_dir, marker)
+    monkeypatch.setattr(cv, "write_marker", write)
+
+
+def test_intent_is_recorded_before_main_changes(tmp_path, repo, monkeypatch):
+    # 5.5.0 audit F3: the merge came first, the record after
+    e, db = eng(tmp_path, repo)
+    _approved(db, repo, "c-i", "evo/i")
+    before = _git_t(repo, "rev-parse", "HEAD")
+    _failing_writes(monkeypatch, 1)
+    with pytest.raises(OSError):
+        e.apply("c-i")
+    assert _git_t(repo, "rev-parse", "HEAD") == before and e.pending_apply() is None
+
+
+def test_an_apply_interrupted_after_the_merge_is_rolled_back_at_start_up(tmp_path, repo,
+                                                                         monkeypatch):
+    e, db = eng(tmp_path, repo)
+    sha = _approved(db, repo, "c-m", "evo/m")
+    before = _git_t(repo, "rev-parse", "HEAD")
+    _failing_writes(monkeypatch, 2)                     # dies right after the merge
+    with pytest.raises(OSError):
+        e.apply("c-m")
+    monkeypatch.undo()
+    assert _git_t(repo, "rev-parse", "HEAD") == sha
+    assert e.pending_apply()["phase"] == "intent"        # the record survived
+    with pytest.raises(ValueError, match="still being verified"):
+        e.apply("c-m")
+    assert e.recover_apply() == {"recovered": True, "id": "c-m", "from_phase": "intent"}
+    assert _git_t(repo, "rev-parse", "HEAD") == before and e.pending_apply() is None
+    assert e.recover_apply() is None                     # idempotent
+    assert any(x["event"] == "recovered" for x in cv.read_apply_log(e.state_dir))
+
+
+def test_an_apply_interrupted_before_the_merge_changes_nothing_on_recovery(tmp_path, repo):
+    e, db = eng(tmp_path, repo)
+    sha = _approved(db, repo, "c-b", "evo/b")
+    before = _git_t(repo, "rev-parse", "HEAD")
+    cv.write_marker(e.state_dir, {"id": "c-b", "backup_sha": before, "applied_sha": sha,
+                                  "repo": str(repo), "phase": "intent"})
+    assert e.recover_apply()["recovered"] is True
+    assert _git_t(repo, "rev-parse", "HEAD") == before and e.pending_apply() is None
+
+
+def test_a_failed_package_restore_is_reported_and_retried_until_it_completes(tmp_path, repo,
+                                                                            monkeypatch):
+    # audit F3: git_rollback logged the failure and callers reported success
+    e, db = eng(tmp_path, repo)
+    _approved_pins(db, repo, "c-p", "evo/p")
+    before = _git_t(repo, "rev-parse", "HEAD")
+    answers = ["upgrade failed", "restore failed"]
+    monkeypatch.setattr(cv.depupgrade, "pip_sync",
+                        lambda repo, dev=False: answers.pop(0) if answers else None)
+    with pytest.raises(cv.RecoveryIncomplete, match="could not be reinstalled"):
+        e.apply("c-p")
+    m = e.pending_apply()
+    assert m["phase"] == "rollback_incomplete" and _git_t(repo, "rev-parse", "HEAD") == before
+    assert e.confirm_apply(healthy=True) is None and e.pending_apply()   # not a deploy
+    assert e.recover_apply()["recovered"] is True                        # packages back now
+    assert e.pending_apply() is None
+
+
+def test_rollback_with_a_failed_restore_keeps_its_record_and_can_be_retried(tmp_path, repo,
+                                                                          monkeypatch):
+    e, db = eng(tmp_path, repo)
+    sha = _approved_pins(db, repo, "c-r", "evo/r")
+    before = _git_t(repo, "rev-parse", "HEAD")
+    results = [None, "restore failed", None]           # apply ok, rollback fails, retry ok
+    monkeypatch.setattr(cv.depupgrade, "pip_sync", lambda repo, dev=False: results.pop(0))
+    assert e.apply("c-r")["applied"] and _git_t(repo, "rev-parse", "HEAD") == sha
+    out = e.rollback("c-r")
+    assert out["rolled_back"] is False and out["incomplete"] is True
+    assert e.pending_apply()["phase"] == "rollback_incomplete"
+    assert _git_t(repo, "rev-parse", "HEAD") == before            # main moved; packages not
+    assert e.rollback("c-r")["rolled_back"] is True and e.pending_apply() is None
+    events = [x["event"] for x in cv.read_apply_log(e.state_dir)]
+    assert "rollback_incomplete" in events and events[-1] == "rolled_back"
+
+
+def test_a_moved_head_is_never_forced_back(tmp_path, repo, monkeypatch):
+    e, db = eng(tmp_path, repo)
+    _approved(db, repo, "c-h", "evo/h")
+    e.apply("c-h")
+    (repo / "user.txt").write_text("someone else's work")
+    _git_t(repo, "add", "-A")
+    _git_t(repo, "commit", "-qm", "user work")
+    moved = _git_t(repo, "rev-parse", "HEAD")
+    with pytest.raises(RuntimeError, match="refusing to move it"):
+        e.rollback("c-h")
+    assert _git_t(repo, "rev-parse", "HEAD") == moved and e.pending_apply()
+    cv.write_marker(e.state_dir, {**e.pending_apply(), "phase": "merged"})
+    out = e.recover_apply()
+    assert out["recovered"] is False and "neither" in out["error"]
+    assert _git_t(repo, "rev-parse", "HEAD") == moved
+    assert e.pending_apply()["phase"] == "rollback_incomplete"
+
+
+def test_a_failed_merge_leaves_no_record_and_one_operation_runs_at_a_time(tmp_path, repo):
+    e, db = eng(tmp_path, repo)
+    _approved(db, repo, "c-f", "evo/f")
+    _git_t(repo, "branch", "-D", "evo/f")                  # the merge will fail
+    with pytest.raises(RuntimeError):
+        e.apply("c-f")
+    assert e.pending_apply() is None
+    _approved(db, repo, "c-l", "evo/l")
+    e._apply_lock.acquire()
+    try:
+        for call in (lambda: e.apply("c-l"), lambda: e.rollback("c-l")):
+            with pytest.raises(ValueError, match="in progress"):
+                call()
+        cv.write_marker(e.state_dir, {"id": "c-l", "backup_sha": "a", "applied_sha": "b",
+                                      "repo": str(repo), "phase": "intent"})
+        assert "another apply" in e.recover_apply()["error"]
+    finally:
+        e._apply_lock.release()

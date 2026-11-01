@@ -1751,6 +1751,14 @@ def main() -> None:
     # monitoring loop and of any user prompt; action outcomes are judged here.
     if action_policy.level in ("off", "observe") and hasattr(improver, "set_mode"):
         improver.set_mode(action_policy.improver_mode())
+    # 5.5.2: an apply or rollback interrupted by a crash or power loss is finished
+    # (or its failure recorded) before anything else touches the checkout.
+    try:
+        recovery = code_evolution.recover_apply()
+        if recovery:
+            logging.warning("self-evolution recovery at start-up: %s", recovery)
+    except Exception:                        # pragma: no cover - start-up must go on
+        logging.exception("self-evolution recovery at start-up failed")
     _start("self-evolution", code_evolution.loop, lambda: action_policy.level)
     _start("action-verification", _verify_actions_loop)
     _start("housekeeping", _housekeeping_loop)

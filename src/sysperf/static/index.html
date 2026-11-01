@@ -5877,7 +5877,16 @@ document.addEventListener("visibilitychange", () => {
     const canRollback = live && !rolledBack;
     const rows = hist.map(e => `<tr><td>${esc(fmtT(e.at))}</td><td>${esc(e.event)}</td><td>${esc(e.id || "")}</td>
       <td>${esc(e.by || "")}</td><td>${esc(e.reason || e.title || "")}</td></tr>`).join("");
-    $("sevDeploy").innerHTML = (dep.pending
+    const phase = dep.pending ? (dep.pending.phase || "applied") : null;
+    $("sevDeploy").innerHTML = (phase === "rollback_incomplete"
+        // 5.5.2: an unfinished recovery is said plainly, not shown as verifying.
+        ? `<p class="evo-note warn"><b>Recovery not finished</b> for <b>${esc(dep.pending.title || dep.pending.id)}</b>:
+            ${esc(dep.pending.error || "the previous state is not fully restored")}. SysPerf retries at start-up
+            and on Roll back; the backup tag <code>sysperf-backup/${esc(dep.pending.id)}</code> is kept.</p>`
+        : phase && phase !== "applied"
+        ? `<p class="evo-note warn">Applying <b>${esc(dep.pending.title || dep.pending.id)}</b> was interrupted
+            (${esc(phase)}); it is rolled back automatically when SysPerf next starts.</p>`
+        : dep.pending
         ? `<p class="evo-note warn">Verifying <b>${esc(dep.pending.title || dep.pending.id)}</b> — applied ${esc(fmtT(dep.pending.applied_at))}; it is confirmed automatically once the restarted service is healthy, and rolled back automatically if it is not.</p>`
         : `<p class="evo-note">No patch is waiting for verification.</p>`)
       + `<div class="evo-row">${canRollback ? `<button id="sevRollback">Roll back ${esc(live.id)}</button>` : ""}<span id="sevDeployMsg" class="evo-note" role="status">${esc(deployNote)}</span></div>`
