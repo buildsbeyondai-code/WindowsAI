@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # impl/** candidate branches get the full matrix without a PR; nothing
+    # here publishes (the MSIX release job is tag-only).
+    branches: [main, 'impl/**']
   pull_request:
   workflow_dispatch:
 
