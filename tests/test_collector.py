@@ -26,6 +26,17 @@ class FakeScorer:
         return {"self_improvement_score": None}
 
 
+@pytest.fixture(autouse=True)
+def _a_powershell_exists(monkeypatch):
+    """Tests that fake subprocess.run must not depend on pwsh being installed.
+
+    probe_once refuses to run without PowerShell (5.5.2); the bubblewrap
+    sandbox has none, so without this the faked runs never happened there.
+    Tests of the missing-PowerShell path set PS_EXE to None themselves.
+    """
+    monkeypatch.setattr(collector, "PS_EXE", collector.PS_EXE or "pwsh")
+
+
 class FakePath:
     """Controllable stand-in for the HISTORY_FILE Path."""
     def __init__(self, exists=True, text="", raise_read=False,
