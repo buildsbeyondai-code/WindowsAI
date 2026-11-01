@@ -231,7 +231,7 @@ Details, measured trade-offs and limits: [`container/README.md`](container/READM
 
 | | |
 |---|---|
-| **OS** | Windows 11 (build 22000+). Windows 10 works but is not the test target. |
+| **OS** | Windows 11 (build 22000+). Windows 10 is not supported. |
 | **PowerShell** | 5.1, which ships with Windows. PowerShell 7 also works. |
 | **Python** | 3.10 or later. The installer can fetch it via `winget`. |
 | **Rights** | Standard user. Nothing needs elevation. |

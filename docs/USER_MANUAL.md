@@ -1,6 +1,6 @@
 # SysPerf User Manual
 
-**System Performance Agent — version 5.5.1**
+**System Performance Agent — version 5.5.2**
 
 A self-improving performance dashboard for Windows 11. It measures the PC, explains
 what holds it back, and changes it only in ways it lists and you can undo.
@@ -65,7 +65,7 @@ rather than an impression.
 
 | Requirement | Detail |
 |---|---|
-| Operating system | Windows 11 (build 22000 or later). Windows 10 works but is not the test target. |
+| Operating system | Windows 11 (build 22000 or later). Windows 10 is not supported. |
 | PowerShell | 5.1, which ships with Windows. PowerShell 7 also works. |
 | Python | 3.10 or later. The installer can fetch it via `winget` if it is missing. |
 | Privileges | Standard user. Nothing requires administrator rights. |

@@ -11,7 +11,8 @@ $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $work = Join-Path $env:TEMP "sysperf-testcert-$(Get-Random)"
 New-Item -ItemType Directory $work | Out-Null
-$py = (Get-Command python).Source
+$venvPy = Join-Path $env:LOCALAPPDATA 'SysPerf\venv\Scripts\python.exe'
+$py = if (Test-Path $venvPy) { $venvPy } else { (Get-Command python).Source }
 
 function Test-Signature($file, $signer) {
   $code = @"
