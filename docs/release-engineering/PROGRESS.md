@@ -32,3 +32,17 @@ restart or test against it. No release tags, no publishing workflows, no Store.
 ## Incident (1 Nov 2026)
 
 Pre-push from this worktree exported `GIT_DIR`; fixture git commands committed to the branch and set `core.bare=true` in the shared config. Push refused, nothing pushed; reverted exactly (branch to 92de03b, test branch deleted, `core.bare=false`). Fixed in be97e96 (conftest + hook), verified against a decoy repository.
+
+## Release 5.5.2 (1 Nov 2026, at the owner's direction)
+
+| Step | Result |
+|---|---|
+| Windows 11 only | Manifest MinVersion 10.0.22000.0; install.ps1 refuses older builds; README and manual say Windows 10 is not supported |
+| Version, merge, tag | 0f6e639 (5.5.2), merged with origin/main (5c8ebfb); `main` fast-forwarded and `v5.5.2` pushed; pre-push suites passed |
+| GitHub | CI [41279147676](https://github.com/buildsbeyondai-code/WindowsAI/actions/runs/41279147676) passed; MSIX [41279147578](https://github.com/buildsbeyondai-code/WindowsAI/actions/runs/41279147578) passed; [Release v5.5.2](https://github.com/buildsbeyondai-code/WindowsAI/releases/tag/v5.5.2) with x64 and arm64 MSIX and SHA256SUMS |
+| Live install | Restarted through `/api/restart`; reports 5.5.2, healthy, fresh samples; no pending deploy; self-evolution re-enabled |
+| Microsoft Store | Release packages checked against SHA256SUMS, bundled (`SysPerf_5.5.2.0.msixbundle`) and submitted with 5.5.2 release notes: submission 1152921505702288254, committed, reached Certification with no errors (standard runFullTrust and sales-API warnings) |
+| Test-certificate run | Not run: the elevated run (it trusts a test root for a moment) was refused by this session's permission policy. Run `evidence/testcert-run.ps1` as administrator to do it |
+| 24-hour soak | Started 1 Nov 11:42 IST against the live 5.5.2 service (read-only), `%LOCALAPPDATA%\SysPerf\soak\soak-5.5.2.csv`; verdict in `soak-5.5.2.out.txt` and `.csv.verdict.json` after 2 Nov 11:42. Sleep makes it inconclusive by design |
+| Installed-app evidence | Pending: the Store update arriving on this Windows 11 x64 PC will be the first (Store-delivered). No clean machine or ARM64 device available |
+
