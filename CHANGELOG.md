@@ -4,6 +4,37 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased (audit remediation, branch `impl/5.5.x-audit-remediation`)
+
+Fixes for `docs/release-engineering/SysPerf_5_5_0_Audit.md`. Not released;
+evidence and what remains are in `docs/release-engineering/RELEASE-EVIDENCE.md`.
+
+### Fixed
+- **`--once` takes a fresh sample (F1).** It printed the last cached snapshot,
+  which is empty on a new profile, and exited 0. It now runs one bounded
+  collection in a fresh process and prints it with the time it was taken; on
+  failure it prints `{"error", "detail"}` and exits 2 (no collector), 3
+  (timeout) or 4 (incomplete). The packaging workflow now runs when the CLI,
+  collector or entry points change, and its smoke test runs a clean and a
+  stale profile and needs a sample taken during the call.
+- **Signature checks use a structured verdict (F2).** Acceptance depended on
+  the word "signed" in the output, so `NotTrusted CN=Unrelated signed Company`
+  passed. The check now reads status, subject and thumbprint as JSON and needs
+  status `Valid` with the exact expected CN and O. The NuGet Python package is
+  pinned to its catalog SHA-512, and the PowerShell and PortableGit archives
+  to GitHub's SHA-256 (a download without a published digest is refused).
+- **Self-evolution apply is recoverable (F3).** The intent is written before
+  the code changes, recovery runs at start-up, and a dependency rollback that
+  fails is reported as unfinished instead of as success.
+- **A change after several fixes is not credited to each of them (F4).** A fix
+  is credited only when it ran alone and succeeded; otherwise the result is
+  kept as a group observation. Recommendations say "recency-weighted", show
+  the last before → after values and the age, and label records from before
+  this change.
+- **A soak with missing data no longer passes (F5).** `tools/soak.py` returns
+  pass, fail or inconclusive (exit 0/1/2). Missing values, short runs, gaps
+  and failed readings make it inconclusive.
+
 ## 5.5.1 — 2026-10-31
 
 ### Changed
