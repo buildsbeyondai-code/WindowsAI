@@ -837,7 +837,8 @@ def api_autoimprove():
     # 5.5: each finding as a ranked recommendation with its evidence, the measured
     # effect of each fix on this PC, its risk class and how success is measured.
     explained = explain_mod.explain((st.get("last") or {}).get("findings") or [], info,
-                                    st.get("ledger") or {}, st.get("settle_s") or 0)
+                                    st.get("ledger") or {}, st.get("settle_s") or 0,
+                                    time.time())
     return jsonify({**st, "recent": improver.recent(limit), "explained": explained,
                     "cpu_consumers": cpu, "onedrive": od, "broker": broker,
                     "auto_decisions": auto_target_store.decisions()})

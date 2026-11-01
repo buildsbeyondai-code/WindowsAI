@@ -66,6 +66,7 @@ from .trends import HIB
 log = logging.getLogger("perfdash.auto")
 
 MODES = ("off", "observe", "auto")
+GROUP_OBS_KEEP = 50      # recent batch (group) observations kept for review
 WIN_EPS = 0.005          # |normalised delta| below this == no measurable change
 
 
@@ -160,7 +161,7 @@ class AutoImprover:
         except (OSError, json.JSONDecodeError):
             return
         for key in ("mode", "cycles", "cooldowns", "ledger", "pending",
-                    "proposals", "last", "last_at"):
+                    "proposals", "last", "last_at", "group_observations"):
             if key in data:
                 self.state[key] = data[key]
 
@@ -208,16 +209,29 @@ class AutoImprover:
                 .setdefault(key, {"ema": None, "n": 0, "wins": 0,
                                   "losses": 0, "last": None}))
 
-    def _learn(self, action_id: str, key: str, delta: float) -> None:
+    def _learn(self, action_id: str, key: str, delta: float, before=None, after=None) -> None:
+        """An isolated measurement: this action alone ran in its batch (5.5.2)."""
         e = self._ledger_entry(action_id, key)
         e["n"] += 1
+        e["v"] = 2                            # attributed per action, not per batch
         e["last"] = round(delta, 4)
+        e["last_before"], e["last_after"], e["at"] = before, after, self.now()
         e["ema"] = (delta if e["ema"] is None
                     else LEDGER_ALPHA * delta + (1 - LEDGER_ALPHA) * e["ema"])
         if delta > WIN_EPS:
             e["wins"] += 1
         elif delta < -WIN_EPS:
             e["losses"] += 1
+
+    def _learn_group(self, action_ids: list, key: str, delta: float, before, after) -> None:
+        """A batch of fixes changed ``key`` together: no single one gets the credit."""
+        for aid in action_ids:
+            e = self._ledger_entry(aid, key)
+            e["group_n"] = e.get("group_n", 0) + 1
+        obs = self.state.setdefault("group_observations", [])
+        obs.append({"at": self.now(), "actions": list(action_ids), "key": key,
+                    "delta": round(delta, 4), "before": before, "after": after})
+        del obs[:-GROUP_OBS_KEEP]
 
     def _suppressed(self, action_id: str, key: str) -> str | None:
         """Learned reason to skip an action for a metric, if any."""
@@ -249,8 +263,16 @@ class AutoImprover:
                            "delta_pct": round(delta * 100.0, 2)}
             verdicts[key] = ("improved" if delta > WIN_EPS
                              else "worsened" if delta < -WIN_EPS else "unchanged")
-            for action_id in pending["actions"]:
-                self._learn(action_id, key, delta)
+            # 5.5.0 audit F4: every PLANNED action was credited with the whole
+            # change. Now only actions that actually ran count, and one gets the
+            # credit only when it ran alone; otherwise it is a group observation.
+            # A pending record from before 5.5.2 has no outcomes: group only.
+            ran = pending.get("ran")
+            ran = list(ran) if ran is not None else []
+            if len(ran) == 1 and (pending.get("for") or {}).get(ran[0]) == key:
+                self._learn(ran[0], key, delta, before, after.get(key))
+            elif ran or pending.get("ran") is None:
+                self._learn_group(ran or pending["actions"], key, delta, before, after.get(key))
         self.state["pending"] = None
         return {"status": "verified", "waited_s": round(waited, 1),
                 "actions": pending["actions"], "metrics": deltas,
@@ -451,8 +473,12 @@ class AutoImprover:
             for fid in ids:
                 self.state["cooldowns"][fid] = now + self.cooldown_s
             keys = [d["for"] for d in eligible]
+            status = {r.get("id"): r.get("status") for r in results or []}
             self.state["pending"] = {
                 "at": now, "actions": ids, "keys": keys,
+                # what each action targeted, and which actually ran (5.5.2)
+                "for": {d["id"]: d["for"] for d in eligible},
+                "ran": [fid for fid in ids if status.get(fid) == "ok"],
                 "before": _typicals(scorecard, set(keys)),
             }
             record["note"] = (f"applied {len(ids)} remediation(s); effect will be "
@@ -513,6 +539,7 @@ class AutoImprover:
                           for k, v in cooldowns.items() if v > self.now()},
             "pending_verification": pending,
             "ledger": ledger,
+            "group_observations": list(self.state.get("group_observations") or [])[-10:],
             "proposals": proposals,
             "last": last,
         }

@@ -147,7 +147,8 @@ def test_verify_waiting_then_measured(tmp_path):
                  status="met")]
     imp = _improver(tmp_path, _snapshot(rows, score=95.0), clock=clock)
     imp.state["pending"] = {"at": clock.t, "actions": ["flush_dns"],
-                            "keys": ["net_remote"],
+                            "keys": ["net_remote"], "ran": ["flush_dns"],
+                            "for": {"flush_dns": "net_remote"},
                             "before": {"net_remote": 40, "gone": 5}}
     waiting = imp._verify(_snapshot(rows)["scorecard"])
     assert waiting["status"] == "waiting"
@@ -478,3 +479,67 @@ def test_target_store_adjudication_drops_decided_proposals(tmp_path):
     assert t.reviewed == ["handles", "net_remote"]
     keys = [p.get("key") for p in imp.state["proposals"]]
     assert "handles" not in keys and "cpu_pct" in keys
+
+
+# ------------------------------------------ attribution per action (5.5.2) --
+def _cpu(tmp_path, after, clock):
+    rows = [_row("cpu_pct", scored=after, target=25, progress=50.0)]
+    return _improver(tmp_path, _snapshot(rows), clock=clock), _snapshot(rows)["scorecard"]
+
+
+def test_a_batch_change_is_not_credited_to_each_fix(tmp_path):
+    # 5.5.0 audit F4: CPU 50 -> 40 after two fixes gave EACH a "20% better"
+    clock = Clock()
+    imp, sc = _cpu(tmp_path, 40, clock)
+    imp.state["pending"] = {"at": clock.t - 10_000, "actions": ["a", "b"], "keys": ["cpu_pct"],
+                            "ran": ["a", "b"], "for": {"a": "cpu_pct", "b": "cpu_pct"},
+                            "before": {"cpu_pct": 50}}
+    imp._verify(sc)
+    for fid in ("a", "b"):
+        e = imp.state["ledger"][fid]["cpu_pct"]
+        assert e["n"] == 0 and e["ema"] is None and e["group_n"] == 1
+    obs = imp.state["group_observations"][-1]
+    assert obs["actions"] == ["a", "b"] and (obs["before"], obs["after"]) == (50, 40)
+
+
+def test_only_a_fix_that_ran_alone_is_credited(tmp_path):
+    clock = Clock()
+    imp, sc = _cpu(tmp_path, 40, clock)
+    imp.state["pending"] = {"at": clock.t - 10_000, "actions": ["a", "b"], "keys": ["cpu_pct"],
+                            "ran": ["a"], "for": {"a": "cpu_pct", "b": "cpu_pct"},   # b failed
+                            "before": {"cpu_pct": 50}}
+    imp._verify(sc)
+    e = imp.state["ledger"]["a"]["cpu_pct"]
+    assert e["n"] == 1 and e["wins"] == 1 and e["v"] == 2
+    assert (e["last_before"], e["last_after"]) == (50, 40) and e["at"] == clock.t
+    assert "b" not in imp.state["ledger"]
+
+
+def test_nothing_ran_nothing_learned_and_old_records_count_as_groups(tmp_path):
+    clock = Clock()
+    imp, sc = _cpu(tmp_path, 40, clock)
+    imp.state["pending"] = {"at": clock.t - 10_000, "actions": ["a"], "keys": ["cpu_pct"],
+                            "ran": [], "for": {"a": "cpu_pct"}, "before": {"cpu_pct": 50}}
+    imp._verify(sc)
+    assert imp.state["ledger"] == {}
+    imp.state["pending"] = {"at": clock.t - 10_000, "actions": ["a"], "keys": ["cpu_pct"],
+                            "before": {"cpu_pct": 50}}           # pre-5.5.2: no outcomes
+    imp._verify(sc)
+    assert imp.state["ledger"]["a"]["cpu_pct"]["n"] == 0
+    assert imp.state["ledger"]["a"]["cpu_pct"]["group_n"] == 1
+
+
+def test_a_fix_that_failed_is_not_credited_with_the_change(tmp_path):
+    clock = Clock()
+    rows = [_row("net_remote", scored=90, target=30, progress=5.0)]
+    imp = _improver(tmp_path, _snapshot(rows), clock=clock)
+    imp.fix_engine.apply = lambda ids, snap: [{"id": i, "status": "error"} for i in ids]
+    imp.cycle()
+    p = imp.state["pending"]
+    assert p["actions"] == ["flush_dns"] and p["ran"] == []
+    assert p["for"] == {"flush_dns": "net_remote"}
+    clock.advance(imp.settle_s + 1)
+    imp.collector.snap = _snapshot([_row("net_remote", scored=30, target=30, progress=100.0,
+                                         status="met")], score=95.0)
+    imp.cycle()
+    assert "flush_dns" not in imp.state["ledger"]
