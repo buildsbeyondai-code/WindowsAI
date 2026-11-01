@@ -1,0 +1,84 @@
+{
+ "finished_at": 1793499236.34436,
+ "duration_s": 205.3,
+ "verdict": "2 GATE(S) FAILED",
+ "exit_code": 1,
+ "gates": [
+  {
+   "name": "discover",
+   "description": "every module is registered in the coverage gate",
+   "status": "pass",
+   "skip_reason": "",
+   "detail": "",
+   "findings": []
+  },
+  {
+   "name": "compile",
+   "description": "modules byte-compile and are documented",
+   "status": "pass",
+   "skip_reason": "",
+   "detail": "",
+   "findings": []
+  },
+  {
+   "name": "lint",
+   "description": "AST checks (no external linter is installable here)",
+   "status": "pass",
+   "skip_reason": "",
+   "detail": "",
+   "findings": []
+  },
+  {
+   "name": "unit",
+   "description": "pytest suite",
+   "status": "pass",
+   "skip_reason": "",
+   "detail": "",
+   "findings": []
+  },
+  {
+   "name": "coverage",
+   "description": "100% line coverage on every target module",
+   "status": "fail",
+   "skip_reason": "",
+   "detail": "TOTAL          11819/11821  99.98%",
+   "findings": [
+    "app.py         1149/1151   99.8%  MISSING  missing lines: [1768, 1769]"
+   ]
+  },
+  {
+   "name": "frontend",
+   "description": "page JS parses, ids resolve, strings are escaped",
+   "status": "fail",
+   "skip_reason": "",
+   "detail": "",
+   "findings": [
+    "node not available to syntax-check the page JS"
+   ]
+  },
+  {
+   "name": "browser",
+   "description": "real-browser rendering + UI coverage",
+   "status": "skip",
+   "skip_reason": "--no-browser",
+   "detail": "",
+   "findings": []
+  },
+  {
+   "name": "live",
+   "description": "running service: contracts, headers, CSRF, GET purity",
+   "status": "pass",
+   "skip_reason": "",
+   "detail": "",
+   "findings": []
+  }
+ ],
+ "unit": {
+  "detail": "",
+  "duration_s": null
+ },
+ "coverage": {
+  "detail": "TOTAL          11819/11821  99.98%",
+  "line_pct": 99.98
+ }
+}

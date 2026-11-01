@@ -84,16 +84,29 @@ jobs:
             exit 1
           }
           $exe = Join-Path $env:RUNNER_TEMP msix/layout/SysPerf/SysPerf.exe
-          $out = Join-Path $env:RUNNER_TEMP smoke.json
-          $p = Start-Process $exe -ArgumentList "--smoke `"$out`"" -PassThru   # quoted: paths may hold spaces
-          if (-not $p.WaitForExit(300000)) { $p.Kill(); Fail 'SysPerf.exe --smoke did not finish in 5 minutes' }
-          $body = if (Test-Path $out) { Get-Content -Raw $out } else { '' }
-          if ($p.ExitCode -ne 0 -or -not $body) {
-            Fail "exit code $($p.ExitCode); output: $($body.Substring(0, [Math]::Min(300, $body.Length)))"
+          # Two profiles (5.5.0 audit F1): this runner's clean one, and one seeded
+          # with an old sample, which 5.5.0 would have printed as if it were live.
+          $stale = Join-Path $env:RUNNER_TEMP stale-profile
+          New-Item -ItemType Directory -Force $stale | Out-Null
+          '{"t": 1000000000, "available_mb": 1, "total_ram_mb": 2, "committed_mb": 3, "processes": 4}' |
+            Set-Content -Encoding utf8 (Join-Path $stale history.jsonl)
+          foreach ($profile in @('clean', 'stale')) {
+            $env:SYSPERF_DATA_DIR = if ($profile -eq 'stale') { $stale } else { $null }
+            $out = Join-Path $env:RUNNER_TEMP "smoke-$profile.json"
+            $began = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() / 1000.0
+            $p = Start-Process $exe -ArgumentList "--smoke `"$out`"" -PassThru   # quoted: paths may hold spaces
+            if (-not $p.WaitForExit(300000)) { $p.Kill(); Fail "$profile profile: SysPerf.exe --smoke did not finish in 5 minutes" }
+            $body = if (Test-Path $out) { Get-Content -Raw $out } else { '' }
+            $head = $body.Substring(0, [Math]::Min(300, $body.Length))
+            if ($p.ExitCode -ne 0 -or -not $body) { Fail "$profile profile: exit code $($p.ExitCode); output: $head" }
+            try { $j = $body | ConvertFrom-Json } catch { Fail "$profile profile: output is not JSON: $head" }
+            if ($null -eq $j.available_mb) { Fail "$profile profile: no available_mb in the sample: $head" }
+            # the sample must come from this call: taken after the step started it
+            if ($null -eq $j._t -or [double]$j._t -lt $began - 2) {
+              Fail "$profile profile: sample time $($j._t) is before this call began ($began): $head" }
+            "$profile profile: cpu $($j.cpu_pct)%  available $($j.available_mb) MB  processes $($j.processes)  taken $([math]::Round([double]$j._t - $began, 1)) s after start"
           }
-          try { $j = $body | ConvertFrom-Json } catch { Fail "output is not JSON: $($body.Substring(0, [Math]::Min(300, $body.Length)))" }
-          if ($null -eq $j.available_mb) { Fail "no available_mb in the sample: $($body.Substring(0, [Math]::Min(300, $body.Length)))" }
-          "cpu $($j.cpu_pct)%  available $($j.available_mb) MB  processes $($j.processes)"
+          $env:SYSPERF_DATA_DIR = $null
 
       - uses: actions/upload-artifact@v7
         with:
