@@ -43,6 +43,7 @@ is tested without touching the machine.
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import platform
@@ -88,6 +89,69 @@ def arch() -> str:
     return "arm64" if platform.machine().lower() in ("arm64", "aarch64") else "x64"
 
 
+# Approved signing identities (5.5.2). Pinned by the certificate subject's
+# CN and O, compared exactly, not by thumbprint: publishers renew their
+# certificates (Python and Git yearly), and a thumbprint pin would refuse every
+# genuine release after a renewal. Trust in the certificate itself comes from
+# Windows (status Valid: chain to a trusted root, not revoked, timestamped). A
+# publisher changing its legal name needs a code change here, reviewed like any.
+SIGNERS = {
+    "Python Software Foundation": {"CN": "Python Software Foundation",
+                                   "O": "Python Software Foundation"},
+    "Microsoft Corporation": {"CN": "Microsoft Corporation", "O": "Microsoft Corporation"},
+    "Johannes Schindelin": {"CN": "Johannes Schindelin", "O": "Johannes Schindelin"},
+}
+
+
+def parse_dn(dn: str) -> dict:
+    """``CN=A, O="B, Inc.", C=US`` -> {"CN": "A", "O": "B, Inc.", "C": "US"}.
+
+    Quoted values may contain commas; a repeated attribute keeps its first
+    value. Anything that does not parse as attribute=value is ignored, so a
+    malformed subject simply fails the identity comparison.
+    """
+    out, i, n = {}, 0, len(dn)
+    while i < n:
+        eq = dn.find("=", i)
+        if eq < 0:
+            break
+        key = dn[i:eq].strip().upper()
+        i = eq + 1
+        if i < n and dn[i] == '"':
+            end = i + 1
+            val = ""
+            while end < n:
+                if dn[end] == '"' and end + 1 < n and dn[end + 1] == '"':
+                    val += '"'
+                    end += 2
+                elif dn[end] == '"':
+                    break
+                else:
+                    val += dn[end]
+                    end += 1
+            i = dn.find(",", end) + 1 if dn.find(",", end) >= 0 else n
+        else:
+            comma = dn.find(",", i)
+            val = dn[i:comma if comma >= 0 else n].strip()
+            i = comma + 1 if comma >= 0 else n
+        if key and key not in out:
+            out[key] = val
+    return out
+
+
+def signature_verdict(rc: int, out) -> dict | None:
+    """The verifier's JSON verdict, or None if it failed or said something else."""
+    if rc != 0:
+        return None
+    try:
+        v = json.loads(str(out).strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return None
+    if not isinstance(v, dict) or not isinstance(v.get("status"), str):
+        return None
+    return v
+
+
 @dataclass
 class Host:
     """Everything an upgrader may do to the machine, injected."""
@@ -125,9 +189,21 @@ class Host:
                        "-Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode } "
                        "catch { Write-Output $_.Exception.Message; exit 1223 }", timeout=timeout)
 
-    def download(self, url: str, name: str, sha256: str | None = None) -> Path:
+    def download(self, url: str, name: str, sha256: str | None = None,
+                 sha512_b64: str | None = None, require_digest: bool = False) -> Path:
+        """Fetch ``url`` into staging, checked against a published digest.
+
+        ``require_digest``: refuse unless a digest published independently of
+        the download (GitHub's asset digest, NuGet's catalog hash) is known. An
+        archive's content (DLLs, scripts) is not covered by signing one of its
+        executables, so archives are pinned this way (5.5.0 audit F2).
+        """
         data = self.get(url)
         sha256 = sha256 or self.digests.get(url)
+        if require_digest and not (sha256 or sha512_b64):
+            raise ValueError(f"{name}: no published digest to verify it against")
+        if sha512_b64 and base64.b64encode(hashlib.sha512(data).digest()).decode() != sha512_b64:
+            raise ValueError(f"{name}: sha512 does not match the published one")
         if sha256 and hashlib.sha256(data).hexdigest() != sha256.lower():
             raise ValueError(f"{name}: sha256 does not match the published one")
         self.staging.mkdir(parents=True, exist_ok=True)
@@ -151,20 +227,49 @@ class Host:
                 return a["browser_download_url"], rel.get("tag_name", "")
         raise ValueError(f"no release asset of {repo} matches {pattern}")
 
-    def verify_signed(self, path, publisher: str) -> None:
-        """Refuse an executable without a valid Authenticode signature by ``publisher``.
+    def nuget_sha512(self, package: str, version: str) -> str:
+        """The SHA-512 (base64) NuGet's catalog publishes for a package version."""
+        leaf = json.loads(self.get(f"https://api.nuget.org/v3/registration5-semver1/"
+                                   f"{package.lower()}/{version}.json"))
+        entry = json.loads(self.get(leaf["catalogEntry"]))
+        if str(entry.get("packageHashAlgorithm", "")).upper() != "SHA512" \
+                or not entry.get("packageHash"):
+            raise ValueError(f"{package} {version}: NuGet publishes no SHA-512 for it")
+        return entry["packageHash"]
 
-        5.5: every program the upgrader downloads and then runs is checked
-        (installers, MSIs, MSIX, the interpreter in the NuGet package); HTTPS
-        alone was the only protection before. Raises ValueError otherwise.
+    def verify_signed(self, path, signer: str) -> dict:
+        """Refuse a file that is not validly signed by the approved ``signer``.
+
+        A structured verdict, not text: PowerShell reports the Authenticode
+        status and the signing certificate as JSON, and the file passes only when
+        the status is exactly ``Valid`` (Windows checked the chain, revocation and
+        the file's hash) and the subject's CN and O equal the approved identity in
+        ``SIGNERS`` exactly. The 5.5.0 check accepted any output containing the
+        word "signed", e.g. ``NotTrusted CN=Unrelated signed Company`` (audit F2).
+        Returns the verdict; raises ValueError otherwise, including when the
+        verifier is missing or its output is malformed.
         """
-        rc, out = self.ps(f"$s = Get-AuthenticodeSignature {_q(path)}; "
-                          "if ($s.Status -eq 'Valid' -and $s.SignerCertificate.Subject -match "
-                          f"{_q(publisher)}) {{ 'signed' }} else {{ \"$($s.Status) "
-                          "$($s.SignerCertificate.Subject)\" }")
-        if rc != 0 or "signed" not in out.split():
-            raise ValueError(f"{Path(path).name} is not validly signed by {publisher} "
-                             f"({out.strip()[:80]})")
+        if signer not in SIGNERS:
+            raise ValueError(f"no approved identity for signer {signer!r}")
+        rc, out = self.ps(
+            f"$s = Get-AuthenticodeSignature -LiteralPath {_q(path)}; $c = $s.SignerCertificate; "
+            "[ordered]@{ status = [string]$s.Status; "
+            "subject = $(if ($c) { $c.Subject } else { $null }); "
+            "issuer = $(if ($c) { $c.Issuer } else { $null }); "
+            "thumbprint = $(if ($c) { $c.Thumbprint } else { $null }) } | ConvertTo-Json -Compress")
+        name = Path(path).name
+        verdict = signature_verdict(rc, out)
+        if verdict is None:
+            raise ValueError(f"{name}: the signature check gave no usable result "
+                             f"(exit {rc}: {str(out).strip()[:120]})")
+        if verdict["status"] != "Valid":
+            raise ValueError(f"{name}: signature status is {verdict['status']}, not Valid")
+        dn = parse_dn(verdict.get("subject") or "")
+        want = SIGNERS[signer]
+        if any(dn.get(k) != v for k, v in want.items()):
+            raise ValueError(f"{name} is signed by {verdict.get('subject')!r}, "
+                             f"not the approved {signer} identity")
+        return verdict
 
     def suite_ok(self, distro: str = "") -> str | None:
         """None when SysPerf's suite passes as fully as the baseline did."""
@@ -570,7 +675,8 @@ class PythonOrg(Upgrader):
 
     def test(self, up, host):
         z = host.download(f"https://www.nuget.org/api/v2/package/python/{up['to']}",
-                          f"python-{up['to']}.nupkg")
+                          f"python-{up['to']}.nupkg",
+                          sha512_b64=host.nuget_sha512("python", up["to"]))
         root = host.staging / f"python-{up['to']}"
         shutil.rmtree(root, ignore_errors=True)
         with zipfile.ZipFile(z) as f:
@@ -683,16 +789,17 @@ class Pwsh(Upgrader):
         return None
 
     def _msix(self, host, ver):
-        p = host.download(f"https://github.com/PowerShell/PowerShell/releases/download/"
-                          f"v{ver}/PowerShell-{ver}-win-{arch()}.msix",
-                          f"PowerShell-{ver}.msix")
+        url, _ = host.github_asset("PowerShell/PowerShell",
+                                   rf"PowerShell-{re.escape(ver)}-win-{arch()}\.msix", tag=f"v{ver}")
+        p = host.download(url, f"PowerShell-{ver}.msix", require_digest=True)
         host.verify_signed(p, "Microsoft Corporation")
         return p
 
     def test(self, up, host):
-        z = host.download(f"https://github.com/PowerShell/PowerShell/releases/download/"
-                          f"v{up['to']}/PowerShell-{up['to']}-win-{arch()}.zip",
-                          f"PowerShell-{up['to']}.zip")
+        url, _ = host.github_asset("PowerShell/PowerShell",
+                                   rf"PowerShell-{re.escape(up['to'])}-win-{arch()}\.zip",
+                                   tag=f"v{up['to']}")
+        z = host.download(url, f"PowerShell-{up['to']}.zip", require_digest=True)
         root = host.staging / f"pwsh-{up['to']}"
         shutil.rmtree(root, ignore_errors=True)
         with zipfile.ZipFile(z) as f:
@@ -752,7 +859,8 @@ class Winget(Upgrader):
         url, tag = host.github_asset("git-for-windows/git", r"PortableGit-[\d.]+-64-bit\.7z\.exe")
         if git_windows_version(tag) != up["to"]:
             return f"the newest Git for Windows release is {tag}, not {up['to']}"
-        exe = host.download(url, "PortableGit.7z.exe")   # checked against GitHub's sha256
+        # The SFX payload is appended data the signature does not cover: pin it.
+        exe = host.download(url, "PortableGit.7z.exe", require_digest=True)
         host.verify_signed(exe, "Johannes Schindelin")
         root = host.staging / "PortableGit"
         shutil.rmtree(root, ignore_errors=True)

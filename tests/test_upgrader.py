@@ -41,12 +41,43 @@ def test_every_upgrader_is_labelled():
 
 
 # ----------------------------------------------------------------- harness --
+def nuget(nupkg: bytes, **extra) -> dict:
+    """A fake NuGet: the registration leaf, the catalog entry with the package's
+    SHA-512, then the package (most specific URL fragments first)."""
+    import base64
+    import hashlib
+    return {"registration5": {"catalogEntry": "https://api.nuget.org/v3/catalog0/x.json"},
+            "catalog0": {"packageHashAlgorithm": "SHA512",
+                         "packageHash": base64.b64encode(hashlib.sha512(nupkg).digest()).decode()},
+            "nuget.org": nupkg, **extra}
+
+
+def gh_release(tag: str, assets: dict) -> dict:
+    """A GitHub release whose assets carry their real sha256 digests."""
+    import hashlib
+    return {"tag_name": tag, "assets": [
+        {"name": n, "browser_download_url": f"u/{n}",
+         "digest": "sha256:" + hashlib.sha256(b).hexdigest()} for n, b in assets.items()]}
+
+
+def verdict(status="Valid", subject="CN=Python Software Foundation, O=Python Software Foundation"):
+    return (0, json.dumps({"status": status, "subject": subject, "issuer": "CN=CA",
+                           "thumbprint": "AB"}))
+
+
+def genuine(joined: str):
+    who = ("Python Software Foundation" if "python" in joined.lower()
+           else "Johannes Schindelin" if "PortableGit" in joined else "Microsoft Corporation")
+    return verdict(subject=f"CN={who}, O={who}, L=Somewhere, C=US")
+
+
 class Run:
     """Scripted host commands: the first rule whose text is in the argv wins."""
 
     def __init__(self, rules=None, default=(0, "")):
-        # Downloads are genuine unless a test says otherwise (5.5 signature checks).
-        self.rules = [*(rules or []), ("Get-AuthenticodeSignature", (0, "signed"))]
+        # Downloads are genuine unless a test says otherwise: a Valid verdict from
+        # the publisher that really signs that file (5.5.2 structured check).
+        self.rules = [*(rules or []), ("Get-AuthenticodeSignature", genuine)]
         self.default = default
         self.calls = []
 
@@ -55,6 +86,8 @@ class Run:
         self.calls.append(joined)
         for needle, res in self.rules:
             if needle in joined:
+                if callable(res):
+                    return res(joined)
                 if isinstance(res, list):          # a sequence of answers
                     out = res.pop(0) if len(res) > 1 else res[0]
                     return out
@@ -385,7 +418,7 @@ def test_playwright_browser(tmp_path):
 def test_python_org_stages_then_hands_the_swap_to_a_helper(tmp_path):
     p = ug.PythonOrg()
     nupkg = zbytes(["tools/python.exe"])
-    files = {"nuget.org": nupkg, "python-3.15.2-": b"new", "python-3.15.1-": b"old"}
+    files = nuget(nupkg, **{"python-3.15.2-": b"new", "python-3.15.1-": b"old"})
     run = Run()
     h = host(tmp_path, run, files=files)
     up = {"key": "python", "from": "3.15.1", "to": "3.15.2"}
@@ -410,7 +443,14 @@ def test_python_org_stages_then_hands_the_swap_to_a_helper(tmp_path):
 
 def test_pwsh(tmp_path):
     w = ug.Pwsh()
-    files = {".zip": zbytes(["pwsh.exe"]), ".msix": b"msix"}
+    rel = gh_release("v7.6.10", {"PowerShell-7.6.10-win-x64.zip": zbytes(["pwsh.exe"]),
+                                 "PowerShell-7.6.10-win-arm64.zip": zbytes(["pwsh.exe"]),
+                                 "PowerShell-7.6.10-win-x64.msix": b"msix",
+                                 "PowerShell-7.6.10-win-arm64.msix": b"msix",
+                                 "PowerShell-7.6.9-win-x64.msix": b"msix",
+                                 "PowerShell-7.6.9-win-arm64.msix": b"msix"})
+    files = {"releases/tags": rel, **{f"u/{a['name']}": (zbytes(["pwsh.exe"]) if a["name"].endswith(".zip")
+                                                          else b"msix") for a in rel["assets"]}}
     run = Run([("-File", (0, '{"cpu": 1}')), ("PSVersion", (0, "7.6.10"))])
     h = host(tmp_path, run, files=files)
     up = {"key": "powershell", "from": "7.6.9", "to": "7.6.10"}
@@ -423,14 +463,16 @@ def test_pwsh(tmp_path):
     assert "Add-AppxPackage failed" in w.apply(up, h)
     assert "pwsh reports" in w.verify(up, h)
     assert "reinstalling PowerShell" in w.rollback(up, {}, h)
+    nodigest = {**files, "releases/tags": {**rel, "assets": [dict(a, digest=None) for a in rel["assets"]]}}
+    with pytest.raises(ValueError, match="no published digest"):
+        w.test(up, host(tmp_path, files=nodigest))
     assert w.rollback(up, {}, host(tmp_path, files=files)) is None
 
 
 def test_winget_git(tmp_path):
     g = ug.Winget()
-    rel = {"tag_name": "v2.57.0.windows.1",
-           "assets": [{"name": "PortableGit-2.57.0-64-bit.7z.exe", "browser_download_url": "u/pg"}]}
-    files = {"releases/latest": rel, "u/pg": b"exe"}
+    rel = gh_release("v2.57.0.windows.1", {"PortableGit-2.57.0-64-bit.7z.exe": b"exe"})
+    files = {"releases/latest": rel, "u/PortableGit": b"exe"}
     run = Run([("winget list", (0, "Git  Git.Git  2.56.0.3  2.57.0 winget")),
                ("--version", (0, "git version 2.57.0.windows.1"))])
     h = host(tmp_path, run, files=files)
@@ -460,18 +502,19 @@ def test_wsl_platform(tmp_path):
         {"name": f"wsl.{v}.0.x64.msi", "browser_download_url": f"u/wsl-{v}"}]}
     files = {"tags/3.1.0": rel("3.1.0"), "tags/3.0.3": rel("3.0.3"),
              "u/wsl-3.1.0": b"m1", "u/wsl-3.0.3": b"m0"}
-    run = Run([("Get-AuthenticodeSignature", (0, "signed")), ("RunAs", (0, "")),
+    run = Run([("RunAs", (0, "")),
                ("--version", (0, "WSL version: 3.1.0.0"))])
     h = host(tmp_path, run, files=files, suite=GREEN)
     up = {"key": "wsl", "from": "3.0.3", "to": "3.1.0"}
     assert ug.run_upgrade(w, dict(up), h)["state"] == "applied"
-    h = host(tmp_path, Run([("Get-AuthenticodeSignature", (0, "NotSigned"))]), files=files)
-    with pytest.raises(ValueError, match="not validly signed"):
+    h = host(tmp_path, Run([("Get-AuthenticodeSignature", verdict("NotSigned", None))]),
+             files=files)
+    with pytest.raises(ValueError, match="signature status is NotSigned"):
         w.test(dict(up), h)
     up["_msi"] = "x.msi"
     h = host(tmp_path, Run([("RunAs", (1223, "declined"))]))
     assert "UAC" in w.apply(up, h)
-    h = host(tmp_path, Run([("Get-AuthenticodeSignature", (0, "signed")), ("RunAs", (1603, "e")),
+    h = host(tmp_path, Run([("RunAs", (1603, "e")),
                             ("--version", (0, "WSL version: 3.0.3.0"))]), files=files)
     assert "msiexec exit 1603" in w.apply(up, h)
     assert "does not report" in w.verify(up, h)
@@ -797,14 +840,14 @@ def test_a_failing_cleanup_is_recorded_not_raised(tmp_path):
 
 def test_downloads_must_be_signed_by_the_expected_publisher(tmp_path):
     # 5.5: the upgrader ran downloaded installers checked only by HTTPS
-    files = {"nuget.org": zbytes(["tools/python.exe"]), "python-3.15.2-": b"new",
+    files = {**nuget(zbytes(["tools/python.exe"])), "python-3.15.2-": b"new",
              "python-3.15.1-": b"old"}
-    run = Run([("Get-AuthenticodeSignature", (0, "NotSigned "))])
+    run = Run([("Get-AuthenticodeSignature", verdict(status="NotSigned", subject=None))])
     h = host(tmp_path, run, files=files)
     r = ug.run_upgrade(ug.PythonOrg(), {"key": "python", "from": "3.15.1", "to": "3.15.2"}, h)
-    assert r["state"] == "failed" and "not validly signed by Python Software Foundation" in r["reason"]
+    assert r["state"] == "failed" and "signature status is NotSigned" in r["reason"]
     assert not run.ran("-m pytest")                        # nothing unverified was run
-    assert "'Python Software Foundation'" in next(c for c in run.calls if "Authenticode" in c)
+    assert "ConvertTo-Json" in next(c for c in run.calls if "Authenticode" in c)
 
 
 def test_a_github_asset_must_match_its_published_sha256(tmp_path):
@@ -822,3 +865,61 @@ def test_a_github_asset_must_match_its_published_sha256(tmp_path):
     h = host(tmp_path, files={"releases/latest": rel, "u/tool": b"anything"})
     url, _ = h.github_asset("o/r", r"tool\.msi")
     assert h.download(url, "tool.msi").read_bytes() == b"anything" and h.digests == {}
+
+
+def test_signature_verdict_is_structured_and_identity_is_exact(tmp_path):
+    # 5.5.0 audit F2: any output containing the word "signed" was accepted
+    def check(answer, signer="Python Software Foundation"):
+        h = host(tmp_path, Run([("Get-AuthenticodeSignature", answer)]))
+        return h.verify_signed("x.exe", signer)
+    psf = "CN=Python Software Foundation, O=Python Software Foundation, L=Beaverton, C=US"
+    assert check(verdict(subject=psf))["status"] == "Valid"           # the approved signer
+    rejected = {
+        "free text with the word signed": (0, "NotTrusted CN=Unrelated signed Company"),
+        "hash mismatch then 'signed'": (0, "HashMismatch\nsigned"),
+        "untrusted, right subject": verdict(status="NotTrusted", subject=psf),
+        "hash mismatch, right subject": verdict(status="HashMismatch", subject=psf),
+        "wrong publisher": verdict(subject="CN=Evil Corp, O=Evil Corp"),
+        "name only contained": verdict(subject="CN=Not Python Software Foundation Ltd, "
+                                               "O=Python Software Foundation"),
+        "CN right, O wrong": verdict(subject="CN=Python Software Foundation, O=Someone Else"),
+        "no certificate": verdict(subject=None),
+        "malformed json": (0, "{not json"),
+        "json but no status": (0, '{"subject": "x"}'),
+        "verifier failed": (1, ""),
+        "verifier missing": (127, "pwsh not found"),
+    }
+    for label, answer in rejected.items():
+        with pytest.raises(ValueError):
+            check(answer)
+            pytest.fail(label)
+    with pytest.raises(ValueError, match="no approved identity"):
+        check(verdict(subject=psf), signer="Somebody")
+
+
+def test_distinguished_names_are_parsed_with_quotes_and_commas():
+    assert ug.parse_dn('CN=A, O="B, Inc.", C=US') == {"CN": "A", "O": "B, Inc.", "C": "US"}
+    assert ug.parse_dn('CN="Say ""hi""", O=X') == {"CN": 'Say "hi"', "O": "X"}
+    assert ug.parse_dn("CN=First, CN=Second") == {"CN": "First"}
+    assert ug.parse_dn('O="unterminated') == {"O": "unterminated"}
+    assert ug.parse_dn("garbage") == {} and ug.parse_dn("") == {}
+    assert ug.signature_verdict(0, '["Valid"]') is None
+
+
+def test_a_nuget_package_must_match_the_catalog_sha512(tmp_path):
+    # 5.5.0 audit F2: only python.exe inside the package was checked, not its DLLs
+    good = zbytes(["tools/python.exe"])
+    h = host(tmp_path, files=nuget(good))
+    sha = h.nuget_sha512("python", "3.15.2")
+    assert h.download("https://www.nuget.org/api/v2/package/python/3.15.2", "p.nupkg",
+                      sha512_b64=sha).read_bytes() == good
+    tampered = {**nuget(good), "nuget.org": zbytes(["tools/python.exe", "tools/evil.dll"])}
+    h = host(tmp_path, files=tampered)
+    with pytest.raises(ValueError, match="sha512 does not match"):
+        h.download("https://www.nuget.org/api/v2/package/python/3.15.2", "p.nupkg",
+                   sha512_b64=h.nuget_sha512("python", "3.15.2"))
+    unhashed = {**nuget(good), "catalog0": {"packageHashAlgorithm": "SHA512"}}
+    with pytest.raises(ValueError, match="publishes no SHA-512"):
+        host(tmp_path, files=unhashed).nuget_sha512("python", "3.15.2")
+    with pytest.raises(ValueError, match="no published digest"):
+        host(tmp_path, files={"u/x": b"x"}).download("u/x", "x.zip", require_digest=True)

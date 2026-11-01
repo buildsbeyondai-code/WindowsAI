@@ -108,7 +108,7 @@ def test_once_takes_a_fresh_sample_and_never_returns_history(monkeypatch):
     calls = []
     monkeypatch.setattr(col, "probe_once",
                         lambda full, timeout: calls.append((full, timeout)) or json.dumps(SAMPLE))
-    import sysperf.app as app_module                  # stale history must not be used
+    import sysperf.app as app_module  # stale history must not be used
     monkeypatch.setattr(app_module.collector, "snapshot",
                         lambda: {"latest": {"cpu_pct": 99.0, "_t": 1.0}})
     rc, out, _, served = _run(["--once"])
