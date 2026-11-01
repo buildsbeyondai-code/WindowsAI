@@ -5,6 +5,10 @@
 # Skip in an emergency with: git push --no-verify
 set -e
 cd "$(git rev-parse --show-toplevel)"
+# Git exports GIT_DIR to hooks run from a worktree; tests that build their own
+# repositories with `git -C <tmp>` would otherwise commit to this one.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY \
+      GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_PREFIX
 if [ -x ../venv/Scripts/python.exe ]; then PY=../venv/Scripts/python.exe
 elif [ -x .venv/bin/python ]; then PY=.venv/bin/python
 else PY=python3; fi
