@@ -12,7 +12,9 @@ promised.
     sysperf                     run the dashboard
     sysperf --port 5100 --open  run on another port and open a browser
     sysperf --where             print the resolved platform, paths and settings
-    sysperf --once              take one sample, print it, exit
+    sysperf --once              take one fresh sample now, print it as JSON, exit
+                                (exit 2: no collector here, 3: timed out,
+                                4: invalid sample; the error is printed as JSON)
     sysperf --report            print a text summary of the current score
     sysperf --supervise         run the dashboard under a restarting supervisor
     sysperf --version
@@ -143,6 +145,46 @@ def _supervise(argv: list, env: dict, supervisor_cls=None) -> int:
     return cls(supervisor.child_argv(argv), url, config_module.DATA_DIR, env=child_env).run()
 
 
+# The readings a sample must have to count (CPU may legitimately read 0).
+ONCE_REQUIRED = ("available_mb", "total_ram_mb", "committed_mb", "processes")
+ONCE_TIMEOUT_S = 150.0
+EXIT_NO_COLLECTOR, EXIT_TIMEOUT, EXIT_INVALID = 2, 3, 4
+
+
+def once(out, probe, parse, clock=None, timeout: float = ONCE_TIMEOUT_S) -> int:
+    """Take one fresh, bounded sample and print it; never a cached one.
+
+    No service, history, background loop or warm PowerShell session is started.
+    On failure a JSON object ``{"error": ..., "detail": ...}`` is printed and the
+    exit code says which: 2 no collector, 3 timed out, 4 invalid sample.
+    """
+    import subprocess
+    import time as _time
+    clock = clock or _time.time
+    started = clock()
+
+    def fail(code: int, error: str, detail) -> int:
+        print(json.dumps({"error": error, "detail": str(detail)[:500],
+                          "started": started}), file=out)
+        return code
+    try:
+        data = parse(probe(False, timeout))
+    except FileNotFoundError as exc:
+        return fail(EXIT_NO_COLLECTOR, "no_collector", exc)
+    except subprocess.TimeoutExpired:
+        return fail(EXIT_TIMEOUT, "timeout", f"no reading within {timeout:.0f} s")
+    except (RuntimeError, ValueError, OSError) as exc:
+        return fail(EXIT_INVALID, "invalid_sample", exc)
+    missing = [k for k in ONCE_REQUIRED if not isinstance(data.get(k), (int, float))
+               or isinstance(data.get(k), bool)]
+    if missing:
+        return fail(EXIT_INVALID, "invalid_sample", f"missing readings: {', '.join(missing)}")
+    data["_t"] = clock()                      # from THIS call, after the probe returned
+    data["_started"] = started
+    print(json.dumps(data, indent=1, default=str), file=out)
+    return 0
+
+
 def main(argv=None, env=None, stdout=None, serve=None, opener=None,
          supervisor_cls=None) -> int:
     """Entry point. Collaborators are injectable so every branch is testable."""
@@ -159,7 +201,6 @@ def main(argv=None, env=None, stdout=None, serve=None, opener=None,
         return _supervise(sys.argv[1:] if argv is None else list(argv), env, supervisor_cls)
     # Imported only now: config resolves paths and settings at import time, so it
     # has to see the environment the options just set.
-    from . import app as app_module
     from . import config as config_module
     from .platform_paths import describe
 
@@ -167,10 +208,12 @@ def main(argv=None, env=None, stdout=None, serve=None, opener=None,
         print(_where(config_module, describe), file=out)
         return 0
     if args.once:
-        snapshot = app_module.collector.snapshot()
-        print(json.dumps(snapshot.get("latest") or {}, indent=1, default=str),
-              file=out)
-        return 0
+        # 5.5.2: a new reading, taken now. It used to print the newest sample
+        # from history, which on a fresh install was {} with exit 0: the packaged
+        # smoke check failed on both architectures with "no live sample: {}".
+        from . import collector as collector_module
+        return once(out, collector_module.probe_once, collector_module._parse_probe)
+    from . import app as app_module
     if args.report:
         print(_report(app_module.collector.snapshot()), file=out)
         return 0

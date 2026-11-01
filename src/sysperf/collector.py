@@ -158,6 +158,26 @@ def _parse_probe(raw: str) -> dict:
     return data
 
 
+def probe_once(full: bool, timeout: float, script: str | None = None, run=None) -> str:
+    """One collector run in a fresh process; its stdout.
+
+    Never uses the warm session, so nothing is left running; the one-shot
+    ``sysperf --once`` relies on that. Raises FileNotFoundError when there is no
+    PowerShell here, subprocess.TimeoutExpired, or RuntimeError when the script
+    printed nothing.
+    """
+    if not PS_EXE:
+        raise FileNotFoundError("no PowerShell on this host (see `sysperf --where`)")
+    cmd = [PS_EXE, "-NoProfile", "-ExecutionPolicy", "Bypass",
+           "-File", script or to_host_path(COLLECT_SCRIPT, PLATFORM),
+           *(("-Full",) if full else ())]
+    res = (run or run_hidden)(cmd, capture_output=True, text=True, timeout=timeout)
+    raw = res.stdout.replace("\r", "").strip()
+    if not raw:
+        raise RuntimeError(res.stderr.strip()[:200] or "empty output")
+    return raw
+
+
 class Collector:
     def __init__(self, scorer, store=None, shell=None) -> None:
         self.scorer = scorer
@@ -310,13 +330,10 @@ class Collector:
                 self.shell_fallbacks += 1
                 log.warning("persistent PowerShell failed (%s); using a one-shot process",
                             exc)
-        cmd = [PS_EXE, "-NoProfile", "-ExecutionPolicy", "Bypass",
-               "-File", self._ps_script_win, *args]
-        res = run_hidden(cmd, capture_output=True, text=True, timeout=timeout)
-        raw = res.stdout.replace("\r", "").strip()
-        if not raw:
-            raise RuntimeError(res.stderr.strip()[:200] or "empty output")
-        return raw
+        return self.probe_once(full, timeout)
+
+    def probe_once(self, full: bool, timeout: float) -> str:
+        return probe_once(full, timeout, script=self._ps_script_win)
 
     def stats(self) -> dict:
         """Collector health facts for the diagnostics panel."""
