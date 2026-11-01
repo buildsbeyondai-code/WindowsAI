@@ -863,8 +863,11 @@ def test_main(monkeypatch):
     monkeypatch.setattr(app.app, "run", lambda **k: started.setdefault("run", True))
     monkeypatch.setattr(app, "PLATFORM", "windows")
     _stub_wsgi_server(monkeypatch, started)
+    recovered = []
+    monkeypatch.setattr(app.code_evolution, "recover_apply",       # 5.5.2: runs first
+                        lambda: recovered.append(1) or {"recovered": True, "id": "c-1"})
     app.main()
-    assert started.get("thread") and started.get("run")
+    assert started.get("thread") and started.get("run") and recovered == [1]
     # every worker is registered with the health monitor, with freshness probes
     names = {t["name"] for t in app.health_monitor.check()["threads"]}
     assert {"collector", "auto-improve", "self-evolution", "housekeeping",

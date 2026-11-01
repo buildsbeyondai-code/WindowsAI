@@ -504,3 +504,16 @@ def test_recommendations_explain_evidence_risk_effect_and_measurement(browser, s
     assert any(c in text for c in ("Safe", "Moderate", "Advanced", "Experimental"))
     assert "reversible" in text
     page.close()
+
+
+def test_an_interrupted_apply_and_an_unfinished_recovery_are_shown_plainly(browser, site):
+    # 5.5.2 (audit F3): never show an unfinished recovery as "Verifying"
+    for phase, expect in (("rollback_incomplete", "Recovery not finished"),
+                          ("merged", "was interrupted")):
+        cv = _evo_with_deploy(True)
+        cv["deploy"]["pending"] = {**cv["deploy"]["pending"], "phase": phase,
+                                   "error": "packages could not be reinstalled"}
+        page = _open(browser, site, hash_="#self-evolution", overrides={"api/codevolve": cv})
+        page.wait_for_function(f"() => document.getElementById('sevDeploy').innerText.includes({expect!r})")
+        assert "Verifying" not in page.inner_text("#sevDeploy")
+        page.close()

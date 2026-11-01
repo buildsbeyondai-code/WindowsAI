@@ -340,8 +340,8 @@ def test_rollback_restores_main_from_marker_or_log(tmp_path, repo):
     r = eng.rollback(cand["id"])                    # while still pending verification
     assert r == {"rolled_back": True, "id": cand["id"], "head": before}
     assert head(repo) == before and eng.pending_apply() is None
-    with pytest.raises(RuntimeError, match="refusing to move it"):
-        eng.rollback(cand["id"])                    # HEAD no longer the applied patch
+    with pytest.raises(ValueError, match="nothing has been applied"):
+        eng.rollback(cand["id"])                    # already rolled back: not offered again
     with pytest.raises(ValueError, match="nothing has been applied"):
         eng.rollback("c-unknown")
 
