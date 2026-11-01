@@ -1,6 +1,7 @@
 """Every decision branch of codevolve, driven by a scripted sandbox and model over
 the real fixture repository (no isolation backend needed)."""
 import json
+import os
 import subprocess
 import sys
 import threading
@@ -617,6 +618,40 @@ def test_a_moved_head_is_never_forced_back(tmp_path, repo, monkeypatch):
     assert out["recovered"] is False and "neither" in out["error"]
     assert _git_t(repo, "rev-parse", "HEAD") == moved
     assert e.pending_apply()["phase"] == "rollback_incomplete"
+
+
+def test_a_hooks_git_dir_never_reaches_the_tests_own_repositories(tmp_path):
+    # 1 Nov 2026: pre-push from a worktree exported GIT_DIR and fixture commits
+    # landed on the real branch. conftest drops it; the hook unsets it too.
+    root = Path(__file__).resolve().parents[1]
+    code = ("import os, tests.conftest as c; "
+            "print(sorted(k for k in c.GIT_REPO_VARS if k in os.environ))")
+    env = {**os.environ, "GIT_DIR": str(tmp_path), "GIT_WORK_TREE": str(tmp_path)}
+    out = subprocess.run([sys.executable, "-c", code], cwd=root, env=env, check=True,
+                         capture_output=True, text=True).stdout.strip()
+    assert out == "[]"
+    assert "unset GIT_DIR GIT_WORK_TREE" in (root / "tools" / "hooks" / "pre-push").read_text()
+
+
+def test_rollback_never_discards_the_users_uncommitted_edits(tmp_path, repo):
+    # audit F3 "preserve unrelated user changes": rollback uses reset --keep
+    e, db = eng(tmp_path, repo)
+    _approved(db, repo, "c-u", "evo/u")
+    before = _git_t(repo, "rev-parse", "HEAD")
+    e.apply("c-u")
+    other = next(f for f in _git_t(repo, "ls-files").split() if f.endswith(".py"))
+    (repo / other).write_text("# the user's unsaved edit\n")
+    assert e.rollback("c-u")["rolled_back"] is True
+    assert _git_t(repo, "rev-parse", "HEAD") == before
+    assert (repo / other).read_text() == "# the user's unsaved edit\n"
+    _git_t(repo, "checkout", "--", other)
+    _approved(db, repo, "c-w", "evo/w")
+    sha = e.apply("c-w") and _git_t(repo, "rev-parse", "HEAD")
+    (repo / "c-w.txt").write_text("the user edited the patched file")
+    with pytest.raises(RuntimeError, match=r"reset --keep.*not uptodate"):
+        e.rollback("c-w")
+    assert (repo / "c-w.txt").read_text() == "the user edited the patched file"
+    assert _git_t(repo, "rev-parse", "HEAD") == sha and e.pending_apply()
 
 
 def test_a_failed_merge_leaves_no_record_and_one_operation_runs_at_a_time(tmp_path, repo):

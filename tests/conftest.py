@@ -10,6 +10,16 @@ import pytest
 # Set before any sysperf module is imported (config resolves it at import).
 os.environ.setdefault("SYSPERF_DATA_DIR", tempfile.mkdtemp(prefix="sysperf-test-"))
 
+# Never let a test's git commands reach the repository being tested. A git hook
+# run from a worktree exports GIT_DIR, so `git -C <tmp repo> commit` in a fixture
+# committed to the real branch (and `git init` set core.bare on the real repo)
+# during a pre-push run on 1 Nov 2026.
+GIT_REPO_VARS = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR",
+                 "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+                 "GIT_NAMESPACE", "GIT_PREFIX")
+for _var in GIT_REPO_VARS:
+    os.environ.pop(_var, None)
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
