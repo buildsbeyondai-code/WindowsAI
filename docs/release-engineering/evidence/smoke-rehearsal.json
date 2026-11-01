@@ -1,0 +1,18 @@
+{
+ "what": "msix.yml smoke logic rehearsed natively on Windows 11 x64 (daily-use PC, isolated data dirs) through packaging/msix/sysperf_app.py --smoke from source, 1 Nov 2026",
+ "candidate_51f1f6b_plus_smoke_change": {
+  "clean": "console: rc 0  available 1034.0 MB  processes 277  taken 6 s after start  keys 48 (JSON file later overwritten by the baseline run in the same folder)",
+  "stale": {
+   "_started": 1793499342.5359297,
+   "_t": 1793499347.880968,
+   "available_mb": 995.0,
+   "total_ram_mb": 7836.0,
+   "committed_mb": 12876.0,
+   "processes": 277,
+   "keys": 48
+  }
+ },
+ "baseline_6aeb67c": {
+  "clean": "FAIL: clean profile: no available_mb: {}"
+ }
+}

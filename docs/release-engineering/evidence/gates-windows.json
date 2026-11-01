@@ -1,0 +1,80 @@
+{
+ "finished_at": 1793499307.371653,
+ "duration_s": 504.7,
+ "verdict": "ALL GATES PASSED",
+ "exit_code": 0,
+ "gates": [
+  {
+   "name": "discover",
+   "description": "every module is registered in the coverage gate",
+   "status": "pass",
+   "skip_reason": "",
+   "detail": "",
+   "findings": []
+  },
+  {
+   "name": "compile",
+   "description": "modules byte-compile and are documented",
+   "status": "pass",
+   "skip_reason": "",
+   "detail": "",
+   "findings": []
+  },
+  {
+   "name": "lint",
+   "description": "AST checks (no external linter is installable here)",
+   "status": "pass",
+   "skip_reason": "",
+   "detail": "",
+   "findings": []
+  },
+  {
+   "name": "unit",
+   "description": "pytest suite",
+   "status": "pass",
+   "skip_reason": "",
+   "detail": "",
+   "findings": []
+  },
+  {
+   "name": "coverage",
+   "description": "100% line coverage on every target module",
+   "status": "pass",
+   "skip_reason": "",
+   "detail": "TOTAL          11760/11760 100.00%",
+   "findings": []
+  },
+  {
+   "name": "frontend",
+   "description": "page JS parses, ids resolve, strings are escaped",
+   "status": "pass",
+   "skip_reason": "",
+   "detail": "",
+   "findings": []
+  },
+  {
+   "name": "browser",
+   "description": "the page renders and responds in a real browser",
+   "status": "pass",
+   "skip_reason": "",
+   "detail": "  \u00b7  UI coverage 100.0%",
+   "findings": []
+  },
+  {
+   "name": "live",
+   "description": "running service",
+   "status": "skip",
+   "skip_reason": "--no-live",
+   "detail": "",
+   "findings": []
+  }
+ ],
+ "unit": {
+  "detail": "",
+  "duration_s": null
+ },
+ "coverage": {
+  "detail": "TOTAL          11760/11760 100.00%",
+  "line_pct": 100.0
+ }
+}
