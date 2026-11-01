@@ -95,13 +95,53 @@ def test_where_prints_the_resolved_platform_and_paths():
         assert label in out, label
 
 
-def test_once_prints_the_latest_sample_and_does_not_serve(monkeypatch):
-    import sysperf.app as app_module
+SAMPLE = {"cpu_pct": 0, "available_mb": 1500.0, "total_ram_mb": 7836.0,
+          "committed_mb": 9000.0, "processes": 260}
+
+
+def test_once_takes_a_fresh_sample_and_never_returns_history(monkeypatch):
+    # 5.5.0 audit F1: --once printed the newest stored sample; on a fresh install
+    # that was {} with exit 0, and the packaged smoke check failed on both arches
+    import json
+
+    import sysperf.collector as col
+    calls = []
+    monkeypatch.setattr(col, "probe_once",
+                        lambda full, timeout: calls.append((full, timeout)) or json.dumps(SAMPLE))
+    import sysperf.app as app_module                  # stale history must not be used
     monkeypatch.setattr(app_module.collector, "snapshot",
-                        lambda: {"latest": {"cpu_pct": 12.5}})
+                        lambda: {"latest": {"cpu_pct": 99.0, "_t": 1.0}})
     rc, out, _, served = _run(["--once"])
-    assert rc == 0 and served == []
-    assert "cpu_pct" in out and "12.5" in out
+    data = json.loads(out)
+    assert rc == 0 and served == [] and calls == [(False, cli.ONCE_TIMEOUT_S)]
+    assert data["cpu_pct"] == 0 and data["_t"] >= data["_started"] > 1.0     # zero CPU is valid
+
+
+def test_once_reports_each_failure_as_json_with_its_own_exit_code():
+    import io
+    import json
+    import subprocess
+
+    def probe(exc):
+        def p(full, timeout):
+            raise exc
+        return p
+    parse = json.loads
+    cases = [(probe(FileNotFoundError("no PowerShell")), cli.EXIT_NO_COLLECTOR, "no_collector"),
+             (probe(subprocess.TimeoutExpired("pwsh", 150)), cli.EXIT_TIMEOUT, "timeout"),
+             (probe(RuntimeError("empty output")), cli.EXIT_INVALID, "invalid_sample"),
+             (lambda f, t: "not json", cli.EXIT_INVALID, "invalid_sample"),
+             (lambda f, t: json.dumps({**SAMPLE, "processes": None}), cli.EXIT_INVALID,
+              "invalid_sample"),
+             (lambda f, t: json.dumps({**SAMPLE, "available_mb": True}), cli.EXIT_INVALID,
+              "invalid_sample")]
+    for prb, code, error in cases:
+        out = io.StringIO()
+        assert cli.once(out, prb, parse, clock=lambda: 5.0) == code
+        assert json.loads(out.getvalue())["error"] == error
+    out = io.StringIO()
+    assert cli.once(out, lambda f, t: json.dumps({**SAMPLE, "processes": None}), parse) == 4
+    assert "processes" in json.loads(out.getvalue())["detail"]
 
 
 def test_report_prints_a_summary_and_does_not_serve(monkeypatch):

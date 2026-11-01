@@ -8,9 +8,17 @@ on:
   workflow_dispatch:
   push:
     tags: ['v*']
-  # Packaging changes get both builds before they reach main.
+    # Candidate branches get both native builds and the frozen smoke run. The
+    # release job below runs only for v* tags, so this publishes nothing.
+    branches: ['impl/**']
+  # Changes on the frozen app's path get both builds before they reach main:
+  # the entry point, the one-shot CLI and the collector it runs (5.5.0 audit:
+  # a CLI-only change bypassed this gate).
   pull_request:
-    paths: ['packaging/msix/**', '.github/workflows/msix.yml', 'requirements.lock']
+    paths: ['packaging/msix/**', '.github/workflows/msix.yml', 'requirements.lock',
+            'src/sysperf/cli.py', 'src/sysperf/collector.py', 'src/sysperf/collect_win.ps1',
+            'src/sysperf/desktop.py', 'src/sysperf/selfupdate.py', 'src/sysperf/config.py',
+            'src/sysperf/platform_paths.py', 'src/sysperf/__main__.py']
 
 permissions:
   contents: read

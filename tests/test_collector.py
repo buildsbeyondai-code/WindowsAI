@@ -502,3 +502,19 @@ def test_target_overrides_come_from_the_store(col):
             return {"handles": 90000}
     c.target_store = TS()
     assert c._target_overrides() == {"handles": 90000}
+
+
+def test_probe_once_runs_a_fresh_process_and_reports_why_it_could_not(monkeypatch):
+    # 5.5.2: --once must not use (or leave behind) the warm PowerShell session
+    import types
+    seen = []
+    monkeypatch.setattr(collector, "PS_EXE", "pwsh.exe")
+    ok = lambda cmd, **kw: seen.append((cmd, kw)) or types.SimpleNamespace(stdout='{"a": 1}\r\n', stderr="")  # noqa: E731
+    assert collector.probe_once(True, 30, script="c.ps1", run=ok) == '{"a": 1}'
+    assert seen[0][0][-2:] == ["c.ps1", "-Full"] and seen[0][1]["timeout"] == 30
+    empty = lambda cmd, **kw: types.SimpleNamespace(stdout="", stderr="blocked")  # noqa: E731
+    with pytest.raises(RuntimeError, match="blocked"):
+        collector.probe_once(False, 30, script="c.ps1", run=empty)
+    monkeypatch.setattr(collector, "PS_EXE", None)
+    with pytest.raises(FileNotFoundError):
+        collector.probe_once(False, 30)
