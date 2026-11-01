@@ -1,0 +1,18 @@
+{
+ "state": "inconclusive",
+ "problems": [],
+ "gaps_in_evidence": [
+  "memory growth not judged: 13 RSS reading(s) in the warm-up hour and 0 after it (need 2 and 1)",
+  "the service restarted 1 time(s): memory growth across a restart cannot be judged"
+ ],
+ "coverage": {
+  "readings": 13,
+  "complete": 13,
+  "expected": 13,
+  "covered_s": 180,
+  "wanted_s": 180.0,
+  "gaps": 0,
+  "gap_s": 0,
+  "restarts": 1
+ }
+}
