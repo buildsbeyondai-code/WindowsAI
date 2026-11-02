@@ -4,6 +4,34 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.5.3 — 2026-11-02
+
+Fixes for a low summary score on 2026-11-02, traced to two SysPerf servers on
+one port and to the sign-in burst being graded as the machine's steady state.
+
+### Added
+- **Store rating prompt.** A one-time, dismissible prompt to rate SysPerf in
+  the Microsoft Store after three days of use (Store build only).
+- **The desktop app's title bar follows the app's theme.** It used to follow
+  the Windows-wide setting, so a dark SysPerf on a light Windows had a white
+  caption bar. The page reports its theme and the shell paints the caption,
+  text and border through DWM; the last theme is remembered, so it never
+  flashes white.
+
+### Fixed
+- **One SysPerf per port.** The Store app and the scripted install started
+  4 s apart at sign-in and both bound 127.0.0.1:5056 (waitress sets
+  SO_REUSEADDR, which on Windows allows a second listener). Two collectors
+  shared one data folder, about 700 MB of RAM went to the duplicate, and the
+  browser reached the older build. The server now claims the port exclusively
+  before any loop starts; a second instance exits with code 76 and the
+  supervisor waits in standby. The desktop shell gives a busy port 30 s to
+  answer as SysPerf and attaches to it instead of starting another collector.
+- **The sign-in burst is not graded.** CPU, disk-busy and run-queue rows show
+  as settling for the first 15 minutes of a session (sign-in or resume)
+  instead of scoring Windows' start-up work as 0%, which also raised false
+  auto-improve breaches. Memory and the other rows are graded at once.
+
 ## 5.5.2 — 2026-11-01
 
 Fixes for `docs/release-engineering/SysPerf_5_5_0_Audit.md`. Evidence, and the
