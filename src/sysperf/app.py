@@ -54,8 +54,8 @@ from . import pwsh_session as pwsh_mod
 from . import rca as rca_mod
 from . import restorepoint as restorepoint_mod
 from . import session_policy as session_policy_mod
-from . import singleinstance as singleinstance_mod
 from . import settings_hub as settings_mod
+from . import singleinstance as singleinstance_mod
 from . import store_mode as store_mode_mod
 from . import trayquit as trayquit_mod
 from . import version_check as version_check_mod
