@@ -260,13 +260,28 @@ class TrendStore:
             out.append((day, m["sum"] / m["n"]))
         return out
 
+    def _recent_typicals(self, key: str, window_days: int) -> list:
+        """day_typicals(key)[-window_days:] (window_days > 0) without the full scan."""
+        series = []
+        days_map = self.days
+        for day in sorted(days_map, reverse=True):
+            m = (days_map[day].get("metrics") or {}).get(key)
+            if not m or not m.get("n") or m["n"] < MIN_DAY_SAMPLES:
+                continue
+            series.append((day, m["sum"] / m["n"]))
+            if len(series) >= window_days:
+                break
+        series.reverse()
+        return series
+
     def analyze(self, key: str, target=None,
                 window_days: int = TREND_WINDOW_DAYS) -> dict:
         """Long-term trend for one metric over the last `window_days` days."""
         hib = HIB.get(key, False)
         if target is None:
             target = TARGETS.get(key)
-        series = self.day_typicals(key)[-window_days:]
+        series = (self._recent_typicals(key, window_days) if window_days > 0
+                  else self.day_typicals(key)[-window_days:])
         days = [d for d, _ in series]
         vals = [v for _, v in series]
         settled = len(vals)
