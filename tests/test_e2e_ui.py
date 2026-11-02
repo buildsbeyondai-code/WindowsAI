@@ -709,6 +709,7 @@ CONDITIONAL = {
     "homeOptional": "filled only in the Microsoft Store app (Store mode)",
     "sevUpgradeMsg": "a status line, written only after Upgrade now or when it is unavailable",
     "mtMsg": "a status line, written only after a maintenance button is pressed",
+    "homeRateMsg": "a status line, written only after a Store rating button fails",
 }
 
 

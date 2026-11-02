@@ -556,6 +556,25 @@ def test_store_routes_and_home_lists_optional_features(client, monkeypatch, tmp_
     assert client.post("/api/store", json={**T, "feature": "nope"}).status_code == 400
 
 
+def test_store_rate_route_and_home_field(client, monkeypatch, tmp_path):
+    from sysperf import store_mode
+    opened, clock = [], [0.0]
+    rp = store_mode.RatePrompt(tmp_path / "rate.json", store_mode=True,
+                               clock=lambda: clock[0], launch=opened.append)
+    monkeypatch.setattr(app, "rate_prompt", rp)
+    assert client.get("/api/home").get_json()["rate"]["show"] is False
+    clock[0] = store_mode.RATE_AFTER_S
+    assert client.get("/api/home").get_json()["rate"]["show"] is True
+    _csrf_refused(client, "/api/store/rate")
+    assert client.post("/api/store/rate", json={**T, "action": "x"}).status_code == 400
+    j = client.post("/api/store/rate", json={**T, "action": "open"}).get_json()
+    assert j["show"] is False and opened == [store_mode.REVIEW_URI]
+    monkeypatch.setattr(app, "rate_prompt", store_mode.RatePrompt(
+        tmp_path / "r2.json", store_mode=False))
+    assert client.get("/api/home").get_json()["rate"] is None
+    assert client.post("/api/store/rate", json={**T, "action": "open"}).status_code == 400
+
+
 def test_store_apply_lands_in_the_checkout_and_restart_relaunches(client, monkeypatch):
     monkeypatch.setattr(app.code_evolution, "apply", lambda cid: {"applied": True, "id": cid})
     monkeypatch.setattr(app, "STORE_MODE", True)

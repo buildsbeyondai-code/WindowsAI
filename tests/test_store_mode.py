@@ -126,3 +126,60 @@ def test_restore_points_switch(tmp_path):
     assert sf.restore.auto is True
     assert {f["id"]: f["on"] for f in d["features"]}["restore_points"] is True
 
+
+
+# ------------------------------------------------------------ rating prompt --
+def _rate(tmp_path, store=True, now=1000.0):
+    clock, opened = [now], []
+    rp = store_mode.RatePrompt(tmp_path / "rate.json", store_mode=store,
+                               clock=lambda: clock[0], launch=opened.append)
+    return rp, clock, opened
+
+
+def test_rating_is_never_offered_outside_the_store_app(tmp_path):
+    rp, _, opened = _rate(tmp_path, store=False)
+    assert rp.describe() is None and not (tmp_path / "rate.json").exists()
+    with pytest.raises(ValueError, match="only offered"):
+        rp.act("open")
+    assert opened == []
+
+
+def test_rating_shows_after_three_days_and_open_launches_the_review_page_once(tmp_path):
+    rp, clock, opened = _rate(tmp_path)
+    assert rp.describe() == {"show": False, "uri": store_mode.REVIEW_URI}   # clock starts
+    clock[0] += store_mode.RATE_AFTER_S - 1
+    assert rp.describe()["show"] is False
+    clock[0] += 1
+    assert rp.describe()["show"] is True
+    assert rp.act("open")["show"] is False and opened == [store_mode.REVIEW_URI]
+    clock[0] += 10 * store_mode.RATE_SNOOZE_S
+    assert rp.describe()["show"] is False                       # never asks again
+    assert json.loads((tmp_path / "rate.json").read_text())["done"] == "open"
+
+
+def test_later_snoozes_and_never_stops_asking(tmp_path):
+    rp, clock, opened = _rate(tmp_path)
+    rp.describe()
+    clock[0] += store_mode.RATE_AFTER_S
+    assert rp.act("later")["show"] is False
+    clock[0] += store_mode.RATE_SNOOZE_S - 1
+    assert rp.describe()["show"] is False
+    clock[0] += 1
+    assert rp.describe()["show"] is True
+    assert rp.act("never")["show"] is False and opened == []
+    with pytest.raises(ValueError, match="unknown action"):
+        rp.act("bribe")
+
+
+def test_rating_state_survives_a_bad_file_and_the_default_launcher_uses_startfile(
+        tmp_path, monkeypatch):
+    (tmp_path / "rate.json").write_text("[1]")
+    rp, _, _ = _rate(tmp_path)
+    assert rp.describe()["show"] is False
+    (tmp_path / "rate.json").write_text('{"first_seen": "x"}')
+    assert rp.describe()["show"] is False
+    assert isinstance(json.loads((tmp_path / "rate.json").read_text())["first_seen"], float)
+    seen = []
+    monkeypatch.setattr(store_mode.os, "startfile", seen.append, raising=False)
+    store_mode._launch(store_mode.REVIEW_URI)
+    assert seen == [store_mode.REVIEW_URI]

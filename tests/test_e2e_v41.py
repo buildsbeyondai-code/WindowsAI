@@ -556,3 +556,28 @@ def test_an_interrupted_apply_and_an_unfinished_recovery_are_shown_plainly(brows
         page.wait_for_function(f"() => document.getElementById('sevDeploy').innerText.includes({expect!r})")
         assert "Verifying" not in page.inner_text("#sevDeploy")
         page.close()
+
+
+def test_store_app_asks_once_for_a_rating(browser, site):
+    page = _open(browser, site)
+    page.wait_for_function("() => document.getElementById('homeTodo').innerText.includes('quit')")
+    assert not page.is_visible("#homeRateCard")                    # not due / not Store
+    page.close()
+    shown = {"show": True, "uri": "ms-windows-store://review/?ProductId=9P558WJTTC0B"}
+    page = _open(browser, site, overrides={"api/home": dict(STUBS["api/home"], rate=shown)},
+                 posts={"api/store/rate": {"show": False, "uri": shown["uri"]}})
+    page.wait_for_selector("#homeRateCard", state="visible")
+    assert "Rate SysPerf" in page.inner_text("#homeRateCard")
+    assert "Microsoft Store" in page.text_content("#homeRateCard")
+    page.click("#homeRate .rate-btn[data-act='later']")
+    page.wait_for_selector("#homeRateCard", state="hidden")
+    assert _posted(page, "api/store/rate")
+    page.close()
+    page = _open(browser, site, overrides={"api/home": dict(STUBS["api/home"], rate=shown)})
+    page.route("**/api/store/rate", lambda r, q: r.fulfill(
+        status=400, content_type="application/json", body=json.dumps({"error": "nope"})))
+    page.wait_for_selector("#homeRate .rate-btn")
+    page.click("#homeRate .rate-btn[data-act='open']")
+    page.wait_for_function("() => document.getElementById('homeRateMsg').textContent.includes('Failed: nope')")
+    assert page.is_visible("#homeRateCard")
+    page.close()
