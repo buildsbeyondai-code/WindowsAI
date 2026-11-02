@@ -1,0 +1,45 @@
+# Submit the newest GitHub release to the Microsoft Store without anyone's PC
+# being on. tools/store_submit.py decides each run: already published -> no-op;
+# another submission (e.g. a listing update) still in certification -> wait for
+# the next hourly run; otherwise bundle x64 + arm64, submit packages only (the
+# listing is cloned unchanged) and commit.
+#
+# One-time setup: Settings > Secrets and variables > Actions > New repository
+# secret STORE_CLIENT_SECRET = the client secret of the "SysPerf Store CLI"
+# Entra app. Set the repository variable STORE_AUTO_SUBMIT to "false" to pause.
+name: Store submit
+
+on:
+  release:
+    types: [published]
+  schedule:
+    - cron: '17 * * * *'          # hourly, off the top of the hour
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Report the decision only'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: store-submit             # never two submissions at once
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    if: vars.STORE_AUTO_SUBMIT != 'false'
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Submit the newest release if the Store is behind
+        env:
+          STORE_CLIENT_SECRET: ${{ secrets.STORE_CLIENT_SECRET }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python tools/store_submit.py ${{ inputs.dry_run && '--dry-run' || '' }}
