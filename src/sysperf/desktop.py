@@ -122,6 +122,104 @@ def wait_ready(port: int, probe=is_sysperf, clock=time.monotonic, sleep=time.sle
     return False
 
 
+# --- Title bar that follows the app's theme (5.5.3) -------------------------
+# pywebview colours the native title bar from the *Windows* light/dark setting,
+# so with Windows in light mode and SysPerf in dark mode the window kept a white
+# caption bar (minimise / maximise / close) above a black page. The page now
+# tells the shell which theme it shows (window.pywebview.api.set_theme) and the
+# shell paints the caption through DWM: dark mode, caption, text and border
+# colours (Windows 11, build 22000+, which is the package's MinVersion). The last
+# theme is remembered so the next window opens in it without a white flash.
+DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+DWMWA_BORDER_COLOR = 34
+DWMWA_CAPTION_COLOR = 35
+DWMWA_TEXT_COLOR = 36
+
+TITLEBAR = {
+    # Near-black with the blue tint of the dark theme's aurora, soft white text
+    # and a hairline in the accent family, so the bar reads as part of the page.
+    "dark": {"dark": 1, "caption": "#0b0f17", "text": "#e8edf5", "border": "#1e3a5f"},
+    # The light theme's page grey, Apple ink, a quiet border.
+    "light": {"dark": 0, "caption": "#f5f5f7", "text": "#1d1d1f", "border": "#d2d2d7"},
+}
+
+
+def colorref(hex_rgb: str) -> int:
+    """'#rrggbb' -> a Win32 COLORREF (0x00BBGGRR)."""
+    v = hex_rgb.lstrip("#")
+    r, g, b = int(v[0:2], 16), int(v[2:4], 16), int(v[4:6], 16)
+    return (b << 16) | (g << 8) | r
+
+
+def _dwm_set(hwnd: int, attr: int, value: int) -> bool:   # pragma: no cover - Win32
+    import ctypes
+    from ctypes import wintypes
+    fn = ctypes.windll.dwmapi.DwmSetWindowAttribute
+    fn.argtypes = [wintypes.HWND, wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD]
+    fn.restype = ctypes.c_long
+    v = ctypes.c_uint(value & 0xFFFFFFFF)
+    return fn(hwnd, attr, ctypes.byref(v), ctypes.sizeof(v)) == 0
+
+
+def paint_titlebar(hwnd: int, theme: str, set_attr=_dwm_set) -> bool:
+    """Colour the window's caption for ``theme``; True when every call worked."""
+    c = TITLEBAR.get(theme)
+    if not hwnd or c is None:
+        return False
+    oks = [set_attr(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, c["dark"]),
+           set_attr(hwnd, DWMWA_CAPTION_COLOR, colorref(c["caption"])),
+           set_attr(hwnd, DWMWA_TEXT_COLOR, colorref(c["text"])),
+           set_attr(hwnd, DWMWA_BORDER_COLOR, colorref(c["border"]))]
+    return all(oks)
+
+
+def window_hwnd(window) -> int | None:
+    """The native handle of a pywebview (WinForms) window, if it has one yet."""
+    try:
+        return int(window.native.Handle.ToInt64())
+    except Exception:
+        return None
+
+
+class TitleBarApi:
+    """Exposed to the page as ``window.pywebview.api``.
+
+    Attributes are private: pywebview exposes public attributes of a js_api
+    object to JavaScript, and the Window object must not be walked.
+    """
+
+    def __init__(self, state_path: str, paint=paint_titlebar, hwnd=window_hwnd):
+        self._path, self._paint, self._hwnd = state_path, paint, hwnd
+        self._window = None
+
+    def bind(self, window) -> None:
+        self._window = window
+
+    def saved_theme(self) -> str | None:
+        try:
+            with open(self._path, encoding="utf-8") as f:
+                t = json.load(f).get("theme")
+        except (OSError, ValueError, AttributeError):
+            return None
+        return t if t in TITLEBAR else None
+
+    def set_theme(self, theme: str) -> bool:
+        if theme not in TITLEBAR:
+            return False
+        try:
+            with open(self._path, "w", encoding="utf-8") as f:
+                json.dump({"theme": theme}, f)
+        except OSError:
+            pass                                    # painting matters more than memory
+        return self.apply(theme)
+
+    def apply(self, theme: str | None = None) -> bool:
+        theme = theme or self.saved_theme()
+        if theme is None or self._window is None:
+            return False
+        return self._paint(self._hwnd(self._window), theme)
+
+
 def profile_dir(env) -> str:
     root = env.get("SYSPERF_DATA_DIR") or os.path.join(
         env.get("LOCALAPPDATA") or os.path.expanduser("~"), "SysPerf")
@@ -162,17 +260,24 @@ def main(argv=None, env=None, webview=None, probe=is_sysperf, free=port_free,
     port, attach = choose(env, probe, free, pick, settle)
     if not attach:
         server(port, env)
-    kw = {"width": 1400, "height": 900, "min_size": (960, 640)}
+    path = profile_dir(env)
+    os.makedirs(path, exist_ok=True)
+    titlebar = TitleBarApi(os.path.join(path, "titlebar.json"))
+    kw = {"width": 1400, "height": 900, "min_size": (960, 640), "js_api": titlebar}
     if attach or ready(port, probe):
         window = webview.create_window(TITLE, f"http://127.0.0.1:{port}/#home", **kw)
     else:
         window = webview.create_window(TITLE, html=error_page(port), **kw)
+    titlebar.bind(window)
+    events = getattr(window, "events", None)
+    if events is not None:
+        # Paint the remembered theme as soon as the window exists (before the
+        # page loads and reports its own), so a dark app never flashes white.
+        events.shown += lambda: titlebar.apply()
     if watch_update is None:                            # pragma: no cover - real import
         from .selfupdate import watch as watch_update
     # Close before Windows swaps in a new version (else 0x80073D02), reopen after.
     watch_update(window.destroy)
-    path = profile_dir(env)
-    os.makedirs(path, exist_ok=True)
     webview.start(private_mode=False, storage_path=path)
     return 0
 

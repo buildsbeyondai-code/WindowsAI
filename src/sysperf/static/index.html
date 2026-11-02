@@ -1988,9 +1988,20 @@ const localTime = (v, {timeOnly = false} = {}) => {
   const dark = localStorage.getItem("perfdash_theme") === "dark";   // default: light
   cb.checked = dark;
   document.body.classList.toggle("dark", dark);
+  // 5.5.3: in the desktop app, paint the native title bar (minimise / maximise /
+  // close) to match, instead of the Windows-wide light/dark setting.
+  const syncTitleBar = () => {
+    try {
+      const api = window.pywebview && window.pywebview.api;
+      if (api && api.set_theme) api.set_theme(cb.checked ? "dark" : "light");
+    } catch (e) {}
+  };
+  window.addEventListener("pywebviewready", syncTitleBar);
+  syncTitleBar();
   cb.addEventListener("change", () => {
     document.body.classList.toggle("dark", cb.checked);
     localStorage.setItem("perfdash_theme", cb.checked ? "dark" : "light");
+    syncTitleBar();
     // repaint the architecture schematic so its cards/edges follow the new theme
     if (window.__lastSnap && typeof renderArchitecture === "function") {
       try { renderArchitecture(window.__lastSnap); } catch (e) {}

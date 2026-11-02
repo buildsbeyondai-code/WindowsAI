@@ -188,3 +188,78 @@ def test_main_closes_the_window_when_windows_stages_an_update(tmp_path):
                  watch_update=watched.append)
     watched[0]()
     assert wv.destroyed == ["SysPerf"]
+
+
+# ------------------------------------------ 5.5.3: title bar follows the theme --
+def test_colorref_is_bgr():
+    assert desktop.colorref("#0b0f17") == 0x170F0B
+    assert desktop.colorref("ffffff") == 0xFFFFFF
+
+
+def test_paint_titlebar_sets_dark_mode_caption_text_and_border():
+    calls = []
+    ok = desktop.paint_titlebar(42, "dark", set_attr=lambda h, a, v: calls.append((h, a, v)) or True)
+    c = desktop.TITLEBAR["dark"]
+    assert ok and calls == [
+        (42, desktop.DWMWA_USE_IMMERSIVE_DARK_MODE, 1),
+        (42, desktop.DWMWA_CAPTION_COLOR, desktop.colorref(c["caption"])),
+        (42, desktop.DWMWA_TEXT_COLOR, desktop.colorref(c["text"])),
+        (42, desktop.DWMWA_BORDER_COLOR, desktop.colorref(c["border"]))]
+    assert not desktop.paint_titlebar(42, "light", set_attr=lambda *a: False)
+    assert not desktop.paint_titlebar(None, "dark", set_attr=lambda *a: True)
+    assert not desktop.paint_titlebar(42, "sepia", set_attr=lambda *a: True)
+
+
+def test_window_hwnd_reads_the_winforms_handle():
+    handle = types.SimpleNamespace(ToInt64=lambda: 1234)
+    w = types.SimpleNamespace(native=types.SimpleNamespace(Handle=handle))
+    assert desktop.window_hwnd(w) == 1234
+    assert desktop.window_hwnd(types.SimpleNamespace(native=None)) is None
+
+
+def test_titlebar_api_remembers_and_applies_the_theme(tmp_path):
+    painted = []
+    api = desktop.TitleBarApi(str(tmp_path / "titlebar.json"),
+                              paint=lambda h, t: painted.append((h, t)) or True,
+                              hwnd=lambda w: 7)
+    assert api.saved_theme() is None and api.apply() is False      # nothing yet
+    assert api.set_theme("dark") is False                          # no window yet
+    assert api.saved_theme() == "dark"
+    api.bind(object())
+    assert api.apply() is True and painted[-1] == (7, "dark")      # remembered
+    assert api.set_theme("light") is True and painted[-1] == (7, "light")
+    assert api.set_theme("neon") is False
+    (tmp_path / "titlebar.json").write_text("not json")
+    assert api.saved_theme() is None
+    (tmp_path / "titlebar.json").write_text('{"theme": "neon"}')
+    assert api.saved_theme() is None
+
+
+def test_titlebar_api_still_paints_when_the_state_file_cannot_be_written(tmp_path):
+    api = desktop.TitleBarApi(str(tmp_path / "missing-dir" / "t.json"),
+                              paint=lambda h, t: True, hwnd=lambda w: 7)
+    api.bind(object())
+    assert api.set_theme("dark") is True
+
+
+def test_main_exposes_the_titlebar_api_and_paints_when_shown(tmp_path):
+    class Event(list):
+        def __iadd__(self, fn):
+            self.append(fn)
+            return self
+
+    class WV(_WebView):
+        def create_window(self, title, url=None, html=None, **kw):
+            super().create_window(title, url, html, **kw)
+            self.win = types.SimpleNamespace(destroy=lambda: None,
+                                             events=types.SimpleNamespace(shown=Event()))
+            return self.win
+
+    wv = WV()
+    desktop.main(env={"SYSPERF_DATA_DIR": str(tmp_path)}, webview=wv,
+                 probe=lambda p: True, watch_update=lambda cb: None)
+    api = wv.windows[0]["js_api"]
+    assert isinstance(api, desktop.TitleBarApi) and api._window is wv.win
+    assert api._path == str(tmp_path / "webview" / "titlebar.json")
+    assert len(wv.win.events.shown) == 1
+    wv.win.events.shown[0]()          # nothing remembered yet: a harmless no-op
