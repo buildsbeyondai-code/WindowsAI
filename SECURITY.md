@@ -131,6 +131,7 @@ list and the route table disagree.
 | `POST /api/procwatch/run` | Runs one watchdog check now |
 | `POST /api/trayquit` | Changes tray auto-quit settings and per-app consent |
 | `POST /api/store` | Turns one opt-in feature on or off |
+| `POST /api/store/rate` | Store app: opens the Store's review page for SysPerf, or snoozes or stops the rating prompt |
 | `POST /api/selftest/run` | Starts the test suite in the background |
 | `POST /api/evolution/run` | Runs one remediation-evolution pass |
 | `POST /api/evolution/promote` | Promotes (needs `confirm`) or rejects a candidate remediation |

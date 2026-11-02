@@ -5,6 +5,14 @@ machine, learns that machine's own baseline, scores progress against targets
 derived from its actual capacity, and tells you exactly what to change. With
 your consent it makes the safe changes itself, and every one can be undone.
 
+**Is your PC or laptop slow?** SysPerf finds out why: CPU and RAM usage, background
+apps, browser memory, Wi-Fi congestion and battery wear, with safe fixes you can undo.
+
+<a href="https://apps.microsoft.com/detail/9P558WJTTC0B?mode=direct"><img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Get SysPerf from the Microsoft Store" width="200"/></a>
+
+Free from the [Microsoft Store](https://apps.microsoft.com/detail/9P558WJTTC0B) (Windows 11),
+or install it from source with the scripts below.
+
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows%2011%20%7C%20WSL%202-informational.svg)](#requirements)

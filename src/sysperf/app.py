@@ -360,6 +360,7 @@ if not STORE_MODE:
 code_evolution.on_applied = lambda: _restart_soon()
 code_evolution.before_change = restore_points.ensure
 # Store mode: everything that acts outside the app is opt-in and listed on Home.
+rate_prompt = store_mode_mod.RatePrompt(DATA_DIR / "rate_prompt.json", store_mode=STORE_MODE)
 store_features = store_mode_mod.StoreFeatures(
     DATA_DIR / "store_features.json", store_mode=STORE_MODE, action_policy=action_policy,
     improver=improver, proc_watchdog=proc_watchdog, tray_quitter=tray_quitter,
@@ -1436,6 +1437,7 @@ def api_home():
                                              and c.get("decision") == "retained")},
         "history_keys": list(history_store.rollup_keys),
         "optional": store_features.describe()["features"] if STORE_MODE else None,
+        "rate": rate_prompt.describe(),
     })
 
 
@@ -1453,6 +1455,18 @@ def api_store_set():
     try:
         return jsonify(store_features.set(str(body.get("feature") or ""), bool(body.get("on"))))
     except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+@app.post("/api/store/rate")
+def api_store_rate():
+    """Body: {token, action}: open the Store review page, ask later, or never ask."""
+    body = request.get_json(silent=True) or {}
+    if (bad := _csrf(body)):
+        return bad
+    try:
+        return jsonify(rate_prompt.act(str(body.get("action") or "")))
+    except (ValueError, OSError) as exc:
         return jsonify({"error": str(exc)}), 400
 
 

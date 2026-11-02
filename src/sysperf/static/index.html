@@ -1246,6 +1246,13 @@
   <div class="card" id="homeOptionalCard" style="margin-bottom:12px;display:none"><h3>Optional features</h3>
     <p class="hint">These act outside SysPerf, so they stay off until you turn them on. Each can be
       turned off again at any time.</p><ul class="home-list" id="homeOptional"></ul></div>
+  <div class="card" id="homeRateCard" style="margin-bottom:12px;display:none"><h3>Is SysPerf helping?</h3>
+    <p class="hint">A rating in the Microsoft Store helps other people with a slow PC find it. It takes
+      a few seconds, and once you have rated it SysPerf won't ask again.</p>
+    <div id="homeRate"><button type="button" class="rate-btn" data-act="open">Rate SysPerf</button>
+      <button type="button" class="rate-btn" data-act="later">Later</button>
+      <button type="button" class="rate-btn" data-act="never">Don't ask again</button>
+      <span class="hint" id="homeRateMsg" role="status"></span></div></div>
   <div class="home-grid">
     <div class="card"><h3>Do these next</h3><ul class="home-list" id="homeTodo"><li>Loading…</li></ul></div>
     <div class="card"><h3>What SysPerf did today</h3><ul class="home-list" id="homeToday"><li>Loading…</li></ul></div>
@@ -6112,6 +6119,7 @@ const api41 = (() => {
     });
     $("homeTodo").innerHTML = todo.length ? todo.join("") : li("✅", "Nothing needs you right now", "SysPerf will notify you when something does.");
     optional(d.optional);
+    rate(d.rate);
     const today = d.today || [];
     $("homeToday").innerHTML = today.length ? today.map(e => li(ICON[e.kind] || "•", esc(e.text),
       esc(localTime(e.at, {timeOnly: true})))).join("")
@@ -6149,6 +6157,15 @@ const api41 = (() => {
     b.disabled = true;
     try { optional((await api41.post("api/store", {feature: b.dataset.id, on: b.dataset.on === "1"})).features); }
     catch (e) { b.disabled = false; b.textContent = "Failed: " + e.message; }
+  });
+  // Store app only: ask once for a Store rating, after a few days of use.
+  function rate(r) { $("homeRateCard").style.display = r && r.show ? "" : "none"; }
+  $("homeRate").addEventListener("click", async (ev) => {
+    const b = ev.target.closest(".rate-btn");
+    if (!b) return;
+    $("homeRateMsg").textContent = "";
+    try { rate(await api41.post("api/store/rate", {action: b.dataset.act})); }
+    catch (e) { $("homeRateMsg").textContent = "Failed: " + e.message; }
   });
   async function chart() {
     const host = $("homeHistChart");

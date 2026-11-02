@@ -21,7 +21,9 @@ exception is the OneDrive lock-state policy, which has no state file of its own
 from __future__ import annotations
 
 import json
+import os
 import threading
+import time
 from pathlib import Path
 
 # id -> (title, what it does outside the app, how to undo it)
@@ -140,4 +142,74 @@ class StoreFeatures:
             else:
                 self.session.enabled = on
                 self._save(fid, on)
+        return self.describe()
+
+
+# ---- 5.6: ask once for a Store rating ---------------------------------------
+# The Store ranks an app with no ratings below rated ones, so the Store app asks
+# once, after RATE_AFTER_S of use, with "Rate it", "Later" (RATE_SNOOZE_S) and
+# "Don't ask again". Nothing is offered in return (the Store forbids that), nothing
+# is sent anywhere, and a scripted install never asks.
+REVIEW_URI = "ms-windows-store://review/?ProductId=9P558WJTTC0B"
+RATE_AFTER_S = 3 * 86400
+RATE_SNOOZE_S = 14 * 86400
+RATE_ACTIONS = ("open", "later", "never")
+
+
+def _launch(uri: str) -> None:
+    """Hand the store: URI to Windows, which opens the Store's review page."""
+    os.startfile(uri)                     # type: ignore[attr-defined]  # Windows only
+
+
+class RatePrompt:
+    """When the Home "Rate SysPerf" card shows, and what its three buttons do."""
+
+    def __init__(self, state_file: Path, *, store_mode: bool, clock=time.time,
+                 launch=_launch) -> None:
+        self.file = Path(state_file)
+        self.store_mode = store_mode
+        self.clock = clock
+        self.launch = launch
+        self._lock = threading.Lock()
+
+    def _load(self) -> dict:
+        try:
+            data = json.loads(self.file.read_text())
+            return data if isinstance(data, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def _save(self, data: dict) -> None:
+        self.file.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.file.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, indent=1))
+        tmp.replace(self.file)
+
+    def describe(self) -> dict | None:
+        """None outside the Store app; else {show, uri}. Starts the clock on first call."""
+        if not self.store_mode:
+            return None
+        with self._lock:
+            data, now = self._load(), self.clock()
+            if not isinstance(data.get("first_seen"), (int, float)):
+                data["first_seen"] = now
+                self._save(data)
+            due = max(data["first_seen"] + RATE_AFTER_S, float(data.get("snoozed_until") or 0))
+            return {"show": not data.get("done") and now >= due, "uri": REVIEW_URI}
+
+    def act(self, action: str) -> dict | None:
+        """open: show the Store review page, never ask again; later: snooze; never: stop."""
+        if action not in RATE_ACTIONS:
+            raise ValueError(f"unknown action {action!r}; use one of {', '.join(RATE_ACTIONS)}")
+        if not self.store_mode:
+            raise ValueError("rating is only offered in the Microsoft Store app")
+        if action == "open":
+            self.launch(REVIEW_URI)
+        with self._lock:
+            data = self._load()
+            if action == "later":
+                data["snoozed_until"] = self.clock() + RATE_SNOOZE_S
+            else:
+                data["done"] = action
+            self._save(data)
         return self.describe()
