@@ -16,6 +16,8 @@ from .config import (
     SCORE_GAP_S,
     SCORE_SMOOTH_WINDOW,
     SCORE_WARMUP_SAMPLES,
+    SETTLE_KEYS,
+    SIGNIN_SETTLE_S,
     SMOOTH_WINDOW_OVERRIDES,
     STATIC_CRITERIA,
     TREND_GAP_S,
@@ -52,6 +54,18 @@ def _session_slice(history: list[dict], gap_s: float = SCORE_GAP_S,
 def session_sample_count(history: list[dict]) -> int:
     """How many trailing samples belong to the current session."""
     return len(_session_slice(history))
+
+
+def session_age_s(latest: dict, history: list[dict]) -> float | None:
+    """Seconds since the current session's first sample (None when unknown)."""
+    sess = _session_slice(history)
+    t0 = sess[0].get("_t") if sess else None
+    t1 = latest.get("_t")
+    if t1 is None and sess:
+        t1 = sess[-1].get("_t")
+    if t0 is None or t1 is None:
+        return None
+    return max(0.0, float(t1) - float(t0))
 
 
 def _smoothed_current(history: list[dict], key: str, latest_val,
@@ -269,6 +283,8 @@ def build_scorecard(latest: dict, history: list[dict], scorer,
         latest["hw_faults"] = ((latest.get("hw_problem_devices") or 0)
                                + (latest.get("hw_disks_unhealthy") or 0))
     trend, span, npts = vmmem_trend(history)
+    age = session_age_s(latest, history)
+    settling = age is not None and age < SIGNIN_SETTLE_S
 
     # Read through the module so this machine's per-machine CRITERIA (and a
     # reloaded config) are always the ones scored.
@@ -288,6 +304,21 @@ def build_scorecard(latest: dict, history: list[dict], scorer,
                 "target_source": "plan", "change_pct": None, "progress": None,
                 "room": None, "status": "measuring",
                 "note": "capturing this machine's baseline (first few samples)",
+                "shortfall": 0,
+            })
+            continue
+
+        if settling and key in SETTLE_KEYS:
+            # Sign-in / resume burst: show the reading, grade it once settled.
+            mins = int((SIGNIN_SETTLE_S - age) // 60) + 1
+            rows.append({
+                "key": key, "label": label, "baseline": base, "current": cur,
+                "scored_typical": None, "target": target, "unit": unit,
+                "higher_is_better": hib, "plan_target": plan_target,
+                "target_source": "plan", "change_pct": None, "progress": None,
+                "room": None, "status": "measuring", "settling": True,
+                "note": (f"settling after sign-in/resume: Windows start-up work is "
+                         f"not graded; scored in about {mins} min"),
                 "shortfall": 0,
             })
             continue
@@ -356,7 +387,7 @@ def build_scorecard(latest: dict, history: list[dict], scorer,
     session_n = session_sample_count(history)
 
     for r in rows:
-        if r["status"] == "measuring" and r["baseline"] is None:
+        if r.get("settling") or (r["status"] == "measuring" and r["baseline"] is None):
             continue
         a = scorer.enrich(r["key"], r["current"], r["baseline"],
                           r["target"], r["higher_is_better"])
@@ -380,6 +411,8 @@ def build_scorecard(latest: dict, history: list[dict], scorer,
         "session_samples": session_n,
         "smooth_window": SCORE_SMOOTH_WINDOW,
         "warming_up": session_n < SCORE_WARMUP_SAMPLES,
+        "settling": settling,
+        "session_age_s": None if age is None else round(age),
         "counts": {
             "met": sum(1 for r in rows if r["status"] == "met"),
             "partial": sum(1 for r in rows if r["status"] == "partial"),

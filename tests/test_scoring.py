@@ -374,3 +374,47 @@ def test_session_slice_matches_the_original_scan():
         assert _session_slice(hist, gap) == ref
         for window in (1, 2, 3, 5, 12, 60):
             assert _session_slice(hist, gap, tail=window)[-window:] == ref[-window:]
+
+
+# ------------------------------------------- 5.5.3: sign-in / resume settling --
+def _settle_criteria(monkeypatch):
+    crit = [("cpu_pct", "CPU", 40, 25, False, "%"),
+            ("available_mb", "Avail", 700, 2000, True, "MB")]
+    monkeypatch.setattr(scoring, "CRITERIA", crit)
+    monkeypatch.setattr(scoring._cfg, "CRITERIA", crit)
+
+
+def test_load_rows_settle_for_the_first_minutes_of_a_session(monkeypatch):
+    """2026-11-02: a sign-in burst (CPU 80-97%) scored CPU 0% and breached."""
+    _settle_criteria(monkeypatch)
+    latest = {"cpu_pct": 90.0, "available_mb": 600, "_t": 1000.0 + 600}
+    hist = [dict(latest, _t=1000.0 + i * 60) for i in range(11)]       # 10 min old
+    out = build_scorecard(latest, hist, _FakeScorer())
+    cpu = next(r for r in out["rows"] if r["key"] == "cpu_pct")
+    assert cpu["settling"] is True and cpu["status"] == "measuring"
+    assert cpu["progress"] is None and cpu["scored_typical"] is None
+    assert "settling after sign-in" in cpu["note"] and "about 6 min" in cpu["note"]
+    av = next(r for r in out["rows"] if r["key"] == "available_mb")
+    assert av["status"] == "regress"                  # memory is graded at once
+    assert out["settling"] is True and out["session_age_s"] == 600
+    assert out["scored"] == 1 and out["overall_improvement"] == 0.0
+
+
+def test_load_rows_are_graded_once_the_session_has_settled(monkeypatch):
+    _settle_criteria(monkeypatch)
+    latest = {"cpu_pct": 90.0, "available_mb": 2100, "_t": 1000.0 + 1200}
+    hist = [dict(latest, _t=1000.0 + i * 60) for i in range(21)]       # 20 min old
+    out = build_scorecard(latest, hist, _FakeScorer())
+    cpu = next(r for r in out["rows"] if r["key"] == "cpu_pct")
+    assert "settling" not in cpu and cpu["status"] == "regress"
+    assert out["settling"] is False
+
+
+def test_session_age_unknown_without_timestamps_never_settles(monkeypatch):
+    _settle_criteria(monkeypatch)
+    latest = {"cpu_pct": 10.0, "available_mb": 2100}
+    out = build_scorecard(latest, [dict(latest)], _FakeScorer())
+    assert out["settling"] is False and out["session_age_s"] is None
+    assert scoring.session_age_s({}, []) is None
+    # latest without its own _t falls back to the newest history sample
+    assert scoring.session_age_s({}, [{"_t": 10.0}, {"_t": 70.0}]) == 60.0

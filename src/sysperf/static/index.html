@@ -2818,11 +2818,15 @@ function computeCategories(d) {
   // until the row has a typical. Same "rolling median, not one reading" principle
   // the scorecard uses.
   const cpuRow = (S.rows || []).find(r => r.key === "cpu_pct");
-  const cpuVal = (cpuRow && cpuRow.scored_typical != null) ? cpuRow.scored_typical : L.cpu_pct;
+  // 5.5.3: while the sign-in/resume burst settles the row is ungraded, and so is
+  // this card (null = excluded), instead of scoring Windows' start-up work.
+  const cpuSettling = !!(cpuRow && cpuRow.settling);
+  const cpuVal = cpuSettling ? null
+    : (cpuRow && cpuRow.scored_typical != null) ? cpuRow.scored_typical : L.cpu_pct;
   // Run-queue penalty only when the sustained queue exceeds its per-machine
   // target (logical processors); any non-zero instantaneous queue is normal.
   const qRow = (S.rows || []).find(r => r.key === "cpu_queue");
-  const qBad = qRow ? qRow.status !== "met" : (L.cpu_queue > 0);
+  const qBad = qRow ? (qRow.status !== "met" && !qRow.settling) : (L.cpu_queue > 0);
   const cpuScore = (cpuVal != null) ? clamp(100 - cpuVal - (qBad ? 10 : 0)) : null;
   const stoScore = mean([prog.c_free_gb, (L.hw_disks_unhealthy ? clamp(100 - L.hw_disks_unhealthy * 40) : 100)]);
   let netScore = mean([prog.net_remote, prog.startup_apps]);
@@ -2884,10 +2888,14 @@ function renderSummary(d) {
   // at start-up, i.e. no live reading has landed yet.
   const _sc = d.scorecard || {}, _m = d.meta || {};
   const warming = _sc.warming_up === true, staleLatest = _m.stale_latest === true;
-  const warmupBadge = (warming || staleLatest)
+  const settling = _sc.settling === true;
+  const warmupBadge = (warming || staleLatest || settling)
     ? `<div id="warmupBadge" class="warmup">⏳ <b>Score stabilising</b> — `
       + (staleLatest
           ? `waiting for the first live sample since start-up.`
+          : (settling && !warming)
+          ? `Windows is still busy after sign-in/resume, so CPU and disk load are not `
+            + `graded for the first 15 minutes of a session.`
           : `based on ${_sc.session_samples || 0} of ${_sc.smooth_window || 0} samples `
             + `since this session began. Fast-moving metrics settle in a few minutes.`)
       + `</div>`

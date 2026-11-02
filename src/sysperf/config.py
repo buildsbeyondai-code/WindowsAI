@@ -390,6 +390,18 @@ SCORE_GAP_S = 120
 # presenting a single-sample median as a settled result.
 SCORE_WARMUP_SAMPLES = 3
 
+# 5.5.3: the first minutes after a sign-in or resume are Windows' own work, not
+# the user's steady state. Observed 2026-11-02 11:09-11:20 IST: CPU 52-97%, disk
+# busy 72-100% and a run queue up to 84 while Defender, Search, Store updates and
+# the restored apps started; by 11:21 it was back to CPU 26% / disk 2%. The
+# 5-sample median then graded that burst as the machine's state, so CPU and disk
+# scored 0% and auto-improve reported a breach. For these load-only keys the
+# scorecard now shows the reading as `settling` (excluded from the overall) until
+# the session is SIGNIN_SETTLE_S old. Memory, handles and the rest are graded at
+# once: they describe what is open, not a transient burst.
+SIGNIN_SETTLE_S = 15 * 60
+SETTLE_KEYS = frozenset({"cpu_pct", "disk_active_pct", "cpu_queue"})
+
 # Per-metric smoothing-window overrides (in samples). Some metrics are bursty
 # AND sampled sparsely (carry-forward, refreshed every FULL_EVERY samples), so
 # the default short window is wrong: it returns whichever single 5-min snapshot

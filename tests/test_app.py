@@ -812,6 +812,53 @@ def test_serve_falls_back_to_flask_when_waitress_is_absent(monkeypatch):
                    "debug": False}
 
 
+class _FakeSock:
+    closed = False
+
+    def close(self):
+        self.closed = True
+
+
+def test_serve_hands_the_claimed_socket_to_waitress(monkeypatch):
+    called = {}
+
+    class FakeWaitress:
+        @staticmethod
+        def serve(wsgi, **kw):
+            called.update(kw)
+
+    monkeypatch.setitem(__import__("sys").modules, "waitress", FakeWaitress)
+    sock = _FakeSock()
+    app.serve(object(), "127.0.0.1", 5056, sock=sock)
+    assert called["sockets"] == [sock] and "port" not in called
+
+
+def test_flask_fallback_releases_the_claimed_socket(monkeypatch):
+    import builtins
+    real_import = builtins.__import__
+    monkeypatch.setattr(builtins, "__import__", lambda n, *a, **k: (_ for _ in ()).throw(
+        ImportError(n)) if n == "waitress" else real_import(n, *a, **k))
+    ran, sock = {}, _FakeSock()
+
+    class FakeApp:
+        def run(self, **kw):
+            ran.update(kw)
+
+    app.serve(FakeApp(), "127.0.0.1", 5100, sock=sock)
+    assert sock.closed and ran["port"] == 5100
+
+
+def test_main_exits_without_starting_anything_when_the_port_is_owned(monkeypatch):
+    # 5.5.3: Store app + scripted install raced at sign-in and both bound 5056.
+    import pytest
+    started = []
+    monkeypatch.setattr(app, "_start", lambda *a, **k: started.append(a))
+    monkeypatch.setattr(app.singleinstance_mod, "claim_port", lambda h, p: None)
+    with pytest.raises(SystemExit) as e:
+        app.main()
+    assert e.value.code == app.singleinstance_mod.ALREADY_SERVING_CODE and started == []
+
+
 def test_health_reports_the_platform_and_data_directory(client):
     j = client.get("/api/health").get_json()
     assert j["platform"]["platform"] in ("windows", "wsl", "linux")
@@ -863,6 +910,7 @@ def test_main(monkeypatch):
     monkeypatch.setattr(app.app, "run", lambda **k: started.setdefault("run", True))
     monkeypatch.setattr(app, "PLATFORM", "windows")
     _stub_wsgi_server(monkeypatch, started)
+    monkeypatch.setattr(app.singleinstance_mod, "claim_port", lambda h, p: _FakeSock())
     recovered = []
     monkeypatch.setattr(app.code_evolution, "recover_apply",       # 5.5.2: runs first
                         lambda: recovered.append(1) or {"recovered": True, "id": "c-1"})
@@ -897,5 +945,6 @@ def test_main_guard(monkeypatch):
     # On Windows the sandbox probe runs wsl.exe, and subprocess reads its output
     # on threads, which FakeThread would break; the probe is not under test here.
     monkeypatch.setattr("sysperf.codevolve.Sandbox._detect", lambda self: "none")
+    monkeypatch.setattr("sysperf.singleinstance.claim_port", lambda h, p: _FakeSock())
     # executes the module as __main__, covering `if __name__ == "__main__": main()`
     runpy.run_module("sysperf.app", run_name="__main__", alter_sys=True)

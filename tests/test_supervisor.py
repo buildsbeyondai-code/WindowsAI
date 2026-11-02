@@ -8,7 +8,15 @@ from pathlib import Path
 import pytest
 
 from sysperf import codevolve, supervisor
-from sysperf.supervisor import BACKOFF_S, RESTART_CODE, Supervisor, child_argv, http_health
+from sysperf.supervisor import (
+    ALREADY_SERVING_CODE,
+    BACKOFF_S,
+    RESTART_CODE,
+    STANDBY_S,
+    Supervisor,
+    child_argv,
+    http_health,
+)
 
 
 class Child:
@@ -250,3 +258,13 @@ def test_run_loop_keeps_waiting_while_healthy(tmp_path):
     w = World(tmp_path)
     s = w.sup(start_grace_s=0)
     assert s.run(max_ticks=3) == 0 and len(w.children) == 1
+
+
+def test_already_serving_is_standby_not_a_crash(tmp_path):
+    # 5.5.3: another SysPerf owns the port. No back-off escalation, no rollback.
+    w = World(tmp_path)
+    s = w.sup()
+    s.start_child()
+    for _ in range(4):
+        w.children[-1].rc = ALREADY_SERVING_CODE
+        assert s.tick() == float(STANDBY_S) and s.crashes == 0

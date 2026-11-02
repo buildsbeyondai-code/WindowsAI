@@ -32,11 +32,13 @@ from pathlib import Path
 from typing import Callable
 
 from . import codevolve
+from .singleinstance import ALREADY_SERVING_CODE
 
 log = logging.getLogger("sysperf.supervisor")
 
 RESTART_CODE = 75                 # child exit code meaning "please start me again"
 BACKOFF_S = (5, 10, 30, 60, 120)
+STANDBY_S = 300                   # retry interval while another server owns the port
 
 
 def http_health(url: str, timeout: float = 10.0) -> dict | None:
@@ -136,6 +138,13 @@ class Supervisor:
             self._record("resumed")
         rc = self.child.poll()
         if rc is not None:
+            if rc == ALREADY_SERVING_CODE:
+                # 5.5.3: another SysPerf owns the port. Not a crash: no back-off
+                # escalation, no rollback. Try again later so this install takes
+                # over if the other one exits.
+                self._record("standby")
+                self.crashes = 0
+                return float(STANDBY_S)
             if rc == RESTART_CODE:
                 self._record("restart_requested")
                 self.crashes = 0

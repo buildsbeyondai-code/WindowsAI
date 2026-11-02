@@ -54,6 +54,7 @@ from . import pwsh_session as pwsh_mod
 from . import rca as rca_mod
 from . import restorepoint as restorepoint_mod
 from . import session_policy as session_policy_mod
+from . import singleinstance as singleinstance_mod
 from . import settings_hub as settings_mod
 from . import store_mode as store_mode_mod
 from . import trayquit as trayquit_mod
@@ -1725,6 +1726,15 @@ def _log_to_stream() -> logging.Handler:
 
 def main() -> None:
     _log_to_stream()
+    # 5.5.3: own the port before any loop starts, so a second instance (the Store
+    # app and the scripted install racing at sign-in) cannot run a second
+    # collector against the same data directory. See singleinstance.py.
+    sock = singleinstance_mod.claim_port(HOST, PORT)
+    if sock is None:
+        logging.error("another server already owns http://%s:%s/ - not starting a "
+                      "second SysPerf (exit %d, standby)", HOST, PORT,
+                      singleinstance_mod.ALREADY_SERVING_CODE)
+        raise SystemExit(singleinstance_mod.ALREADY_SERVING_CODE)
     _start("collector", collector.loop)
     health_monitor.add_probe("collector", lambda: collector.last_ok_at,
                              max(600.0, 3 * SAMPLE_SECONDS + COLLECT_TIMEOUT_FULL_S),
@@ -1774,10 +1784,10 @@ def main() -> None:
         health_monitor.add_probe("tray-quit", lambda: tray_quitter.last_view.get("at"),
                                  max(300.0, 10 * TRAYQUIT_INTERVAL_S), "Tray auto-quit")
     # Loopback bind is deliberate (see config.HOST) — read-only telemetry, no auth.
-    serve(app, host=HOST, port=PORT)
+    serve(app, host=HOST, port=PORT, sock=sock)
 
 
-def serve(wsgi_app, host: str, port: int) -> None:
+def serve(wsgi_app, host: str, port: int, sock=None) -> None:
     """Serve with waitress when it is installed, else Flask's own server.
 
     waitress has been a declared dependency since 2.x without ever being
@@ -1791,9 +1801,17 @@ def serve(wsgi_app, host: str, port: int) -> None:
     except ImportError:
         logging.warning("waitress is not installed — falling back to the Flask "
                         "development server. Install it with: pip install waitress")
+        if sock is not None:
+            sock.close()                   # Werkzeug binds its own socket
         wsgi_app.run(host=host, port=port, threaded=True, debug=False)
         return
     logging.info("serving with waitress on http://%s:%s/", host, port)
+    if sock is not None:
+        # The exclusively-bound socket from claim_port(): waitress listens on it
+        # instead of binding a second, SO_REUSEADDR socket of its own.
+        waitress_serve(wsgi_app, sockets=[sock], threads=8,
+                       channel_timeout=120, ident="SysPerf")
+        return
     waitress_serve(wsgi_app, host=host, port=port, threads=8,
                    channel_timeout=120, ident="SysPerf")
 

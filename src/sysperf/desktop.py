@@ -36,6 +36,10 @@ import urllib.request
 TITLE = "SysPerf"
 DEFAULT_PORT = 5056
 START_TIMEOUT_S = 60.0
+# 5.5.3: a busy port is often a SysPerf that is still starting (the scripted
+# install and the Store app both start at sign-in). Give it this long to answer
+# before moving aside to another port and running a second collector.
+PORT_SETTLE_S = 30.0
 
 
 def is_sysperf(port: int, opener=urllib.request.urlopen, timeout: float = 2.0) -> bool:
@@ -80,12 +84,20 @@ def configured_port(env) -> int:
         return DEFAULT_PORT
 
 
-def choose(env, probe=is_sysperf, free=port_free, pick=free_port) -> tuple[int, bool]:
+def choose(env, probe=is_sysperf, free=port_free, pick=free_port,
+           settle=None) -> tuple[int, bool]:
     """(port, attach): attach to a running SysPerf, else the port to serve on."""
     port = configured_port(env)
     if probe(port):
         return port, True
-    return (port if free(port) else pick()), False
+    if free(port):
+        return port, False
+    # Busy but not answering yet: most likely the other install starting up.
+    if settle is None:
+        settle = lambda p: wait_ready(p, probe, timeout=PORT_SETTLE_S)  # noqa: E731
+    if settle(port):
+        return port, True
+    return pick(), False
 
 
 def start_server(port: int, env, cli_main=None, thread_cls=threading.Thread):
@@ -138,7 +150,7 @@ def wait_released(port: int, free=port_free, clock=time.monotonic, sleep=time.sl
 
 def main(argv=None, env=None, webview=None, probe=is_sysperf, free=port_free,
          pick=free_port, server=start_server, ready=wait_ready,
-         released=wait_released, watch_update=None) -> int:
+         released=wait_released, watch_update=None, settle=None) -> int:
     """Open the SysPerf window. Collaborators are injectable for testing."""
     env = os.environ if env is None else env
     if webview is None:                                 # pragma: no cover - real import
@@ -147,7 +159,7 @@ def main(argv=None, env=None, webview=None, probe=is_sysperf, free=port_free,
         # Started by the restart button: attaching to the instance that is about
         # to exit would leave a window onto nothing.
         released(configured_port(env), free)
-    port, attach = choose(env, probe, free, pick)
+    port, attach = choose(env, probe, free, pick, settle)
     if not attach:
         server(port, env)
     kw = {"width": 1400, "height": 900, "min_size": (960, 640)}

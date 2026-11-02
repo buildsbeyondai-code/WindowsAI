@@ -56,7 +56,22 @@ def test_choose_attaches_serves_or_moves_aside():
     assert desktop.choose({}, probe=lambda p: True) == (5056, True)
     assert desktop.choose({}, probe=lambda p: False, free=lambda p: True) == (5056, False)
     assert desktop.choose({}, probe=lambda p: False, free=lambda p: False,
-                          pick=lambda: 61234) == (61234, False)
+                          pick=lambda: 61234, settle=lambda p: False) == (61234, False)
+
+
+def test_choose_waits_for_a_sysperf_still_starting_on_a_busy_port():
+    # 5.5.3: Store app and scripted install race at sign-in; the second must
+    # attach to the first instead of running another collector elsewhere.
+    assert desktop.choose({}, probe=lambda p: False, free=lambda p: False,
+                          pick=lambda: 61234, settle=lambda p: True) == (5056, True)
+
+
+def test_choose_default_settle_polls_the_probe(monkeypatch):
+    seen = []
+    monkeypatch.setattr(desktop, "wait_ready",
+                        lambda p, probe, timeout: seen.append((p, timeout)) or True)
+    assert desktop.choose({}, probe=lambda p: False, free=lambda p: False) == (5056, True)
+    assert seen == [(5056, desktop.PORT_SETTLE_S)]
 
 
 def test_start_server_runs_cli_on_a_daemon_thread_without_a_browser():
@@ -127,7 +142,8 @@ def test_main_starts_its_own_dashboard(tmp_path):
     wv, served = _WebView(), []
     desktop.main(env={"SYSPERF_DATA_DIR": str(tmp_path)}, webview=wv,
                  probe=lambda p: False, free=lambda p: False, pick=lambda: 61000,
-                 server=lambda p, e: served.append(p), ready=lambda p, probe: True)
+                 server=lambda p, e: served.append(p), ready=lambda p, probe: True,
+                 settle=lambda p: False)
     assert served == [61000] and wv.windows[0]["url"] == "http://127.0.0.1:61000/#home"
     assert wv.windows[0]["min_size"] == (960, 640)
 
