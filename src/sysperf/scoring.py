@@ -164,17 +164,26 @@ def vmmem_trend(history: list[dict]) -> tuple:
     Returns (slope_mb_per_h, span_seconds, n_points).
     """
     newest = None
+    win = TREND_WINDOW_S
+    pts = []
+    append = pts.append
+    # Newest-first: history is chronological, so the first in-window miss
+    # means every older sample is outside the window too.
     for s in reversed(history):
-        if s.get("vmmem_mb"):
-            nt = s.get("_t")
-            if nt:
-                newest = nt
-                break
+        v = s.get("vmmem_mb")
+        if not v:
+            continue
+        t = s.get("_t")
+        if not t:
+            continue
+        if newest is None:
+            newest = t
+        elif newest - t > win:
+            break
+        append((t, v))
     if newest is None:
         return 0.0, 0.0, 0
-    win = TREND_WINDOW_S
-    pts = [(t, v) for s in history
-           if (v := s.get("vmmem_mb")) and (t := s.get("_t")) and newest - t <= win]
+    pts.reverse()
 
     # Read at call time: the cap is sized to this machine's RAM once captured.
     collapse_from = _cfg.VMMEM_CAP_MB * 0.45
