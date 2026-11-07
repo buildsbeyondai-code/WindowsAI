@@ -38,7 +38,7 @@ dependencies = [
 dev = [
     "pytest==9.2.0",
     "ruff==0.17.1",
-    "uv==0.13.5",
+    "uv==0.13.6",
 ]
 
 [project.urls]
