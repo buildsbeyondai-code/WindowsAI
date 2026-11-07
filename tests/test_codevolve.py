@@ -465,3 +465,19 @@ def test_a_waiting_winner_whose_tests_fail_on_the_new_main_is_rejected(tmp_path,
     eng._tests = lambda wt, **kw: {"rc": 1, "failed": 1, "errors": 0, "summary": "1 failed"}
     assert eng.auto_apply_pending()["reason"] == "tests: 1 failed"
     assert db.candidate(cand["id"])["decision"] == "rejected"
+
+
+def test_evolve_commits_use_the_repo_git_identity(tmp_path, repo, monkeypatch):
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(tmp_path / "no-global"))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    for k, v in (("user.name", "Dev Name"), ("user.email", "dev@example.com")):
+        subprocess.run(["git", "-C", str(repo), "config", k, v], check=True)
+    assert codevolve._identity(repo) == ["-c", "user.name=Dev Name",
+                                         "-c", "user.email=dev@example.com"]
+
+
+def test_evolve_commits_fall_back_to_placeholder_without_identity(tmp_path, repo, monkeypatch):
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(tmp_path / "no-global"))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    assert codevolve._identity(repo) == ["-c", "user.name=SysPerf Evolution",
+                                         "-c", "user.email=evolution@sysperf.invalid"]

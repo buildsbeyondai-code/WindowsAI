@@ -414,6 +414,23 @@ class Sandbox:
 
 
 # --------------------------------------------------------------------- git --
+_EVOLVE_FALLBACK = (("user.name", "SysPerf Evolution"), ("user.email", "evolution@sysperf.invalid"))
+
+
+def _identity(repo: Path) -> list[str]:
+    """``-c`` options naming who authors evolve commits.
+
+    The repo's own git identity (local or global config) when it has one, so
+    retained patches are credited to the developer; the SysPerf Evolution
+    placeholder only for a field git has no value for.
+    """
+    opts: list[str] = []
+    for key, fallback in _EVOLVE_FALLBACK:
+        value = _git(repo, "config", "--get", key, check=False).strip()
+        opts += ["-c", f"{key}={value or fallback}"]
+    return opts
+
+
 def _git(repo: Path, *args, check=True, timeout: float = 60) -> str:
     try:
         r = run_hidden(["git", "-C", str(repo), *args], capture_output=True, text=True,
@@ -951,8 +968,7 @@ class CodeEvolution:
         cand_id = cand["id"]
         branch = f"sysperf-evolve/{cand_id}"
         _git(wt, "checkout", "-q", "-b", branch)
-        _git(wt, "-c", "user.name=SysPerf Evolution", "-c",
-             "user.email=evolution@sysperf.invalid", "commit", "-q", "-am",
+        _git(wt, *_identity(wt), "commit", "-q", "-am",
              f"evolve: {cand['title']}\n\n{cand['rationale']}\n\nCycle: {cid}\n"
              f"Benchmark: {reason}\nTests: {t['summary']}\n")
         cand["branch"] = branch
@@ -1520,9 +1536,7 @@ class CodeEvolution:
         wt = self._worktree(repo, head, f"{c['id']}-recheck")
         try:
             try:
-                _git(wt, "-c", "user.name=SysPerf Evolution",
-                     "-c", "user.email=evolution@sysperf.invalid",
-                     "cherry-pick", c["commit_sha"])
+                _git(wt, *_identity(wt), "cherry-pick", c["commit_sha"])
             except RuntimeError as exc:
                 return f"it no longer applies ({exc})"
             t = self._tests(wt)

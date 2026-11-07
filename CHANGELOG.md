@@ -4,6 +4,14 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+- **Self-evolution commits are credited to you.** Retained patches and their
+  re-checks are now authored with the repository's own git identity
+  (`user.name` / `user.email`); "SysPerf Evolution" is used only when git has
+  no identity configured.
+
 ## 5.5.3 — 2026-11-02
 
 Fixes for a low summary score on 2026-11-02, traced to two SysPerf servers on
