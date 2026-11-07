@@ -1160,6 +1160,23 @@
   .diag-err .lv.WARNING{color:var(--amber)}
   .st-ok{color:var(--green);font-weight:700} .st-degraded{color:var(--amber);font-weight:700}
   .st-error{color:var(--red);font-weight:700}
+  /* Frozen tab bar: the main view tabs stay pinned to the top of the window while
+     the page scrolls, like a spreadsheet's frozen top row. --tabs-h (set by
+     pinTabs()) is the space the bar takes, so the Details and Auto-Improve
+     sub-navs stick just below it and #sect-* jumps land below both. */
+  :root{--tabs-h:0px}
+  .tabs{position:sticky;top:6px;z-index:35;transition:background .2s ease,box-shadow .2s ease}
+  html{scroll-padding-top:var(--tabs-h)}
+  .det-nav,.auto-subnav{top:var(--tabs-h)}
+  .tabs.stuck{-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%)}
+  /* once stuck, a solid strip spans the full window width (a huge shadow spread,
+     clipped to the bar's band), with a hairline under it, so nothing beside or
+     behind the tabs shows through */
+  .tabs.stuck{clip-path:inset(-6px -100vmax -7px -100vmax)}
+  body.dark .tabs.stuck{background:rgb(10,13,20);
+    box-shadow:0 0 0 100vmax rgb(10,13,20),0 1px 0 100vmax rgba(255,255,255,.1)}
+  body:not(.dark) .tabs.stuck{background:rgb(246,247,251);
+    box-shadow:0 0 0 100vmax rgb(246,247,251),0 1px 0 100vmax rgba(0,0,0,.09)}
 </style>
 </head>
 <body>
@@ -3436,6 +3453,19 @@ function renderArchitecture(d) {
   };
   refresh();
   setInterval(() => { if (!document.hidden && view.style.display !== "none") refresh(); }, 30000);
+})();
+
+/* ---- frozen tab bar: report its height and mark it once the page scrolls under it ---- */
+(function pinTabs() {
+  const bar = document.querySelector("nav.tabs");
+  if (!bar) return;
+  const root = document.documentElement;
+  const size = () => root.style.setProperty("--tabs-h", (bar.offsetHeight + 12) + "px");
+  const stuck = () => bar.classList.toggle("stuck", window.scrollY > 8);
+  size(); stuck();
+  if (window.ResizeObserver) new ResizeObserver(size).observe(bar);
+  window.addEventListener("resize", size, { passive: true });
+  window.addEventListener("scroll", stuck, { passive: true });
 })();
 
 /* ---- view tabs: Summary (default) / Details / Live Architecture ---- */

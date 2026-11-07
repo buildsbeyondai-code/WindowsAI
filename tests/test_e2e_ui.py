@@ -176,6 +176,27 @@ def test_the_hash_selects_the_tab_on_load(browser, site):
         page.close()
 
 
+def test_the_tab_bar_stays_pinned_while_the_page_scrolls(browser, site):
+    """The view tabs are a frozen top row: after scrolling far down every tab is
+    still on screen and clickable, and the Details sub-nav sticks below them."""
+    page = _open(browser, site, hash_="#details")
+    _wait_filled(page, "drivers")
+    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    page.wait_for_timeout(400)
+    assert page.evaluate("window.scrollY") > 400, "page too short to scroll"
+    bar = page.eval_on_selector("nav.tabs", "e => { const r = e.getBoundingClientRect();"
+                                " return {top: r.top, bottom: r.bottom,"
+                                " stuck: e.classList.contains('stuck')}; }")
+    assert 0 <= bar["top"] <= 12 and bar["stuck"], bar
+    sub = page.eval_on_selector(".det-nav", "e => e.getBoundingClientRect().top")
+    assert sub >= bar["bottom"], (sub, bar)
+    page.click("#tab-summary")
+    page.wait_for_timeout(300)
+    assert page.eval_on_selector("#tab-summary",
+                                 "e => e.getAttribute('aria-selected')") == "true"
+    page.close()
+
+
 # ---------------------------------------------------------------- summary -------
 def test_the_summary_view_renders_its_cards(browser, site):
     page = _open(browser, site)

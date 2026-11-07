@@ -4,9 +4,15 @@ All notable changes to SysPerf are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 5.5.4 — 2026-11-07
 
 ### Changed
+- **The tab bar stays at the top while you scroll.** Home, Summary, Details,
+  Live Architecture, Auto-Improve, App Control, AI Self-Evolution and Settings
+  are pinned like a frozen top row, so you can switch views from anywhere on a
+  long page. Once the page scrolls under it the bar turns solid so text behind
+  it never shows through, and the Details and Auto-Improve section links stick
+  just below it.
 - **Self-evolution commits are credited to you.** Retained patches and their
   re-checks are now authored with the repository's own git identity
   (`user.name` / `user.email`); "SysPerf Evolution" is used only when git has
