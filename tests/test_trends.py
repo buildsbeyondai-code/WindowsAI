@@ -340,3 +340,26 @@ def test_ingest_matches_the_original_fold(tmp_path):
         assert json.dumps(new.days, sort_keys=False) == json.dumps(
             {k: {**v, "score": None} for k, v in ref.days.items()}, sort_keys=False)
         assert json.dumps(new.hours) == json.dumps(ref.hours)
+
+
+def test_recent_typicals_skips_days_without_the_metric_and_stops_at_the_window(tmp_path):
+    st = _store(tmp_path)
+    n = trends.MIN_DAY_SAMPLES
+    st.days = {
+        "2026-11-01": {"metrics": {"handles": {"sum": 100 * n, "n": n}}},
+        "2026-11-02": {"metrics": {"handles": {"sum": 200 * n, "n": n}}},
+        "2026-11-03": {"metrics": {}},                       # metric missing
+        "2026-11-04": {"metrics": {"handles": {"sum": 400 * n, "n": n}}},
+        "2026-11-05": {"metrics": {"handles": {"sum": 900, "n": 1}}},  # unsettled
+    }
+    assert st._recent_typicals("handles", 2) == st.day_typicals("handles")[-2:]
+    assert st._recent_typicals("handles", 2) == [("2026-11-02", 200.0),
+                                                 ("2026-11-04", 400.0)]
+
+
+def test_analyze_with_no_window_uses_every_settled_day(tmp_path):
+    st = _store(tmp_path)
+    for day in ("2026-11-01", "2026-11-02", "2026-11-03"):
+        _ingest_day(st, day)
+    whole = st.analyze("handles", window_days=0)
+    assert isinstance(whole, dict)

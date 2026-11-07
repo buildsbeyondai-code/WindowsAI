@@ -128,3 +128,20 @@ def test_instances_sharing_a_name_sum_cpu_and_keep_the_largest_working_set():
            {"n": "chrome", "pid": 3, "cpu_s": 8.0, "ws_mb": 50}]
     out = cpuwatch._interval_cpu(prev, cur, 8.0, 8)
     assert out == {"chrome": {"pct": 25.0, "ws_mb": 300}}
+
+
+def test_interval_cache_hits_on_the_same_sample_pair_and_evicts_the_oldest(monkeypatch):
+    """_cached_interval reuses a pair's result and stays within its size cap."""
+    monkeypatch.setattr(cpuwatch, "_INTERVAL_CACHE", {})
+    monkeypatch.setattr(cpuwatch, "_INTERVAL_CACHE_MAX", 2)
+    a = _sample(0, [{"n": "chrome", "pid": 1, "cpu_s": 0, "ws_mb": 100}])
+    b = _sample(8, [{"n": "chrome", "pid": 1, "cpu_s": 8, "ws_mb": 100}])
+    first = cpuwatch._cached_interval(a, b, 8.0, 8)
+    assert first is not None
+    assert cpuwatch._cached_interval(a, b, 8.0, 8) is first      # cache hit
+    c = _sample(16, [{"n": "chrome", "pid": 1, "cpu_s": 16, "ws_mb": 100}])
+    d = _sample(24, [{"n": "chrome", "pid": 1, "cpu_s": 24, "ws_mb": 100}])
+    cpuwatch._cached_interval(b, c, 8.0, 8)
+    cpuwatch._cached_interval(c, d, 8.0, 8)                       # evicts (a, b)
+    assert len(cpuwatch._INTERVAL_CACHE) == 2
+    assert (id(a), id(b)) not in cpuwatch._INTERVAL_CACHE
