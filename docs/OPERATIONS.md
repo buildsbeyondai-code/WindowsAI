@@ -131,6 +131,9 @@ Security problems go through SECURITY.md, not this log.
 
 ## Rollback of a release
 
+For the Store pipeline (a bad tag, release or Store build, a leaked secret,
+restoring the repository) see [RECOVERY.md](RECOVERY.md).
+
 The scripted install runs from a git checkout:
 
 ```powershell

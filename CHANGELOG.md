@@ -6,6 +6,18 @@ All notable changes to SysPerf are documented here. The format follows
 
 ## Unreleased
 
+### Added
+- **Release verification.** `tools/verify_release.py` checks a release's files
+  against its `SHA256SUMS.txt` (and flags unlisted packages); `docs/RECOVERY.md`
+  covers a bad tag, release or Store build, a leaked Store secret and restoring
+  the repository.
+
+### Security
+- **Releases wait for approval.** The MSIX `release` job runs in the `release`
+  environment, so a required reviewer set there must approve before a GitHub
+  Release (and so a Store submission) is published.
+- **Workflow actions are pinned to commit SHAs**, and a test keeps them pinned.
+
 ### Changed
 - **Self-evolution commits are credited to you.** Retained patches and their
   re-checks are now authored with the repository's own git identity
