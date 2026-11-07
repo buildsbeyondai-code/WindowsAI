@@ -62,6 +62,30 @@ def _interval_cpu(prev: dict, cur_procs: list, dt: float, ncpu: int) -> dict:
     return per_name
 
 
+# (id(a), id(b)) -> (a, b, a_procs, b_procs, len_a, len_b, dt, ncpu, per_name)
+_INTERVAL_CACHE: dict = {}
+_INTERVAL_CACHE_MAX = 64
+
+
+def _cached_interval(a: dict, b: dict, dt: float, ncpu: int):
+    """_interval_cpu for one sample pair, memoised across calls (None == no prev)."""
+    ap = a["cpu_procs"]
+    bp = b["cpu_procs"]
+    key = (id(a), id(b))
+    hit = _INTERVAL_CACHE.get(key)
+    if (hit is not None and hit[0] is a and hit[1] is b and hit[2] is ap
+            and hit[3] is bp and hit[4] == len(ap) and hit[5] == len(bp)
+            and hit[6] == dt and hit[7] == ncpu):
+        return hit[8]
+    prev = {p.get("pid"): p for p in ap
+            if isinstance(p, dict) and p.get("pid") is not None}
+    per_name = _interval_cpu(prev, bp, dt, ncpu) if prev else None
+    if key not in _INTERVAL_CACHE and len(_INTERVAL_CACHE) >= _INTERVAL_CACHE_MAX:
+        _INTERVAL_CACHE.pop(next(iter(_INTERVAL_CACHE)), None)
+    _INTERVAL_CACHE[key] = (a, b, ap, bp, len(ap), len(bp), dt, ncpu, per_name)
+    return per_name
+
+
 def recent_interval_cpu(history, name, count: int = 3, *,
                         max_intervals: int = CPU_MAX_INTERVALS) -> list:
     """Per-interval CPU% for a single process *name*, newest last.
@@ -135,11 +159,9 @@ def consistent_cpu(history, *, min_pct: float = CPU_MIN_PCT,
             continue
         ncpu = int(b.get("ncpu") or a.get("ncpu") or 1)
         ncpu_seen = ncpu
-        prev = {p.get("pid"): p for p in a["cpu_procs"]
-                if isinstance(p, dict) and p.get("pid") is not None}
-        if not prev:
+        per_name = _cached_interval(a, b, dt, ncpu)
+        if per_name is None:
             continue                      # nothing to difference against
-        per_name = _interval_cpu(prev, b["cpu_procs"], dt, ncpu)
         intervals += 1
         span_s += dt
         last_per_name = per_name          # newest interval wins == "current"
