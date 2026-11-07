@@ -693,3 +693,11 @@ the dashboard is just a view of it. `sysperf --report` needs no browser at all.
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+Copyright 2026 Jude Finney ([buildsbeyondai-code](https://github.com/buildsbeyondai-code)).
+
+**Trademarks.** "SysPerf" and the SysPerf logo are trademarks of Jude Finney.
+The licence covers the code, not the name or logo: forks and derivative works
+must be renamed and must not present themselves as the official SysPerf or as
+coming from its author. The official app is published only by Jude Finney on
+the [Microsoft Store](https://apps.microsoft.com/detail/9P558WJTTC0B).
