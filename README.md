@@ -1,66 +1,67 @@
-# SysPerf — System Performance Agent
+# Sysperf: Self-Improving Agentic AI for Windows Optimization
 
-**A self-improving performance dashboard for Windows 11.** SysPerf measures your PC, learns that machine's own
+**A self-improving performance agent for Windows 11.** SysPerf measures your PC, learns that machine's own
 baseline, scores progress against targets derived from its actual capacity, and tells you exactly what to change.
 With your consent it makes the safe changes itself, and every one can be undone.
 
 <a href="https://apps.microsoft.com/detail/9P558WJTTC0B?mode=direct"><img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Get SysPerf from the Microsoft Store" width="200"/></a>
 
-Free from the [Microsoft Store](https://apps.microsoft.com/detail/9P558WJTTC0B) (Windows 11).
+Free from the [Microsoft Store](https://apps.microsoft.com/detail/9P558WJTTC0B) (Windows 11). Current version: **6.0**.
 
-**The dashboard has eight tabs:** [Home](#1-home) · [Summary](#2-summary) · [Details](#3-details) ·
-[Live Architecture](#4-live-architecture) · [Auto-Improve](#5-auto-improve) · [App Control](#6-app-control) ·
-[AI Self-Evolution](#7-ai-self-evolution) · [Settings](#8-settings)
+**The dashboard has nine tabs:** [Home](#1-home) · [Details](#2-details) · [Live Architecture](#3-live-architecture) ·
+[Auto-Improve](#4-auto-improve) · [App Control](#5-app-control) · [AI Self-Evolution](#6-ai-self-evolution) ·
+[Settings](#7-settings) · [Claude](#8-claude) · [About](#9-about)
 
 Then every section of the Details tab: [Details — all 17 sections](#details--all-17-sections)
 
-Every tab shares the same header: the version, a live indicator with the time of the last full sample and the next
-refresh, a notifications bell, a **Common Fix** button, a dark-mode switch, and a status strip showing the autonomy
-level, the self-evolution state, the AI provider, the sandbox and how many changes are waiting for review.
+Every tab shares the same header: a title naming what the tab is for, the version, a live indicator with the time of
+the last full sample and the next refresh, a notifications bell, a **Common Fix** button, a dark-mode switch, and a
+status strip showing the autonomy level, the self-evolution state, the AI provider, the sandbox and how many changes
+are waiting for review.
+
+## What's new in 6.0
+- **Apps installed for all users update automatically.** Allow it once with one administrator prompt, and SysPerf
+  updates them after each scan with no further prompt.
+- **Components are always kept current:** Git for Windows, GitHub CLI, winget, PowerShell and the other tools, each
+  upgrade tested first and rolled back if it fails. A release winget does not offer yet simply waits.
+- **Stop a background service and it stays off,** also after a restart; Start brings it back.
+- **A new Claude tab** shows the tools Claude Code works with, live.
+- **Home now covers everything**, so the Summary tab is gone, and every tab is headed by its purpose.
 
 ---
 
 ## 1. Home
 ![Home](docs/screenshots/1-home-dark.png)
 
-Your PC's health at a glance.
-- **Health ring:** one overall score (for example *93% — Healthy*), with the system score, the improvement score,
-  targets met, partial or regressed, and when the PC was last measured.
-- **Do these next:** the few actions that matter right now, or *Nothing needs you right now*.
-- **What SysPerf did today:** every fix, scan and self-evolution cycle it ran, with the time.
-- **Service health:** whether SysPerf itself is running cleanly (errors and warnings in the last hour), with a link
-  to diagnostics.
-- **Latest notifications:** score drops with the cause behind them (for example *memory compression is 46.9% of the
-  gap*), and AI patches that were deployed and are running healthily.
-- **Long-term history** further down the page, plus a Beginner / Advanced view switch.
+Your PC's health in plain words, on one screen.
+- **System score ring:** one overall score (for example *90% — Healthy*) with a plain verdict.
+- **Findings from Details:** apps needing an update, drivers and Windows parts behind the latest version, background
+  services that can be closed when not in use, registry health, junk files to clear, and virus and firewall
+  protection. A finding not measured yet says *first scan pending*.
+- **Everything SysPerf tracks:** a 0–100 tile for each area in everyday words — **Memory (RAM), Linux apps memory,
+  Web browser load, Apps' system load, Processor (CPU), Start-up speed, Disk space & health, Internet settings,
+  Wi-Fi, Hardware & drivers, Software up to date** — plus **Crashes (30 days)**. Each tile opens the Details
+  scorecard behind it.
 
-## 2. Summary
-![Summary](docs/screenshots/2-summary-dark.png)
+## 2. Details
+![Details](docs/screenshots/2-details-dark.png)
 
-The system scorecard in one screen.
-- A **score out of 100** with counts of criteria on target, partial, below target and still measuring.
-- One bar and score for each area: **memory pressure, WSL 2, browser footprint, application handles, CPU and
-  processes, launch and boot times, storage, network optimisation, Wi-Fi connectivity, hardware and drivers, and
-  component currency** (how up to date your software is).
-- A **score stabilising** notice right after sign-in or resume, so the first busy minutes of a session don't count
-  against you.
-
-## 3. Details
-![Details](docs/screenshots/3-details-dark.png)
-
-Everything SysPerf measures, in 17 sections (each shown [at the end](#details--all-17-sections)): **Overview, Scorecard, Trends, Browser, WSL and kernel, Wi-Fi,
-Network, Hardware, Drivers, Components, Maintenance, Protection, Cleanup, Registry, Security, Services and tasks,
-and App updates.**
+Everything SysPerf measures, in 17 sections (each shown [at the end](#details--all-17-sections)): **Overview, Scorecard,
+Trends, Browser, WSL and kernel, Wi-Fi, Network, Hardware, Drivers, Components, Maintenance, Protection, Cleanup,
+Registry, Security, Services and tasks, and App updates.**
 - **Overview:** system score, room for improvement, criteria status and **memory pressure right now** (commit
   charge, physical RAM, available memory, compression).
 - **Key metrics** cards with sparklines, each showing the live value, the change against *your* baseline and the
-  target, for example active-app commit, memory compression, available physical memory, WSL memory, browser
-  processes and app handles.
+  target.
 - **Success-criteria scorecard:** baseline, live value, target, change, progress and status for every criterion,
   with improvements today and personal bests.
+- **Services:** stop a third-party service you are not using (it stays off, also after a restart) or start it
+  again. Security software, drivers, WSL, Hyper-V and SysPerf itself are never offered.
+- **App updates and Components:** updates for your apps, including those installed for all users, and the
+  command-line tools SysPerf relies on, each kept current automatically.
 
-## 4. Live Architecture
-![Live Architecture](docs/screenshots/4-architecture-dark.png)
+## 3. Live Architecture
+![Live Architecture](docs/screenshots/3-architecture-dark.png)
 
 A live map of how SysPerf works, with each part coloured by its health right now (healthy, degraded or offline).
 - **Sense and serve:** the Windows 11 host and sampler, the collector, scoring and snapshots, the local API (bound
@@ -71,50 +72,54 @@ A live map of how SysPerf works, with each part coloured by its health right now
   cause → fix → verify → learn), the action policy, code self-evolution, and the audit and quality gates.
 - Real numbers on every card, such as samples stored, the last sweep time, criteria met and workers alive.
 
-## 5. Auto-Improve
-![Auto-Improve](docs/screenshots/5-auto-dark.png)
+## 4. Auto-Improve
+![Auto-Improve](docs/screenshots/4-auto-dark.png)
 
-The agent that keeps your PC on target.
+Automatic speed-ups for your PC, each one measured before and after, with undo.
 - **Status cards:** health score against its target, mode (*Auto* or recommend-only), next scan, long-term trend,
   current usage load, and whether unattended fixes are safe right now (it avoids your peak hours).
 - **Scan & analyse now** or **Scan, RCA & fix now** buttons.
 - **Recommendations** with the evidence behind each one, then each fix with its **risk, how to undo it and the
   effect measured on your PC**.
-- Sections for strategy performance (win rate per strategy, learning activity), launch times, strategies and
-  knowledge, action items, root cause, evolution, tests, the last cycle, learnings, CPU-heavy apps and trends.
 
-## 6. App Control
-![App Control](docs/screenshots/6-appctl-dark.png)
+## 5. App Control
+![App Control](docs/screenshots/5-appctl-dark.png)
 
 Take back memory and CPU from apps you aren't using.
 - Live totals for **CPU, WSL memory, OneDrive and the Explorer watchdog** (which restarts Explorer if it hangs).
 - **Applications using the most CPU**, each with its memory, typical CPU and peak, and a **Stop** button.
-- **Quit tray apps when closed:** apps such as chat or music players that keep running in the tray after you close
-  them. For each one, choose **Allow, Never, Ask or Remove**, and set how long it may sit in the tray before it's
-  closed. It shows how much memory was freed in the last 24 hours, and suggests other background apps holding RAM.
+- **Quit tray apps when closed:** for each one, choose **Allow, Never, Ask or Remove**, and set how long it may sit
+  in the tray before it's closed.
 
-## 7. AI Self-Evolution
-![AI Self-Evolution](docs/screenshots/7-evo-dark.png)
+## 6. AI Self-Evolution
+![AI Self-Evolution](docs/screenshots/6-evo-dark.png)
 
-SysPerf improves its own code, safely. **Off by default** and uses your own AI provider key.
-- A **readiness check** (for example *6/6 requirements ready*): autonomy level, evolution switched on, approved
-  repository, AI provider, isolation sandbox and an intact audit chain.
-- Counts of **candidates, retained, pending review, applied and rejected** changes.
+SysPerf improves its own code, safely. **Off by default** and uses your own AI provider.
+- A **readiness check**: autonomy level, evolution switched on, approved repository, AI provider, isolation sandbox
+  and an intact audit chain.
 - Each proposed improvement is **built and tested in a sandbox and benchmarked**. Winners are deployed, verified on
   the running service and **rolled back automatically** if SysPerf isn't healthy afterwards.
-- **Engine telemetry:** last and next run, AI calls, tokens used today, estimated cost and the daily limit. Every
-  figure is a recorded measurement.
+- Tool upgrades (Git for Windows, GitHub CLI, winget, PowerShell, Claude Code) are tested the same way.
 
-## 8. Settings
-![Settings](docs/screenshots/8-settings-dark.png)
+## 7. Settings
+![Settings](docs/screenshots/7-settings-dark.png)
 
-Everything is adjustable, with a short explanation beside each option.
-- **General:** sampling interval, the score that triggers auto-improve, scan interval, whether SysPerf may run
-  fixes at all, how long raw samples are kept, and whether the dashboard opens at start-up.
+Everything is adjustable, with a short explanation beside each option, validated before anything is saved.
 - **Autonomy:** *off*, *observe* (recommend only), *safe_auto* (run enabled low-risk actions) or *self_evolve*.
-- **AI self-evolution:** on or off, how often and how many times a day it runs, and whether winning changes wait for
-  your review or are applied automatically.
+- **Goals, scan timing, privacy** and **AI self-evolution** limits.
 - **Save, reset to defaults, export, import**, and **send a test notification**.
+
+## 8. Claude
+![Claude](docs/screenshots/8-claude-dark.png)
+
+Claude in your PC: Claude Code at the centre, what SysPerf uses it for (such as self-evolution), and the tools it
+works with — GitHub, the Microsoft Store, winget, PowerShell 7, Git for Windows and more — each with a status
+measured live on this PC.
+
+## 9. About
+![About](docs/screenshots/9-about-dark.png)
+
+The version, what SysPerf does, privacy, the licence and how to get support (buildsbeyondai@gmail.com).
 
 ## Details — all 17 sections
 The Details tab has a sub-tab for every area SysPerf measures. Each one is shown below in order.
